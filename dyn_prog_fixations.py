@@ -65,6 +65,7 @@ std = 0.25
 
 # Parameters of the grid.
 stateStep = 0.1
+timeStep = 10
 initialBarrierUp = 1
 initialBarrierDown = -1
 
@@ -75,11 +76,25 @@ for subject in subjects:
     print 'Running subject ' + subject + '...'
     trials = rt[subject].keys()
     for trial in trials:
-        time = 0
+        if trial % 100 == 0:
+            print 'Trial ' + str(trial)
+
+        # Iterate over the fixations and get the transition time for this trial.
+        itemFixTime = 0
+        transitionTime = 0
+        for fItem, fTime in zip(fixItem[subject][trial],
+            fixTime[subject][trial]):
+            if fItem == 1 or fItem == 2:
+                itemFixTime += int(fTime/timeStep)
+            else:
+                transitionTime += int(fTime/timeStep)
+
         # The total time of this trial is given by the sum of all fixations in
         # the trial.
-        maxTime = int(np.sum(fixTime[subject][trial]))
-        print 'Total time: ' + str(maxTime)
+        maxTime = itemFixTime + transitionTime
+
+        # We start couting the trial time at the end of the transition time.
+        time = transitionTime
 
         # The values of the barriers can change over time.
         decay = 0  # decay = 0 means barriers are constant.
@@ -95,16 +110,17 @@ for subject in subjects:
         idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
         states[idx] = 0
 
-        # Initial probability for all states is zero, except the zero state, for
-        # which the initial probability is one.
+        # Initial probability for all states is zero, except for the zero state,
+        # which has initial probability equal to one.
         prStates = np.zeros(states.size)
         idx = np.where(states==0)[0]
         prStates[idx] = 1
 
+        # The probability of crossing each barrier over the time of the trial.
         probUpCrossing = np.zeros(maxTime)
         probDownCrossing = np.zeros(maxTime)
 
-        # Iterate over the fixations in this trial.
+        # Iterate over all fixations in this trial.
         for fItem, fTime in zip(fixItem[subject][trial],
             fixTime[subject][trial]):
             if fItem == 1:  # subject is looking left.
@@ -121,10 +137,7 @@ for subject in subjects:
             mean = d * (valueLooking - theta*valueNotLooking)
 
             # Iterate over the time interval of this fixation.
-            for t in xrange(0, int(fTime)):
-                if time % 100 == 0:
-                    print 'Time: ' + str(time)
-
+            for t in xrange(0, int(fTime/timeStep)):
                 prStatesNew = np.zeros(states.size)
 
                 # Update the probability of the states that remain inside the
@@ -171,9 +184,14 @@ for subject in subjects:
 
         # Compute the likelihood contribution of this trial based on the final
         # choice.
-        if choice[subject][trial] == -1:  # choice was left.
-            likelihood -= np.log(probUpCrossing[-1])
-        elif choice[subject][trial] == 1:  # choice was right.
-            likelihood -= np.log(probDownCrossing[-1])
+        try:
+            if choice[subject][trial] == -1:  # choice was left.
+                likelihood -= np.log(probUpCrossing[-1])
+            elif choice[subject][trial] == 1:  # choice was right.
+                likelihood -= np.log(probDownCrossing[-1])
+        except MemoryError:
+            print 'Memory error!'
+        except OverflowError:
+            print 'Overflow error!'
 
-print likelihood
+print 'Likelihood: ' + str(likelihood)
