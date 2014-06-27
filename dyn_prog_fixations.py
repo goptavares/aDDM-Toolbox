@@ -209,12 +209,14 @@ def run_analysis(data, d, theta, std):
 
 if __name__ == '__main__':
     data = get_data_from_csv()
-    likelihood = dict()
+    likelihood_coarse = dict()
+    likelihood_fine = dict()
 
-    # Grid search on the parameters of the model.
-    rangeD = [0.002, 0.0025]
-    rangeTheta = [0.7, 0.9]
-    rangeStd = [0.2, 0.25]
+    # Coarse grid search on the parameters of the model.
+    print 'Starting coarse grid search...'
+    rangeD = [0.0015, 0.002, 0.0025]
+    rangeTheta = [0.5, 0.7, 0.9]
+    rangeStd = [0.15, 0.2, 0.25]
 
     numIterations = len(rangeD) * len(rangeTheta) * len(rangeStd)
     it = 1
@@ -222,5 +224,43 @@ if __name__ == '__main__':
         for theta in rangeTheta:
             for std in rangeStd:
                 print 'Iteration ' + str(it) + ' of ' + str(numIterations)
-                likelihood[(d, theta, std)] = run_analysis(data, d, theta, std)
+                likelihood_coarse[(d, theta, std)] = run_analysis(data, d,
+                    theta, std)
                 it += 1
+
+    optimParams = max(likelihood_coarse.iteritems(),
+        key=operator.itemgetter(1))[0]
+    optimD = optimParams[0]
+    optimTheta = optimParams[1]
+    optimStd = optimParams[2]
+    print 'Finished coarse grid search!'
+    print 'Optimal d: ' + str(optimD)
+    print 'Optimal theta: ' + str(optimTheta)
+    print 'Optimal std: ' + str(optimStd)
+
+    Fine grid search on the parameters of the model.
+    print 'Starting fine grid search...'
+    rangeD = [optimD-0.00025, optimD, optimD+0.00025]
+    rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
+    rangeStd = [optimStd-0.025, optimStd, optimStd+0.025]
+
+    numIterations = len(rangeD) * len(rangeTheta) * len(rangeStd)
+    it = 1
+    for d in rangeD:
+        for theta in rangeTheta:
+            for std in rangeStd:
+                print 'Iteration ' + str(it) + ' of ' + str(numIterations)
+                likelihood_fine[(d, theta, std)] = run_analysis(data, d, theta,
+                    std)
+                it += 1
+
+    optimParams = max(likelihood_fine.iteritems(),
+        key=operator.itemgetter(1))[0]
+    optimD = optimParams[0]
+    optimTheta = optimParams[1]
+    optimStd = optimParams[2]
+    print 'Finished fine grid search!'
+    print 'Optimal d: ' + str(optimD)
+    print 'Optimal theta: ' + str(optimTheta)
+    print 'Optimal std: ' + str(optimStd)
+    
