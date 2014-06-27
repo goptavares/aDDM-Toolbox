@@ -238,7 +238,7 @@ if __name__ == '__main__':
     print 'Optimal theta: ' + str(optimTheta)
     print 'Optimal std: ' + str(optimStd)
 
-    Fine grid search on the parameters of the model.
+    # Fine grid search on the parameters of the model.
     print 'Starting fine grid search...'
     rangeD = [optimD-0.00025, optimD, optimD+0.00025]
     rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
@@ -263,4 +263,3 @@ if __name__ == '__main__':
     print 'Optimal d: ' + str(optimD)
     print 'Optimal theta: ' + str(optimTheta)
     print 'Optimal std: ' + str(optimStd)
-    
