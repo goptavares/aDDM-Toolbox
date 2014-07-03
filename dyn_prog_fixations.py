@@ -19,15 +19,10 @@ def get_data_from_csv():
     df = pd.DataFrame.from_csv('expdata.csv', header=0, sep=',', index_col=None)
     subjects = df.parcode.unique()
 
-    # global rt
-    # global choice
-    # global leftValue
-    # global rightValue
     rt = dict()
     choice = dict()
     leftValue = dict()
     rightValue = dict() 
-
 
     for subject in subjects:
         rt[subject] = dict()
@@ -54,8 +49,6 @@ def get_data_from_csv():
         index_col=None)
     subjects = df.parcode.unique()
 
-    # global fixItem
-    # global fixTime
     fixItem = dict()
     fixTime = dict()
 
