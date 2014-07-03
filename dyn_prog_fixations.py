@@ -81,7 +81,7 @@ def run_analysis(rt, choice, leftValue, rightValue, fixItem, fixTime, d, theta,
     subjects = rt.keys()
     likelihood = 0
 
-    for subject in ['mar']:#subjects:
+    for subject in subjects:
         print 'Running subject ' + subject + '...'
         trials = rt[subject].keys()
         for trial in trials:
