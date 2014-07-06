@@ -69,27 +69,7 @@ def get_data_from_csv():
     return data(rt, choice, leftValue, rightValue, fixItem, fixTime)
 
 
-def run_analysis(rt, choice, leftValue, rightValue, fixItem, fixTime, d, theta,
-    std):
-    subjects = rt.keys()
-    likelihood = 0
-
-    for subject in subjects:
-        print 'Running subject ' + subject + '...'
-        trials = rt[subject].keys()
-        for trial in trials:
-            if trial % 200 == 0:
-                print 'Trial ' + str(trial)
-            likelihood -= analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], leftValue[subject][trial],
-                rightValue[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std)
-            
-    print 'Likelihood: ' + str(likelihood)
-    return likelihood
-
-
-jit("f4(f4[:],i4[:],i4[:],i4[:],i4[:],f4[:],f4,f4,f4)")
+@jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
 def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
     theta, std):
     # Parameters of the grid.
@@ -201,15 +181,30 @@ def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
 
     # Compute the likelihood contribution of this trial based on the
     # final choice.
-    try:
-        if choice == -1:  # choice was left.
-            likelihood = np.log(probUpCrossing[-1])
-        elif choice == 1:  # choice was right.
-            likelihood = np.log(probDownCrossing[-1])
-    except MemoryError:
-        print 'Memory error!'
-    except OverflowError:
-        print 'Overflow error!'
+    if choice == -1:  # choice was left.
+        likelihood = np.log(probUpCrossing[-1])
+    elif choice == 1:  # choice was right.
+        likelihood = np.log(probDownCrossing[-1])
+    return likelihood
+
+
+def run_analysis(rt, choice, leftValue, rightValue, fixItem, fixTime, d, theta,
+    std):
+    subjects = rt.keys()
+    likelihood = 0
+
+    for subject in subjects:
+        print 'Running subject ' + subject + '...'
+        trials = rt[subject].keys()
+        for trial in trials:
+            if trial % 200 == 0:
+                print 'Trial ' + str(trial)
+            likelihood -= analysis_per_trial(rt[subject][trial],
+                choice[subject][trial], leftValue[subject][trial],
+                rightValue[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, std)
+            
+    print 'Likelihood: ' + str(likelihood)
     return likelihood
 
 
