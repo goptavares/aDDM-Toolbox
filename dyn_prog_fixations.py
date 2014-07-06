@@ -194,17 +194,17 @@ def run_analysis(rt, choice, leftValue, rightValue, fixItem, fixTime, d, theta,
     likelihood = 0
 
     for subject in subjects:
-        print 'Running subject ' + subject + '...'
+        print("Running subject " + subject + "...")
         trials = rt[subject].keys()
         for trial in trials:
             if trial % 200 == 0:
-                print 'Trial ' + str(trial)
+                print("Trial " + str(trial))
             likelihood -= analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], leftValue[subject][trial],
                 rightValue[subject][trial], fixItem[subject][trial],
                 fixTime[subject][trial], d, theta, std)
             
-    print 'Likelihood: ' + str(likelihood)
+    print("Likelihood: " + str(likelihood))
     return likelihood
 
 
@@ -225,7 +225,7 @@ def main():
     fixTime = data.fixTime
 
     # Coarse grid search on the parameters of the model.
-    print 'Starting coarse grid search...'
+    print("Starting coarse grid search...")
     rangeD = [0.0015, 0.002, 0.0025]
     rangeTheta = [0.5, 0.7, 0.9]
     rangeStd = [0.15, 0.2, 0.25]
@@ -241,24 +241,21 @@ def main():
                     d, theta, std)
                 list_params.append(params)
 
-    print 'Starting pool of workers...'
+    print("Starting pool of workers...")
     results_coarse = pool.map(run_analysis_wrapper, list_params)
-    pool.close()
-    pool.join()
-    print [r for r in results_coarse]
 
     # Get optimal parameters.
     max_likelihood_idx = results_coarse.index(max(results_coarse))
     optimD = models[max_likelihood_idx][0]
     optimTheta = models[max_likelihood_idx][1]
     optimStd = models[max_likelihood_idx][2]
-    print 'Finished coarse grid search!'
-    print 'Optimal d: ' + str(optimD)
-    print 'Optimal theta: ' + str(optimTheta)
-    print 'Optimal std: ' + str(optimStd)
+    print("Finished coarse grid search!")
+    print("Optimal d: " + str(optimD))
+    print("Optimal theta: " + str(optimTheta))
+    print("Optimal std: " + str(optimStd))
 
     # Fine grid search on the parameters of the model.
-    print 'Starting fine grid search...'
+    print("Starting fine grid search...")
     rangeD = [optimD-0.00025, optimD, optimD+0.00025]
     rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
     rangeStd = [optimStd-0.025, optimStd, optimStd+0.025]
@@ -274,21 +271,18 @@ def main():
                     d, theta, std)
                 list_params.append(params)
 
-    print 'Starting pool of workers...'
+    print("Starting pool of workers...")
     results_fine = pool.map(run_analysis_wrapper, list_params)
-    pool.close()
-    pool.join()
-    print [r for r in results_fine]
 
     # Get optimal parameters.
     max_likelihood_idx = results_fine.index(max(results_fine))
     optimD = models[max_likelihood_idx][0]
     optimTheta = models[max_likelihood_idx][1]
     optimStd = models[max_likelihood_idx][2]
-    print 'Finished fine grid search!'
-    print 'Optimal d: ' + str(optimD)
-    print 'Optimal theta: ' + str(optimTheta)
-    print 'Optimal std: ' + str(optimStd)
+    print("Finished fine grid search!")
+    print("Optimal d: " + str(optimD))
+    print("Optimal theta: " + str(optimTheta))
+    print("Optimal std: " + str(optimStd))
 
 
 if __name__ == '__main__':
