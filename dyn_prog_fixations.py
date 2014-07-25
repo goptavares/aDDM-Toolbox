@@ -21,14 +21,14 @@ def get_data_from_csv():
 
     rt = dict()
     choice = dict()
-    leftValue = dict()
-    rightValue = dict() 
+    valueLeft = dict()
+    valueRight = dict() 
 
     for subject in subjects:
         rt[subject] = dict()
         choice[subject] = dict()
-        leftValue[subject] = dict()
-        rightValue[subject] = dict()
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
         dataSubject = np.array(df.loc[df['parcode']==subject,
             ['trial','rt','choice','dist_left','dist_right']])
         trials = np.unique(dataSubject[:,0]).tolist()
@@ -38,9 +38,9 @@ def get_data_from_csv():
                 'dist_right']])
             rt[subject][trial] = dataTrial[0,0]
             choice[subject][trial] = dataTrial[0,1]
-            leftValue[subject][trial] = np.absolute(
+            valueLeft[subject][trial] = np.absolute(
                 (np.absolute(dataTrial[0,2])-15)/5)
-            rightValue[subject][trial] = np.absolute(
+            valueRight[subject][trial] = np.absolute(
                 (np.absolute(dataTrial[0,3])-15)/5)
 
     # Load fixation data from CSV file.
@@ -64,13 +64,13 @@ def get_data_from_csv():
             fixItem[subject][trial] = dataTrial[:,0]
             fixTime[subject][trial] = dataTrial[:,1]
 
-    data = collections.namedtuple('Data', ['rt', 'choice', 'leftValue',
-        'rightValue', 'fixItem', 'fixTime'])
-    return data(rt, choice, leftValue, rightValue, fixItem, fixTime)
+    data = collections.namedtuple('Data', ['rt', 'choice', 'valueLeft',
+        'valueRight', 'fixItem', 'fixTime'])
+    return data(rt, choice, valueLeft, valueRight, fixItem, fixTime)
 
 
 @jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
-def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
+def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     theta, std):
     # Parameters of the grid.
     stateStep = 0.1
@@ -78,8 +78,7 @@ def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
     initialBarrierUp = 1
     initialBarrierDown = -1
 
-    # Iterate over the fixations and get the transition time for this
-    # trial.
+    # Iterate over the fixations and get the transition time for this trial.
     itemFixTime = 0
     transitionTime = 0
     for fItem, fTime in zip(fixItem, fixTime):
@@ -108,55 +107,52 @@ def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
     idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
     states[idx] = 0
 
-    # Initial probability for all states is zero, except for the zero
-    # state, which has initial probability equal to one.
+    # Initial probability for all states is zero, except for the zero state,
+    # which has initial probability equal to one.
     prStates = np.zeros(states.size)
     idx = np.where(states==0)[0]
     prStates[idx] = 1
 
-    # The probability of crossing each barrier over the time of the
-    # trial.
+    # The probability of crossing each barrier over the time of the trial.
     probUpCrossing = np.zeros(maxTime)
     probDownCrossing = np.zeros(maxTime)
 
     # Iterate over all fixations in this trial.
     for fItem, fTime in zip(fixItem, fixTime):
         if fItem == 1:  # subject is looking left.
-            valueLooking = leftValue
-            valueNotLooking = rightValue
+            valueLooking = valueLeft
+            valueNotLooking = valueRight
         elif fItem == 2:  # subject is looking right.
-            valueLooking = rightValue
-            valueNotLooking = leftValue
+            valueLooking = valueRight
+            valueNotLooking = valueLeft
         else:
             continue
 
-        # The mean of the distribution is calculated from the model
-        # parameters and from the values of the two items.
+        # The mean of the distribution is calculated from the model parameters
+        # and from the values of the two items.
         mean = d * (valueLooking - theta*valueNotLooking)
 
         # Iterate over the time interval of this fixation.
         for t in xrange(0, int(fTime/timeStep)):
             prStatesNew = np.zeros(states.size)
 
-            # Update the probability of the states that remain inside
-            # the barriers.
+            # Update the probability of the states that remain inside the
+            # barriers.
             for s in xrange(0,states.size):
                 currState = states[s]
                 if (currState > barrierDown[time] and
                     currState < barrierUp[time]):
                     change = (currState * np.ones(states.size)) - states
-                    # The probability of being in state B is the sum,
-                    # over all states A, of the probability of being in
-                    # A at the previous timestep times the probability
-                    # of changing from A to B.
+                    # The probability of being in state B is the sum, over all
+                    # states A, of the probability of being in A at the previous
+                    # timestep times the probability of changing from A to B.
                     prStatesNew[s] = (stateStep * np.sum(np.multiply(prStates,
                         norm.pdf(change,mean,std))))
 
-            # Calculate the probabilities of crossing the up barrier and
-            # the down barrier. This is given by the sum, over all
-            # states A, of the probability of being in A at the previous
-            # timestep times the probability of crossing the barrier if
-            # A is the previous sstate.
+            # Calculate the probabilities of crossing the up barrier and the
+            # down barrier. This is given by the sum, over all states A, of the
+            # probability of being in A at the previous timestep times the
+            # probability of crossing the barrier if A is the previous state.
             changeUp = (barrierUp[time] * np.ones(states.size)) - states
             tempUpCross = np.sum(np.multiply(prStates,
                 (1 - norm.cdf(changeUp,mean,std))))
@@ -171,16 +167,16 @@ def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
             tempUpCross = tempUpCross * sumIn/sumCurrent
             tempDownCross = tempDownCross * sumIn/sumCurrent
 
-            # Update the probabilities of each state and the
-            # probabilities of crossing each barrier at this timestep.
+            # Update the probabilities of each state and the probabilities of
+            # crossing each barrier at this timestep.
             prStates = prStatesNew
             probUpCrossing[time] = tempUpCross
             probDownCrossing[time] = tempDownCross
 
             time += 1
 
-    # Compute the likelihood contribution of this trial based on the
-    # final choice.
+    # Compute the likelihood contribution of this trial based on the final
+    # choice.
     if choice == -1:  # choice was left.
         likelihood = np.log(probUpCrossing[-1])
     elif choice == 1:  # choice was right.
@@ -188,11 +184,10 @@ def analysis_per_trial(rt, choice, leftValue, rightValue, fixItem, fixTime, d,
     return likelihood
 
 
-def run_analysis(rt, choice, leftValue, rightValue, fixItem, fixTime, d, theta,
+def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     std):
-    subjects = rt.keys()
     likelihood = 0
-
+    subjects = rt.keys()
     for subject in subjects:
         print("Running subject " + subject + "...")
         trials = rt[subject].keys()
@@ -200,8 +195,8 @@ def run_analysis(rt, choice, leftValue, rightValue, fixItem, fixTime, d, theta,
             if trial % 200 == 0:
                 print("Trial " + str(trial))
             likelihood -= analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], leftValue[subject][trial],
-                rightValue[subject][trial], fixItem[subject][trial],
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
                 fixTime[subject][trial], d, theta, std)
             
     print("Likelihood: " + str(likelihood))
@@ -219,8 +214,8 @@ def main():
     data = get_data_from_csv()
     rt = data.rt
     choice = data.choice
-    leftValue = data.leftValue
-    rightValue = data.rightValue
+    valueLeft = data.valueLeft
+    valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
@@ -237,7 +232,7 @@ def main():
         for theta in rangeTheta:
             for std in rangeStd:
                 models.append((d, theta, std))
-                params = (rt, choice, leftValue, rightValue, fixItem, fixTime,
+                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
                     d, theta, std)
                 list_params.append(params)
 
@@ -267,7 +262,7 @@ def main():
         for theta in rangeTheta:
             for std in rangeStd:
                 models.append((d, theta, std))
-                params = (rt, choice, leftValue, rightValue, fixItem, fixTime,
+                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
                     d, theta, std)
                 list_params.append(params)
 
