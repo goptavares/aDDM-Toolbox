@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 
-def get_data_from_csv():
+def load_data_from_csv():
     # Load experimental data from CSV file.
     # Format: parcode, trial, rt, choice, dist_left, dist_right.
     df = pd.DataFrame.from_csv('expdata.csv', header=0, sep=',', index_col=None)
@@ -211,7 +211,7 @@ def main():
     numThreads = 4
     pool = Pool(numThreads)
 
-    data = get_data_from_csv()
+    data = load_data_from_csv()
     rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft

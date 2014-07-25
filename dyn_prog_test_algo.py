@@ -3,70 +3,11 @@
 # dyn_prog_test_algo.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
-from multiprocessing import Pool
-from numba import jit
-from scipy.stats import norm
-
 import collections
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
-def get_data_from_csv():
-    # Load experimental data from CSV file.
-    # Format: parcode, trial, rt, choice, dist_left, dist_right.
-    df = pd.DataFrame.from_csv('expdata.csv', header=0, sep=',', index_col=None)
-    subjects = df.parcode.unique()
-
-    rt = dict()
-    choice = dict()
-    valueLeft = dict()
-    valueRight = dict() 
-
-    for subject in subjects:
-        rt[subject] = dict()
-        choice[subject] = dict()
-        valueLeft[subject] = dict()
-        valueRight[subject] = dict()
-        dataSubject = np.array(df.loc[df['parcode']==subject,
-            ['trial','rt','choice','dist_left','dist_right']])
-        trials = np.unique(dataSubject[:,0]).tolist()
-        for trial in trials:
-            dataTrial = np.array(df.loc[(df['trial']==trial) &
-                (df['parcode']==subject), ['rt','choice','dist_left',
-                'dist_right']])
-            rt[subject][trial] = dataTrial[0,0]
-            choice[subject][trial] = dataTrial[0,1]
-            valueLeft[subject][trial] = np.absolute(
-                (np.absolute(dataTrial[0,2])-15)/5)
-            valueRight[subject][trial] = np.absolute(
-                (np.absolute(dataTrial[0,3])-15)/5)
-
-    # Load fixation data from CSV file.
-    # Format: parcode, trial, fix_item, fix_time.
-    df = pd.DataFrame.from_csv('fixations.csv', header=0, sep=',',
-        index_col=None)
-    subjects = df.parcode.unique()
-
-    fixItem = dict()
-    fixTime = dict()
-
-    for subject in subjects:
-        fixItem[subject] = dict()
-        fixTime[subject] = dict()
-        dataSubject = np.array(df.loc[df['parcode']==subject,
-            ['trial','fix_item','fix_time']])
-        trials = np.unique(dataSubject[:,0]).tolist()
-        for trial in trials:
-            dataTrial = np.array(df.loc[(df['trial']==trial) &
-                (df['parcode']==subject), ['fix_item','fix_time']])
-            fixItem[subject][trial] = dataTrial[:,0]
-            fixTime[subject][trial] = dataTrial[:,1]
-
-    data = collections.namedtuple('Data', ['rt', 'choice', 'valueLeft',
-        'valueRight', 'fixItem', 'fixTime'])
-    return data(rt, choice, valueLeft, valueRight, fixItem, fixTime)
+from dyn_prog_fixations import load_data_from_csv
 
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
@@ -216,7 +157,7 @@ def generate_fake_data(probLeftFixFirst, distTransition, distFirstFix,
 
 
 def main():
-    data = get_data_from_csv()
+    data = load_data_from_csv()
     rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
