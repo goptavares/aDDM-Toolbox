@@ -103,7 +103,8 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         barrierDown[t] = initialBarrierDown / (1+decay*(t+1))
 
     # The vertical axis is divided into states.
-    states = np.arange(initialBarrierDown, initialBarrierUp+stateStep,stateStep)
+    states = np.arange(initialBarrierDown + stateStep, initialBarrierUp,
+        stateStep)
     idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
     states[idx] = 0
 
@@ -119,18 +120,15 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
     # Iterate over all fixations in this trial.
     for fItem, fTime in zip(fixItem, fixTime):
+        # We use a distribution to model changes in RDV stochastically. The mean
+        # of the distribution (the change most likely to occur) is calculated
+        # from the model parameters and from the values of the two items.
         if fItem == 1:  # subject is looking left.
-            valueLooking = valueLeft
-            valueNotLooking = valueRight
+            mean = d * (valueLeft - (theta * valueRight))
         elif fItem == 2:  # subject is looking right.
-            valueLooking = valueRight
-            valueNotLooking = valueLeft
+            mean = d * (-valueRight + (theta * valueLeft))
         else:
             continue
-
-        # The mean of the distribution is calculated from the model parameters
-        # and from the values of the two items.
-        mean = d * (valueLooking - theta*valueNotLooking)
 
         # Iterate over the time interval of this fixation.
         for t in xrange(0, int(fTime/timeStep)):
@@ -160,7 +158,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             tempDownCross = np.sum(np.multiply(prStates,
                 (norm.cdf(changeDown,mean,std))))
 
-            # Renormalize to cope with numerical approximation.
+            # Renormalize to cope with numerical approximations.
             sumIn = np.sum(prStates)
             sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
             prStatesNew = prStatesNew * sumIn/sumCurrent
@@ -175,7 +173,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
             time += 1
 
-    # Compute the likelihood contribution of this trial based on the final
+    # Compute the log likelihood contribution of this trial based on the final
     # choice.
     if choice == -1:  # choice was left.
         likelihood = np.log(probUpCrossing[-1])
@@ -194,11 +192,11 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
         for trial in trials:
             if trial % 200 == 0:
                 print("Trial " + str(trial))
-            likelihood -= analysis_per_trial(rt[subject][trial],
+            likelihood += analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
                 fixTime[subject][trial], d, theta, std)
-            
+
     print("Likelihood: " + str(likelihood))
     return likelihood
 
@@ -225,7 +223,6 @@ def main():
     rangeTheta = [0.5, 0.7, 0.9]
     rangeStd = [0.15, 0.2, 0.25]
 
-    numIterations = len(rangeD) * len(rangeTheta) * len(rangeStd)
     models = list()
     list_params = list()
     for d in rangeD:
@@ -255,7 +252,6 @@ def main():
     rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
     rangeStd = [optimStd-0.025, optimStd, optimStd+0.025]
 
-    numIterations = len(rangeD) * len(rangeTheta) * len(rangeStd)
     models = list()
     list_params = list()
     for d in rangeD:
