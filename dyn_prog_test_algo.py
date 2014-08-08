@@ -82,72 +82,70 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
 
     trialCount = 0
 
-    # for trialCondition in trialConditions:
-    for trial in xrange(numTrials):
-        # vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
-        # vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
-        vLeft = 3
-        vRight = 0
-        valueDiff = vLeft - vRight
-        fixItem[trialCount] = list()
-        fixTime[trialCount] = list()
+    for trialCondition in trialConditions:
+        for trial in xrange(numTrials):
+            vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
+            vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
+            valueDiff = vLeft - vRight
+            fixItem[trialCount] = list()
+            fixTime[trialCount] = list()
 
-        # Sample transition time from the empirical distribution.
-        transitionTime = np.random.choice(distTransition)
-        fixItem[trialCount].append(0)
-        fixTime[trialCount].append(transitionTime)
+            # Sample transition time from the empirical distribution.
+            transitionTime = np.random.choice(distTransition)
+            fixItem[trialCount].append(0)
+            fixTime[trialCount].append(transitionTime)
 
-        # Sample the first fixation for this trial.
-        probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
-        currFixItem = np.random.choice([-1, 1], p=probLeftRight)
-        currFixTime = np.random.choice(distFirstFix[valueDiff])
+            # Sample the first fixation for this trial.
+            probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
+            currFixItem = np.random.choice([-1, 1], p=probLeftRight)
+            currFixTime = np.random.choice(distFirstFix[valueDiff])
 
-        # Iterate over all fixations in this trial.
-        RDV = 0
-        trialTime = 0
-        trialFinished = False
-        while True:
-            # Iterate over the time interval of the current fixation.
-            for t in xrange(1, int(currFixTime // timeStep) + 1):
-                # We use a distribution to model changes in RDV
-                # stochastically. The mean of the distribution (the change
-                # most likely to occur) is calculated from the model
-                # parameters and from the values of the two items.
-                if currFixItem == -1:  # subject is looking left.
-                    mean = d * (vLeft - (theta * vRight))
-                elif currFixItem == 1:  # subject is looking right.
-                    mean = d * (-vRight + (theta * vLeft))
+            # Iterate over all fixations in this trial.
+            RDV = 0
+            trialTime = 0
+            trialFinished = False
+            while True:
+                # Iterate over the time interval of the current fixation.
+                for t in xrange(1, int(currFixTime // timeStep) + 1):
+                    # We use a distribution to model changes in RDV
+                    # stochastically. The mean of the distribution (the change
+                    # most likely to occur) is calculated from the model
+                    # parameters and from the values of the two items.
+                    if currFixItem == -1:  # subject is looking left.
+                        mean = d * (vLeft - (theta * vRight))
+                    elif currFixItem == 1:  # subject is looking right.
+                        mean = d * (-vRight + (theta * vLeft))
 
-                # Sample the change in RDV from the distribution.
-                RDV += np.random.normal(mean, std)
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(mean, std)
 
-                trialTime += timeStep
+                    trialTime += timeStep
 
-                # If the RDV hit one of the barriers, the trial is over.
-                if RDV > L or RDV < -L:
-                    if RDV > L:
-                        choice[trialCount] = -1
-                    elif RDV < -L:
-                        choice[trialCount] = 1
-                    rt[trialCount] = transitionTime + trialTime
-                    valueLeft[trialCount] = vLeft
-                    valueRight[trialCount] = vRight
-                    fixItem[trialCount].append(currFixItem)
-                    fixTime[trialCount].append(t * timeStep)
-                    trialCount += 1
-                    trialFinished = True
+                    # If the RDV hit one of the barriers, the trial is over.
+                    if RDV > L or RDV < -L:
+                        if RDV > L:
+                            choice[trialCount] = -1
+                        elif RDV < -L:
+                            choice[trialCount] = 1
+                        rt[trialCount] = transitionTime + trialTime
+                        valueLeft[trialCount] = vLeft
+                        valueRight[trialCount] = vRight
+                        fixItem[trialCount].append(currFixItem)
+                        fixTime[trialCount].append(t * timeStep)
+                        trialCount += 1
+                        trialFinished = True
+                        break
+
+                if trialFinished:
                     break
 
-            if trialFinished:
-                break
+                # Add previous fixation to this trial's data.
+                fixItem[trialCount].append(currFixItem)
+                fixTime[trialCount].append(t * timeStep)
 
-            # Add previous fixation to this trial's data.
-            fixItem[trialCount].append(currFixItem)
-            fixTime[trialCount].append(t * timeStep)
-
-            # Sample next fixation for this trial.
-            currFixItem = -1 * currFixItem
-            currFixTime = np.random.choice(distMiddleFix[valueDiff])
+                # Sample next fixation for this trial.
+                currFixItem = -1 * currFixItem
+                currFixTime = np.random.choice(distMiddleFix[valueDiff])
 
     simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
         'valueRight', 'fixItem', 'fixTime'])
@@ -190,10 +188,10 @@ def main():
     distMiddleFix = dists.distMiddleFix
 
     # Parameters for fake data generation.
-    numTrials = 1
-    d = 0.0002
+    numTrials = 100
+    d = 0.00025
     theta = 0.7
-    std = 0.15
+    std = 0.2
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -213,9 +211,9 @@ def main():
     simulFixTime = simul.fixTime
 
     # Grid search to recover the parameters.
-    rangeD = [0.00015, 0.0002, 0.00025]
+    rangeD = [0.0002, 0.00025, 0.0003]
     rangeTheta = [0.5, 0.7, 0.9]
-    rangeStd = [0.1, 0.15, 0.2]
+    rangeStd = [0.15, 0.2, 0.25]
 
     totalTrials = numTrials * len(trialConditions)
     models = list()
