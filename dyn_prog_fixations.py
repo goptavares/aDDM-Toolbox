@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import error_report
-
 
 def load_data_from_csv():
     # Load experimental data from CSV file.
@@ -71,9 +69,9 @@ def load_data_from_csv():
     return data(rt, choice, valueLeft, valueRight, fixItem, fixTime)
 
 
-# @jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
+@jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, std, log):
+    theta, std):
     # Parameters of the grid.
     stateStep = 0.1
     timeStep = 1
@@ -134,9 +132,6 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
         # Iterate over the time interval of this fixation.
         for t in xrange(0, int(fTime // timeStep)):
-            log.write_message("Time: " + str(time))
-            log.write_message(str(prStates))
-
             prStatesNew = np.zeros(states.size)
 
             # Update the probability of the states that remain inside the
@@ -163,13 +158,6 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             tempDownCross = np.sum(np.multiply(prStates,
                 (norm.cdf(changeDown,mean,std))))
 
-            # log.write_message("mean: " + str(mean))
-            # log.write_message("std: " + str(std))
-            # log.write_message("cdf UP")
-            # log.write_message(norm.cdf(changeUp,mean,std))
-            # log.write_message("cdf DOWN")
-            # log.write_message(norm.cdf(changeDown,mean,std))
-
             # Renormalize to cope with numerical approximations.
             sumIn = np.sum(prStates)
             sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
@@ -185,11 +173,6 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
             time += 1
 
-    log.write_message("PROB UP CROSSING: ")
-    log.write_message(str(probUpCrossing))
-    log.write_message("PROB DOWN CROSSING: ")
-    log.write_message(str(probDownCrossing))
-
     # Compute the log likelihood contribution of this trial based on the final
     # choice.
     likelihood = 0
@@ -200,7 +183,6 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         if probDownCrossing[-1] > 0:
             likelihood = np.log(probDownCrossing[-1])
 
-    log.write_message("LIKELIHOOD: " + str(likelihood))
     return likelihood
 
 

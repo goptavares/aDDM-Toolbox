@@ -12,8 +12,6 @@ import pandas as pd
 
 from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
 
-import error_report
-
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime):
@@ -70,7 +68,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
 
 
 def generate_fake_data(numTrials, trialConditions, d, theta, std,
-    probLeftFixFirst, distTransition, distFirstFix, distMiddleFix, log):
+    probLeftFixFirst, distTransition, distFirstFix, distMiddleFix):
     timeStep = 1
     L = 1
 
@@ -99,8 +97,6 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
         fixItem[trialCount].append(0)
         fixTime[trialCount].append(transitionTime)
 
-        log.write_message("Transition time: " + str(transitionTime))
-
         # Sample the first fixation for this trial.
         probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
         currFixItem = np.random.choice([-1, 1], p=probLeftRight)
@@ -126,9 +122,6 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
                 RDV += np.random.normal(mean, std)
 
                 trialTime += timeStep
-
-                log.write_message("Time: " + str(transitionTime + trialTime) +
-                    ", RDV: " + str(RDV))
 
                 # If the RDV hit one of the barriers, the trial is over.
                 if RDV > L or RDV < -L:
@@ -162,13 +155,12 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
 
 
 def run_analysis(numTrials, rt, choice, valueLeft, valueRight, fixItem, fixTime,
-    d, theta, std, log):
+    d, theta, std):
     likelihood = 0
     for trial in xrange(numTrials):
         likelihood += analysis_per_trial(rt[trial], choice[trial],
             valueLeft[trial], valueRight[trial], fixItem[trial], fixTime[trial],
-            d, theta, std, log)
-    log.write_message("Likelihood: " + str(likelihood))
+            d, theta, std)
     return likelihood
 
 
@@ -177,11 +169,8 @@ def run_analysis_wrapper(params):
 
 
 def main():
-    # numThreads = 1
-    # pool = Pool(numThreads)
-
-    log = error_report.get_error_report()
-    log.start_log()
+    numThreads = 4
+    pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
     data = load_data_from_csv()
@@ -202,9 +191,9 @@ def main():
 
     # Parameters for fake data generation.
     numTrials = 1
-    d = 0.00025
+    d = 0.0002
     theta = 0.7
-    std = 0.2
+    std = 0.15
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -215,7 +204,7 @@ def main():
 
     # Generate fake data.
     simul = generate_fake_data(numTrials, trialConditions, d, theta, std,
-        probLeftFixFirst, distTransition, distFirstFix, distMiddleFix, log)
+        probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -224,11 +213,11 @@ def main():
     simulFixTime = simul.fixTime
 
     # Grid search to recover the parameters.
-    rangeD = [0.00025]#[0.0002, 0.00025, 0.0003]
-    rangeTheta = [0.7]#[0.5, 0.7, 0.9]
-    rangeStd = [0.2]#[0.15, 0.2, 0.25]
+    rangeD = [0.00015, 0.0002, 0.00025]
+    rangeTheta = [0.5, 0.7, 0.9]
+    rangeStd = [0.1, 0.15, 0.2]
 
-    totalTrials = 1#numTrials * len(trialConditions)
+    totalTrials = numTrials * len(trialConditions)
     models = list()
     list_params = list()
     results = list()
@@ -237,22 +226,13 @@ def main():
             for std in rangeStd:
                 models.append((d, theta, std))
                 params = (totalTrials, simulRt, simulChoice, simulValueLeft,
-                    simulValueRight, simulFixItem, simulFixTime, d, theta, std,
-                    log)
+                    simulValueRight, simulFixItem, simulFixTime, d, theta, std)
                 list_params.append(params)
-                log.write_message("Running params: " + str(d) + ", " +
-                    str(theta) + ", " + str(std) + "...")
                 results.append(run_analysis_wrapper(params))
 
 
-    # log.write_message("Starting pool of workers...")
-    # results = pool.map(run_analysis_wrapper, list_params)
-
-    # i = 0
-    # for res in results:
-    #     log.write_message(models[i])
-    #     log.write_message(res)
-    #     i += 1
+    print("Starting pool of workers...")
+    results = pool.map(run_analysis_wrapper, list_params)
 
     # Get optimal parameters.
     max_likelihood_idx = results.index(max(results))
@@ -260,12 +240,10 @@ def main():
     optimTheta = models[max_likelihood_idx][1]
     optimStd = models[max_likelihood_idx][2]
 
-    log.write_message("Finished grid search!")
-    log.write_message("Optimal d: " + str(optimD))
-    log.write_message("Optimal theta: " + str(optimTheta))
-    log.write_message("Optimal std: " + str(optimStd))
-
-    log.end_log()
+    print("Finished grid search!")
+    print("Optimal d: " + str(optimD))
+    print("Optimal theta: " + str(optimTheta))
+    print("Optimal std: " + str(optimStd))
  
 
 if __name__ == '__main__':
