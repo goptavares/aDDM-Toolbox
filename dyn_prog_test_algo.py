@@ -35,7 +35,6 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
             # Iterate over this trial's fixations.
             firstFix = True
             transitionTime = 0
-            # for item in np.nditer(fixItem[subject][trial]):
             for i in xrange(fixItem[subject][trial].shape[0]):
                 item = fixItem[subject][trial][i]
                 if item != 1 and item != 2:
