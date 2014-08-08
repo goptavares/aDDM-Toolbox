@@ -12,6 +12,8 @@ import pandas as pd
 
 from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
 
+import error_report
+
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime):
@@ -54,7 +56,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
             # Add transition time for this trial to distribution.
             distTransitionList.append(transitionTime)
 
-    probLeftFixFirst = countLeftFirst / countTotalTrials
+    probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
     distTransition = np.array(distTransitionList)
     distFirstFix = dict()
     distMiddleFix = dict()
@@ -68,8 +70,8 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
 
 
 def generate_fake_data(numTrials, trialConditions, d, theta, std,
-    probLeftFixFirst, distTransition, distFirstFix, distMiddleFix):
-    timeStep = 10
+    probLeftFixFirst, distTransition, distFirstFix, distMiddleFix, log):
+    timeStep = 1
     L = 1
 
     # Simulation data to be returned.
@@ -82,69 +84,77 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
 
     trialCount = 0
 
-    for trialCondition in trialConditions:
-        for trial in xrange(numTrials):
-            vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
-            vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
-            valueDiff = vLeft - vRight
-            RDV = 0
-            fixItem[trialCount] = list()
-            fixTime[trialCount] = list()
+    # for trialCondition in trialConditions:
+    for trial in xrange(numTrials):
+        # vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
+        # vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
+        vLeft = 3
+        vRight = 0
+        valueDiff = vLeft - vRight
+        fixItem[trialCount] = list()
+        fixTime[trialCount] = list()
 
-            # Sample transition time from the empirical distribution.
-            transitionTime = np.random.choice(distTransition)
-            fixItem[trialCount].append(0)
-            fixTime[trialCount].append(transitionTime)
+        # Sample transition time from the empirical distribution.
+        transitionTime = np.random.choice(distTransition)
+        fixItem[trialCount].append(0)
+        fixTime[trialCount].append(transitionTime)
 
-            # Sample the first fixation for this trial.
-            probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
-            currFixItem = np.random.choice([-1, 1], p=probLeftRight)
-            currFixTime = np.random.choice(distFirstFix[valueDiff])
+        log.write_message("Transition time: " + str(transitionTime))
 
-            # Iterate over all fixations in this trial.
-            trialTime = 0
-            trialFinished = False
-            while True:
-                # Iterate over the time interval of the current fixation.
-                for t in xrange(1, int(currFixTime/timeStep + 1)):
-                    if RDV > L or RDV < -L:
-                        if RDV > L:
-                            choice[trialCount] = -1
-                        elif RDV < -L:
-                            choice[trialCount] = 1
-                        rt[trialCount]  = trialTime
-                        valueLeft[trialCount] = vLeft
-                        valueRight[trialCount] = vRight
-                        fixItem[trialCount].append(currFixItem)
-                        fixTime[trialCount].append((t-1) * timeStep)
-                        trialCount += 1
-                        trialFinished = True
-                        break
+        # Sample the first fixation for this trial.
+        probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
+        currFixItem = np.random.choice([-1, 1], p=probLeftRight)
+        currFixTime = np.random.choice(distFirstFix[valueDiff])
 
-                    # We use a distribution to model changes in RDV
-                    # stochastically. The mean of the distribution (the change
-                    # most likely to occur) is calculated from the model
-                    # parameters and from the values of the two items.
-                    if currFixItem == -1:  # subject is looking left.
-                        mean = d * (vLeft - (theta * vRight))
-                    elif currFixItem == 1:  # subject is looking right.
-                        mean = d * (-vRight + (theta * vLeft))
+        # Iterate over all fixations in this trial.
+        RDV = 0
+        trialTime = 0
+        trialFinished = False
+        while True:
+            # Iterate over the time interval of the current fixation.
+            for t in xrange(1, int(currFixTime // timeStep) + 1):
+                # We use a distribution to model changes in RDV
+                # stochastically. The mean of the distribution (the change
+                # most likely to occur) is calculated from the model
+                # parameters and from the values of the two items.
+                if currFixItem == -1:  # subject is looking left.
+                    mean = d * (vLeft - (theta * vRight))
+                elif currFixItem == 1:  # subject is looking right.
+                    mean = d * (-vRight + (theta * vLeft))
 
-                    # Sample the change in RDV from the distribution.
-                    RDV += np.random.normal(mean, std)
+                # Sample the change in RDV from the distribution.
+                RDV += np.random.normal(mean, std)
 
-                    trialTime += timeStep
+                trialTime += timeStep
 
-                if trialFinished:
+                log.write_message("Time: " + str(transitionTime + trialTime) +
+                    ", RDV: " + str(RDV))
+
+                # If the RDV hit one of the barriers, the trial is over.
+                if RDV > L or RDV < -L:
+                    if RDV > L:
+                        choice[trialCount] = -1
+                    elif RDV < -L:
+                        choice[trialCount] = 1
+                    rt[trialCount] = transitionTime + trialTime
+                    valueLeft[trialCount] = vLeft
+                    valueRight[trialCount] = vRight
+                    fixItem[trialCount].append(currFixItem)
+                    fixTime[trialCount].append(t * timeStep)
+                    trialCount += 1
+                    trialFinished = True
                     break
 
-                # Add previous fixation to this trial's data.
-                fixItem[trialCount].append(currFixItem)
-                fixTime[trialCount].append(t * timeStep)
+            if trialFinished:
+                break
 
-                # Sample next fixation for this trial.
-                currFixItem = -1 * currFixItem
-                currFixTime = np.random.choice(distMiddleFix[valueDiff])
+            # Add previous fixation to this trial's data.
+            fixItem[trialCount].append(currFixItem)
+            fixTime[trialCount].append(t * timeStep)
+
+            # Sample next fixation for this trial.
+            currFixItem = -1 * currFixItem
+            currFixTime = np.random.choice(distMiddleFix[valueDiff])
 
     simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
         'valueRight', 'fixItem', 'fixTime'])
@@ -152,13 +162,13 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
 
 
 def run_analysis(numTrials, rt, choice, valueLeft, valueRight, fixItem, fixTime,
-    d, theta, std):
+    d, theta, std, log):
     likelihood = 0
     for trial in xrange(numTrials):
         likelihood += analysis_per_trial(rt[trial], choice[trial],
             valueLeft[trial], valueRight[trial], fixItem[trial], fixTime[trial],
-            d, theta, std)
-    print("Likelihood: " + str(likelihood))
+            d, theta, std, log)
+    log.write_message("Likelihood: " + str(likelihood))
     return likelihood
 
 
@@ -167,8 +177,11 @@ def run_analysis_wrapper(params):
 
 
 def main():
-    numThreads = 4
-    pool = Pool(numThreads)
+    # numThreads = 1
+    # pool = Pool(numThreads)
+
+    log = error_report.get_error_report()
+    log.start_log()
 
     # Load experimental data from CSV file.
     data = load_data_from_csv()
@@ -188,10 +201,10 @@ def main():
     distMiddleFix = dists.distMiddleFix
 
     # Parameters for fake data generation.
-    numTrials = 100
-    d = 0.03
+    numTrials = 1
+    d = 0.00025
     theta = 0.7
-    std = 0.05
+    std = 0.2
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -202,7 +215,7 @@ def main():
 
     # Generate fake data.
     simul = generate_fake_data(numTrials, trialConditions, d, theta, std,
-        probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
+        probLeftFixFirst, distTransition, distFirstFix, distMiddleFix, log)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -211,23 +224,35 @@ def main():
     simulFixTime = simul.fixTime
 
     # Grid search to recover the parameters.
-    rangeD = [0.03, 0.04, 0.05]
-    rangeTheta = [0.5, 0.7, 0.9]
-    rangeStd = [0.04, 0.05, 0.06]
+    rangeD = [0.00025]#[0.0002, 0.00025, 0.0003]
+    rangeTheta = [0.7]#[0.5, 0.7, 0.9]
+    rangeStd = [0.2]#[0.15, 0.2, 0.25]
 
-    totalTrials = numTrials * len(trialConditions)
+    totalTrials = 1#numTrials * len(trialConditions)
     models = list()
     list_params = list()
+    results = list()
     for d in rangeD:
         for theta in rangeTheta:
             for std in rangeStd:
                 models.append((d, theta, std))
                 params = (totalTrials, simulRt, simulChoice, simulValueLeft,
-                    simulValueRight, simulFixItem, simulFixTime, d, theta, std)
+                    simulValueRight, simulFixItem, simulFixTime, d, theta, std,
+                    log)
                 list_params.append(params)
+                log.write_message("Running params: " + str(d) + ", " +
+                    str(theta) + ", " + str(std) + "...")
+                results.append(run_analysis_wrapper(params))
 
-    print("Starting pool of workers...")
-    results = pool.map(run_analysis_wrapper, list_params)
+
+    # log.write_message("Starting pool of workers...")
+    # results = pool.map(run_analysis_wrapper, list_params)
+
+    # i = 0
+    # for res in results:
+    #     log.write_message(models[i])
+    #     log.write_message(res)
+    #     i += 1
 
     # Get optimal parameters.
     max_likelihood_idx = results.index(max(results))
@@ -235,10 +260,12 @@ def main():
     optimTheta = models[max_likelihood_idx][1]
     optimStd = models[max_likelihood_idx][2]
 
-    print("Finished grid search!")
-    print("Optimal d: " + str(optimD))
-    print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
+    log.write_message("Finished grid search!")
+    log.write_message("Optimal d: " + str(optimD))
+    log.write_message("Optimal theta: " + str(optimTheta))
+    log.write_message("Optimal std: " + str(optimStd))
+
+    log.end_log()
  
 
 if __name__ == '__main__':

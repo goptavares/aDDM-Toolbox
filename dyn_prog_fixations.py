@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import error_report
+
 
 def load_data_from_csv():
     # Load experimental data from CSV file.
@@ -69,12 +71,12 @@ def load_data_from_csv():
     return data(rt, choice, valueLeft, valueRight, fixItem, fixTime)
 
 
-@jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
+# @jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, std):
+    theta, std, log):
     # Parameters of the grid.
     stateStep = 0.1
-    timeStep = 10
+    timeStep = 1
     initialBarrierUp = 1
     initialBarrierDown = -1
 
@@ -83,9 +85,9 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     transitionTime = 0
     for fItem, fTime in zip(fixItem, fixTime):
         if fItem == 1 or fItem == 2:
-            itemFixTime += int(fTime/timeStep)
+            itemFixTime += fTime // timeStep
         else:
-            transitionTime += int(fTime/timeStep)
+            transitionTime += fTime // timeStep
 
     # The total time of this trial is given by the sum of all fixations
     # in the trial.
@@ -98,9 +100,9 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     decay = 0  # decay = 0 means barriers are constant.
     barrierUp = initialBarrierUp * np.ones(maxTime)
     barrierDown = initialBarrierDown * np.ones(maxTime)
-    for t in xrange(0,maxTime):
-        barrierUp[t] = initialBarrierUp / (1+decay*(t+1))
-        barrierDown[t] = initialBarrierDown / (1+decay*(t+1))
+    for t in xrange(0, int(maxTime)):
+        barrierUp[t] = float(initialBarrierUp) / float(1+decay*(t+1))
+        barrierDown[t] = float(initialBarrierDown) / float(1+decay*(t+1))
 
     # The vertical axis is divided into states.
     states = np.arange(initialBarrierDown + stateStep, initialBarrierUp,
@@ -131,12 +133,15 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             continue
 
         # Iterate over the time interval of this fixation.
-        for t in xrange(0, int(fTime/timeStep)):
+        for t in xrange(0, int(fTime // timeStep)):
+            log.write_message("Time: " + str(time))
+            log.write_message(str(prStates))
+
             prStatesNew = np.zeros(states.size)
 
             # Update the probability of the states that remain inside the
             # barriers.
-            for s in xrange(0,states.size):
+            for s in xrange(0, states.size):
                 currState = states[s]
                 if (currState > barrierDown[time] and
                     currState < barrierUp[time]):
@@ -158,12 +163,19 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             tempDownCross = np.sum(np.multiply(prStates,
                 (norm.cdf(changeDown,mean,std))))
 
+            # log.write_message("mean: " + str(mean))
+            # log.write_message("std: " + str(std))
+            # log.write_message("cdf UP")
+            # log.write_message(norm.cdf(changeUp,mean,std))
+            # log.write_message("cdf DOWN")
+            # log.write_message(norm.cdf(changeDown,mean,std))
+
             # Renormalize to cope with numerical approximations.
             sumIn = np.sum(prStates)
             sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
-            prStatesNew = prStatesNew * sumIn/sumCurrent
-            tempUpCross = tempUpCross * sumIn/sumCurrent
-            tempDownCross = tempDownCross * sumIn/sumCurrent
+            prStatesNew = (prStatesNew * float(sumIn)) / float(sumCurrent)
+            tempUpCross = (tempUpCross * float(sumIn)) / float(sumCurrent)
+            tempDownCross = (tempDownCross * float(sumIn)) / float(sumCurrent)
 
             # Update the probabilities of each state and the probabilities of
             # crossing each barrier at this timestep.
@@ -173,12 +185,22 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
             time += 1
 
+    log.write_message("PROB UP CROSSING: ")
+    log.write_message(str(probUpCrossing))
+    log.write_message("PROB DOWN CROSSING: ")
+    log.write_message(str(probDownCrossing))
+
     # Compute the log likelihood contribution of this trial based on the final
     # choice.
+    likelihood = 0
     if choice == -1:  # choice was left.
-        likelihood = np.log(probUpCrossing[-1])
+        if probUpCrossing[-1] > 0:
+            likelihood = np.log(probUpCrossing[-1])
     elif choice == 1:  # choice was right.
-        likelihood = np.log(probDownCrossing[-1])
+        if probDownCrossing[-1] > 0:
+            likelihood = np.log(probDownCrossing[-1])
+
+    log.write_message("LIKELIHOOD: " + str(likelihood))
     return likelihood
 
 
