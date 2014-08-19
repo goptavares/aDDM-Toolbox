@@ -176,10 +176,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     # Compute the log likelihood contribution of this trial based on the final
     # choice.
     likelihood = 0
-    if choice == -1:  # choice was left.
+    if choice == 1:  # choice was left.
         if probUpCrossing[-1] > 0:
             likelihood = np.log(probUpCrossing[-1])
-    elif choice == 1:  # choice was right.
+    elif choice == 2:  # choice was right.
         if probDownCrossing[-1] > 0:
             likelihood = np.log(probDownCrossing[-1])
 
