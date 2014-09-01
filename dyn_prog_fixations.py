@@ -71,12 +71,13 @@ def load_data_from_csv():
 
 @jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, std):
+    theta, mu):
     # Parameters of the grid.
     stateStep = 0.1
     timeStep = 1
     initialBarrierUp = 1
     initialBarrierDown = -1
+    std = mu * d
 
     # Iterate over the fixations and get the transition time for this trial.
     itemFixTime = 0
@@ -176,10 +177,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     # Compute the log likelihood contribution of this trial based on the final
     # choice.
     likelihood = 0
-    if choice == 1:  # choice was left.
+    if choice == -1:  # choice was left.
         if probUpCrossing[-1] > 0:
             likelihood = np.log(probUpCrossing[-1])
-    elif choice == 2:  # choice was right.
+    elif choice == 1:  # choice was right.
         if probDownCrossing[-1] > 0:
             likelihood = np.log(probDownCrossing[-1])
 
@@ -187,7 +188,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    std):
+    mu):
     likelihood = 0
     subjects = rt.keys()
     for subject in subjects:
@@ -199,7 +200,7 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             likelihood += analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std)
+                fixTime[subject][trial], d, theta, mu)
 
     print("Likelihood: " + str(likelihood))
     return likelihood
@@ -225,16 +226,16 @@ def main():
     print("Starting coarse grid search...")
     rangeD = [0.0015, 0.002, 0.0025]
     rangeTheta = [0.5, 0.7, 0.9]
-    rangeStd = [0.15, 0.2, 0.25]
+    rangeMu = [80, 100, 120]
 
     models = list()
     list_params = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                models.append((d, theta, std))
+            for mu in rangeMu:
+                models.append((d, theta, mu))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
-                    d, theta, std)
+                    d, theta, mu)
                 list_params.append(params)
 
     print("Starting pool of workers...")
@@ -244,26 +245,26 @@ def main():
     max_likelihood_idx = results_coarse.index(max(results_coarse))
     optimD = models[max_likelihood_idx][0]
     optimTheta = models[max_likelihood_idx][1]
-    optimStd = models[max_likelihood_idx][2]
+    optimMu = models[max_likelihood_idx][2]
     print("Finished coarse grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
+    print("Optimal mu: " + str(optimMu))
 
     # Fine grid search on the parameters of the model.
     print("Starting fine grid search...")
     rangeD = [optimD-0.00025, optimD, optimD+0.00025]
     rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
-    rangeStd = [optimStd-0.025, optimStd, optimStd+0.025]
+    rangeMu = [optimMu-10, optimMu, optimMu+10]
 
     models = list()
     list_params = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                models.append((d, theta, std))
+            for mu in rangeMu:
+                models.append((d, theta, mu))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
-                    d, theta, std)
+                    d, theta, mu)
                 list_params.append(params)
 
     print("Starting pool of workers...")
@@ -273,11 +274,11 @@ def main():
     max_likelihood_idx = results_fine.index(max(results_fine))
     optimD = models[max_likelihood_idx][0]
     optimTheta = models[max_likelihood_idx][1]
-    optimStd = models[max_likelihood_idx][2]
+    optimMu = models[max_likelihood_idx][2]
     print("Finished fine grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
+    print("Optimal mu: " + str(optimMu))
 
 
 if __name__ == '__main__':

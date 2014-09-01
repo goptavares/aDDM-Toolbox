@@ -15,23 +15,23 @@ from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime):
-    valueDiffs = xrange(-3,4,1)
+    valueDiffs = xrange(0,4,1)
 
     countLeftFirst = 0
     countTotalTrials = 0
     distTransitionList = list()
-    distFirstFixList = dict()
+    distFirstFixList = list()
     distMiddleFixList = dict()
     for valueDiff in valueDiffs:
-        distFirstFixList[valueDiff] = list()
         distMiddleFixList[valueDiff] = list()
 
     subjects = rt.keys()
     for subject in subjects:
         trials = rt[subject].keys()
         for trial in trials:
-            # Get value difference for this trial.
-            valueDiff = valueLeft[subject][trial] - valueRight[subject][trial]
+            # Get value difference between best and worst values for this trial.
+            valueDiff = np.absolute(valueLeft[subject][trial] -
+                valueRight[subject][trial])
             # Iterate over this trial's fixations.
             firstFix = True
             transitionTime = 0
@@ -42,8 +42,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                 else:
                     if firstFix:
                         firstFix = False
-                        distFirstFixList[valueDiff].append(
-                            fixTime[subject][trial][i])
+                        distFirstFixList.append(fixTime[subject][trial][i])
                         countTotalTrials +=1
                         if item == 1:  # first fixation was left
                             countLeftFirst +=1
@@ -55,10 +54,9 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
 
     probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
     distTransition = np.array(distTransitionList)
-    distFirstFix = dict()
+    distFirstFix = np.array(distFirstFixList)
     distMiddleFix = dict()
     for valueDiff in valueDiffs:
-        distFirstFix[valueDiff] = np.array(distFirstFixList[valueDiff])
         distMiddleFix[valueDiff] = np.array(distMiddleFixList[valueDiff])
 
     dists = collections.namedtuple('Dists', ['probLeftFixFirst',
@@ -66,7 +64,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     return dists(probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
 
 
-def generate_fake_data(numTrials, trialConditions, d, theta, std,
+def generate_fake_data(numTrials, trialConditions, d, theta, mu,
     probLeftFixFirst, distTransition, distFirstFix, distMiddleFix):
     timeStep = 1
     L = 1
@@ -82,10 +80,10 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
     trialCount = 0
 
     for trialCondition in trialConditions:
+        vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
+        vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
+        valueDiff = np.absolute(vLeft - vRight)
         for trial in xrange(numTrials):
-            vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
-            vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
-            valueDiff = vLeft - vRight
             fixItem[trialCount] = list()
             fixTime[trialCount] = list()
 
@@ -97,7 +95,7 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
             # Sample the first fixation for this trial.
             probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
             currFixItem = np.random.choice([1, 2], p=probLeftRight)
-            currFixTime = np.random.choice(distFirstFix[valueDiff])
+            currFixTime = np.random.choice(distFirstFix)
 
             # Iterate over all fixations in this trial.
             RDV = 0
@@ -116,6 +114,7 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
                         mean = d * (-vRight + (theta * vLeft))
 
                     # Sample the change in RDV from the distribution.
+                    std = mu * d
                     RDV += np.random.normal(mean, std)
 
                     trialTime += timeStep
@@ -123,9 +122,9 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
                     # If the RDV hit one of the barriers, the trial is over.
                     if RDV > L or RDV < -L:
                         if RDV > L:
-                            choice[trialCount] = 1
+                            choice[trialCount] = -1
                         elif RDV < -L:
-                            choice[trialCount] = 2
+                            choice[trialCount] = 1
                         rt[trialCount] = transitionTime + trialTime
                         valueLeft[trialCount] = vLeft
                         valueRight[trialCount] = vRight
@@ -155,12 +154,12 @@ def generate_fake_data(numTrials, trialConditions, d, theta, std,
 
 
 def run_analysis(numTrials, rt, choice, valueLeft, valueRight, fixItem, fixTime,
-    d, theta, std):
+    d, theta, mu):
     likelihood = 0
     for trial in xrange(numTrials):
         likelihood += analysis_per_trial(rt[trial], choice[trial],
             valueLeft[trial], valueRight[trial], fixItem[trial], fixTime[trial],
-            d, theta, std)
+            d, theta, mu)
     return likelihood
 
 
@@ -191,9 +190,9 @@ def main():
 
     # Parameters for fake data generation.
     numTrials = 100
-    d = 0.00025
-    theta = 0.7
-    std = 0.015
+    d = 0.01
+    theta = 0.5
+    mu = 100
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -203,7 +202,7 @@ def main():
                 trialConditions.append((oLeft, oRight))
 
     # Generate fake data.
-    simul = generate_fake_data(numTrials, trialConditions, d, theta, std,
+    simul = generate_fake_data(numTrials, trialConditions, d, theta, mu,
         probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
     simulRt = simul.rt
     simulChoice = simul.choice
@@ -213,9 +212,9 @@ def main():
     simulFixTime = simul.fixTime
 
     # Grid search to recover the parameters.
-    rangeD = [0.0002, 0.00025, 0.0003]
+    rangeD = [0.01, 0.02, 0.03]
     rangeTheta = [0.5, 0.7, 0.9]
-    rangeStd = [0.01, 0.015, 0.02]
+    rangeMu = [80, 100, 120]
 
     totalTrials = numTrials * len(trialConditions)
     models = list()
@@ -223,10 +222,10 @@ def main():
     results = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                models.append((d, theta, std))
+            for mu in rangeMu:
+                models.append((d, theta, mu))
                 params = (totalTrials, simulRt, simulChoice, simulValueLeft,
-                    simulValueRight, simulFixItem, simulFixTime, d, theta, std)
+                    simulValueRight, simulFixItem, simulFixTime, d, theta, mu)
                 list_params.append(params)
                 results.append(run_analysis_wrapper(params))
 
@@ -238,12 +237,12 @@ def main():
     max_likelihood_idx = results.index(max(results))
     optimD = models[max_likelihood_idx][0]
     optimTheta = models[max_likelihood_idx][1]
-    optimStd = models[max_likelihood_idx][2]
+    optimMu = models[max_likelihood_idx][2]
 
     print("Finished grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
+    print("Optimal mu: " + str(optimMu))
  
 
 if __name__ == '__main__':
