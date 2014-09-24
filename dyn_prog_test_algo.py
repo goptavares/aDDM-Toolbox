@@ -8,13 +8,12 @@ from multiprocessing import Pool
 import collections
 import numpy as np
 import operator
-import pandas as pd
 
 from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
 
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
-    fixTime):
+    fixTime, useOddTrials=True, useEvenTrials=True):
     valueDiffs = xrange(0,4,1)
 
     countLeftFirst = 0
@@ -29,6 +28,11 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     for subject in subjects:
         trials = rt[subject].keys()
         for trial in trials:
+            if not useOddTrials and trial % 2 != 0:
+                continue
+            if not useEvenTrials and trial % 2 == 0:
+                continue
+
             # Get value difference between best and worst values for this trial.
             valueDiff = np.absolute(valueLeft[subject][trial] -
                 valueRight[subject][trial])
@@ -64,8 +68,8 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     return dists(probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
 
 
-def generate_fake_data(numTrials, trialConditions, d, theta, mu,
-    probLeftFixFirst, distTransition, distFirstFix, distMiddleFix):
+def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
+    distTransition, distFirstFix, distMiddleFix):
     timeStep = 1
     L = 1
 
@@ -202,7 +206,7 @@ def main():
                 trialConditions.append((oLeft, oRight))
 
     # Generate fake data.
-    simul = generate_fake_data(numTrials, trialConditions, d, theta, mu,
+    simul = run_simulations(numTrials, trialConditions, d, theta, mu,
         probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
     simulRt = simul.rt
     simulChoice = simul.choice

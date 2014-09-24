@@ -188,7 +188,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    mu):
+    mu, useOddTrials=True, useEvenTrials=True):
     likelihood = 0
     subjects = rt.keys()
     for subject in subjects:
@@ -197,6 +197,10 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
         for trial in trials:
             if trial % 200 == 0:
                 print("Trial " + str(trial))
+            if not useOddTrials and trial % 2 != 0:
+                continue
+            if not useEvenTrials and trial % 2 == 0:
+                continue
             likelihood += analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
@@ -224,8 +228,8 @@ def main():
 
     # Coarse grid search on the parameters of the model.
     print("Starting coarse grid search...")
-    rangeD = [0.0015, 0.002, 0.0025]
-    rangeTheta = [0.5, 0.7, 0.9]
+    rangeD = [0.0002, 0.0003, 0.0004]
+    rangeTheta = [0.3, 0.5, 0.7]
     rangeMu = [80, 100, 120]
 
     models = list()
@@ -253,7 +257,7 @@ def main():
 
     # Fine grid search on the parameters of the model.
     print("Starting fine grid search...")
-    rangeD = [optimD-0.00025, optimD, optimD+0.00025]
+    rangeD = [optimD-0.000025, optimD, optimD+0.000025]
     rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
     rangeMu = [optimMu-10, optimMu, optimMu+10]
 
