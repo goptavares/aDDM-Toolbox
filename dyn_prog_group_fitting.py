@@ -94,7 +94,8 @@ def generate_rt_dist_for_data(rt, valueLeft, valueRight):
     for valueDiff in xrange(-3,4,1):
         idx = valueDiff + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
-        stdRts[idx] = np.std(np.array(rtsPerValueDiff[valueDiff]))
+        stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
+            np.sqrt(len(rtsPerValueDiff[valueDiff])))
 
     fig = plt.figure()
     plt.errorbar(range(-3,4,1), meanRts, yerr=stdRts, label='Actual data')
@@ -118,7 +119,8 @@ def generate_rt_dist_for_simulations(rt, valueLeft, valueRight, numTrials):
     for valueDiff in xrange(-3,4,1):
         idx = valueDiff + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
-        stdRts[idx] = np.std(np.array(rtsPerValueDiff[valueDiff]))
+        stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
+            np.sqrt(len(rtsPerValueDiff[valueDiff])))
 
     fig = plt.figure()
     plt.errorbar(range(-3,4,1), meanRts, yerr=stdRts, label='Simulations')
@@ -167,7 +169,8 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     for valueDiff in xrange(-3,4,1):
         idx = valueDiff + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
-        stdRts[idx] = np.std(np.array(rtsPerValueDiff[valueDiff]))
+        stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
+            np.sqrt(len(rtsPerValueDiff[valueDiff])))
 
     d = {'meanRt': meanRts, 'std': stdRts}
     df = pd.DataFrame(d)
@@ -402,7 +405,7 @@ def main():
     simulFixTime = simul.fixTime
 
     # Generate histograms and choice curves for real data (odd trials) and
-    simulations (generated from even trials).
+    # simulations (generated from even trials).
     fig1 = generate_choice_curve_for_data(choice, valueLeft, valueRight)
     fig2 = generate_rt_dist_for_data(rt, valueLeft, valueRight)
 
