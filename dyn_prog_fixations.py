@@ -16,6 +16,7 @@ import pandas as pd
 def load_data_from_csv():
     # Load experimental data from CSV file.
     # Format: parcode, trial, rt, choice, dist_left, dist_right.
+    # Angular distances to target are transformed to values in [-3, -1, 1, 3].
     df = pd.DataFrame.from_csv('expdata.csv', header=0, sep=',', index_col=None)
     subjects = df.parcode.unique()
 
@@ -38,10 +39,8 @@ def load_data_from_csv():
                 'dist_right']])
             rt[subject][trial] = dataTrial[0,0]
             choice[subject][trial] = dataTrial[0,1]
-            valueLeft[subject][trial] = np.absolute(
-                (np.absolute(dataTrial[0,2])-15)/5)
-            valueRight[subject][trial] = np.absolute(
-                (np.absolute(dataTrial[0,3])-15)/5)
+            valueLeft[subject][trial] = (-np.absolute(dataTrial[0,2])/2.5) + 3
+            valueRight[subject][trial] = (-np.absolute(dataTrial[0,3])/2.5) + 3
 
     # Load fixation data from CSV file.
     # Format: parcode, trial, fix_item, fix_time.
@@ -71,10 +70,10 @@ def load_data_from_csv():
 
 @jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, mu):
+    theta, mu, plotResults=False):
     # Parameters of the grid.
     stateStep = 0.1
-    timeStep = 1
+    timeStep = 10
     initialBarrierUp = 1
     initialBarrierDown = -1
     std = mu * d
@@ -88,12 +87,14 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         else:
             transitionTime += fTime // timeStep
 
-    # The total time of this trial is given by the sum of all fixations
-    # in the trial.
-    maxTime = itemFixTime + transitionTime
+    # The total time of this trial is given by the sum of all fixations in the
+    # trial.
+    maxTime = int(itemFixTime + transitionTime)
+    if maxTime == 0:
+        return 0
 
     # We start couting the trial time at the end of the transition time.
-    time = transitionTime
+    time = int(transitionTime)
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
@@ -103,8 +104,8 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         barrierUp[t] = float(initialBarrierUp) / float(1+decay*(t+1))
         barrierDown[t] = float(initialBarrierDown) / float(1+decay*(t+1))
 
-    # The vertical axis is divided into states.
-    states = np.arange(initialBarrierDown + stateStep, initialBarrierUp,
+    # The vertical axis (RDV space) is divided into states.
+    states = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
         stateStep)
     idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
     states[idx] = 0
@@ -119,14 +120,21 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     probUpCrossing = np.zeros(maxTime)
     probDownCrossing = np.zeros(maxTime)
 
+    # Create matrix of traces to keep track of the RDV position probabilities.
+    traces = np.zeros((states.size + 2, maxTime))
+    for i in xrange(int(transitionTime)):
+        traces[1:traces.shape[0]-1,i] = prStates
+        traces[0,i] = 0
+        traces[traces.shape[0]-1,i] = 0
+
     # Iterate over all fixations in this trial.
     for fItem, fTime in zip(fixItem, fixTime):
-        # We use a distribution to model changes in RDV stochastically. The mean
-        # of the distribution (the change most likely to occur) is calculated
-        # from the model parameters and from the values of the two items.
-        if fItem == 1:  # subject is looking left.
+        # We use a normal distribution to model changes in RDV stochastically.
+        # The mean of the distribution (the change most likely to occur) is
+        # calculated from the model parameters and from the item values.
+        if fItem == 1:  # Subject is looking left.
             mean = d * (valueLeft - (theta * valueRight))
-        elif fItem == 2:  # subject is looking right.
+        elif fItem == 2:  # Subject is looking right.
             mean = d * (-valueRight + (theta * valueLeft))
         else:
             continue
@@ -145,6 +153,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
                     # The probability of being in state B is the sum, over all
                     # states A, of the probability of being in A at the previous
                     # timestep times the probability of changing from A to B.
+                    # We multiply the probability by the stateStep to ensure
+                    # that the area under the curve for the probability
+                    # distributions probUpCrossing and probDownCrossing each add
+                    # up to 1.
                     prStatesNew[s] = (stateStep * np.sum(np.multiply(prStates,
                         norm.pdf(change,mean,std))))
 
@@ -172,31 +184,56 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             probUpCrossing[time] = tempUpCross
             probDownCrossing[time] = tempDownCross
 
+            # Update traces matrix.
+            traces[1:traces.shape[0]-1,time] = prStates
+            traces[0,time] = tempUpCross
+            traces[traces.shape[0]-1,time] = tempDownCross
+
             time += 1
 
     # Compute the log likelihood contribution of this trial based on the final
     # choice.
     likelihood = 0
-    if choice == -1:  # choice was left.
+    if choice == -1:  # Choice was left.
         if probUpCrossing[-1] > 0:
-            likelihood = np.log(probUpCrossing[-1])
-    elif choice == 1:  # choice was right.
+            likelihood = probUpCrossing[-1]
+    elif choice == 1:  # Choice was right.
         if probDownCrossing[-1] > 0:
-            likelihood = np.log(probDownCrossing[-1])
+            likelihood = probDownCrossing[-1]
+
+    if plotResults:
+        fig1 = plt.figure()
+        xAxis = np.arange(0, maxTime * timeStep, timeStep)
+        yAxis = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
+            stateStep)
+        heatmap = plt.pcolor(xAxis, yAxis, np.flipud(traces))
+        plt.xlim(0, maxTime * timeStep - timeStep)
+        plt.xlabel('Time')
+        plt.ylabel('RDV')
+        plt.colorbar(heatmap)
+
+        fig2 = plt.figure()
+        plt.plot(range(len(probUpCrossing)), probUpCrossing, label='Up')
+        plt.plot(range(len(probDownCrossing)), probDownCrossing, label='Down')
+        plt.xlabel('Time')
+        plt.ylabel('P(crossing)')
+        plt.legend()
+        plt.show()
 
     return likelihood
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    mu, useOddTrials=True, useEvenTrials=True):
+    mu, useOddTrials=True, useEvenTrials=True, verbose=True):
     likelihood = 0
     subjects = rt.keys()
     for subject in subjects:
-        print("Running subject " + subject + "...")
+        if verbose:
+            print("Running subject " + subject + "...")
         trials = rt[subject].keys()
         for trial in trials:
-            if trial % 200 == 0:
-                print("Trial " + str(trial))
+            if verbose and trial % 200 == 0:
+                print("Running trial " + str(trial) + "...")
             if not useOddTrials and trial % 2 != 0:
                 continue
             if not useEvenTrials and trial % 2 == 0:
@@ -204,9 +241,11 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             likelihood += analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu)
+                fixTime[subject][trial], d, theta, mu, plotResults=False)
 
-    print("Likelihood: " + str(likelihood))
+    if verbose:
+        print("Likelihood for " + str(d) + ", " + str(theta) + ", " + str(mu) +
+            ": " + str(likelihood))
     return likelihood
 
 
@@ -215,7 +254,7 @@ def run_analysis_wrapper(params):
 
 
 def main():
-    numThreads = 4
+    numThreads = 8
     pool = Pool(numThreads)
 
     data = load_data_from_csv()

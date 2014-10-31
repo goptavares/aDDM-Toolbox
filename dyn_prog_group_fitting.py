@@ -24,11 +24,11 @@ def generate_choice_curve_for_data(choice, valueLeft, valueRight):
         trials = choice[subject].keys()
         for trial in trials:
             valueDiff = valueLeft[subject][trial] - valueRight[subject][trial]
-            idx = valueDiff + 3
-            if choice[subject][trial] == -1:  # choice was left
+            idx = (valueDiff / 2) + 3
+            if choice[subject][trial] == -1:  # Choice was left.
                 countLeftChosen[idx] +=1
                 countTotal[idx] += 1
-            elif choice[subject][trial] == 1:  # choice was right
+            elif choice[subject][trial] == 1:  # Choice was right.
                 countTotal[idx] += 1
 
     stdProbLeftChosen = np.zeros(7)
@@ -39,7 +39,7 @@ def generate_choice_curve_for_data(choice, valueLeft, valueRight):
             (1 - probLeftChosen[i])) / countTotal[i])
 
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), probLeftChosen, yerr=stdProbLeftChosen,
+    plt.errorbar(range(-6,8,2), probLeftChosen, yerr=stdProbLeftChosen,
         label='Actual data')
     plt.xlabel('Value difference')
     plt.ylabel('P(choose left)')
@@ -54,11 +54,11 @@ def generate_choice_curve_for_simulations(choice, valueLeft, valueRight,
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
-        idx = valueDiff + 3
-        if choice[trial] == -1:  # choice was left
+        idx = (valueDiff / 2) + 3
+        if choice[trial] == -1:  # Choice was left.
             countLeftChosen[idx] +=1
             countTotal[idx] += 1
-        elif choice[trial] == 1:  # choice was right
+        elif choice[trial] == 1:  # Choice was right.
             countTotal[idx] += 1
 
     stdProbLeftChosen = np.zeros(7)
@@ -69,7 +69,7 @@ def generate_choice_curve_for_simulations(choice, valueLeft, valueRight,
             (1 - probLeftChosen[i])) / countTotal[i])
 
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), probLeftChosen, yerr=stdProbLeftChosen,
+    plt.errorbar(range(-6,8,2), probLeftChosen, yerr=stdProbLeftChosen,
         label='Simulations')
     plt.xlabel('Value difference')
     plt.ylabel('P(choose left)')
@@ -79,7 +79,7 @@ def generate_choice_curve_for_simulations(choice, valueLeft, valueRight,
 
 def generate_rt_dist_for_data(rt, valueLeft, valueRight):
     rtsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in xrange(-6,8,2):
         rtsPerValueDiff[valueDiff] = list()
 
     subjects = rt.keys()
@@ -91,14 +91,14 @@ def generate_rt_dist_for_data(rt, valueLeft, valueRight):
 
     meanRts = np.zeros(7)
     stdRts = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    for valueDiff in xrange(-6,8,2):
+        idx = (valueDiff / 2) + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
         stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
             np.sqrt(len(rtsPerValueDiff[valueDiff])))
 
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), meanRts, yerr=stdRts, label='Actual data')
+    plt.errorbar(range(-6,8,2), meanRts, yerr=stdRts, label='Actual data')
     plt.xlabel('Value difference')
     plt.ylabel('Mean RT')
     plt.legend()
@@ -107,7 +107,7 @@ def generate_rt_dist_for_data(rt, valueLeft, valueRight):
 
 def generate_rt_dist_for_simulations(rt, valueLeft, valueRight, numTrials):
     rtsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in xrange(-6,8,2):
         rtsPerValueDiff[valueDiff] = list()
 
     for trial in xrange(0, numTrials):
@@ -116,18 +116,19 @@ def generate_rt_dist_for_simulations(rt, valueLeft, valueRight, numTrials):
 
     meanRts = np.zeros(7)
     stdRts = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    for valueDiff in xrange(-6,8,2):
+        idx = (valueDiff / 2) + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
         stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
             np.sqrt(len(rtsPerValueDiff[valueDiff])))
 
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), meanRts, yerr=stdRts, label='Simulations')
+    plt.errorbar(range(-6,8,2), meanRts, yerr=stdRts, label='Simulations')
     plt.xlabel('Value difference')
     plt.ylabel('Mean RT')
     plt.legend()
     return fig
+
 
 def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     fixTime, numTrials):
@@ -137,11 +138,11 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
-        idx = valueDiff + 3
-        if choice[trial] == -1:  # choice was left
+        idx = (valueDiff / 2) + 3
+        if choice[trial] == -1:  # Choice was left.
             countLeftChosen[idx] +=1
             countTotal[idx] += 1
-        elif choice[trial] == 1:  # choice was right
+        elif choice[trial] == 1:  # Choice was right.
             countTotal[idx] += 1
 
     probLeftChosen = np.zeros(7)
@@ -157,7 +158,7 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     # Reaction times.
     rtsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in xrange(-6,8,2):
         rtsPerValueDiff[valueDiff] = list()
 
     for trial in xrange(0, numTrials):
@@ -166,8 +167,8 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     meanRts = np.zeros(7)
     stdRts = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    for valueDiff in xrange(-6,8,2):
+        idx = (valueDiff / 2) + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
         stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
             np.sqrt(len(rtsPerValueDiff[valueDiff])))
@@ -184,18 +185,18 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
-        idx = valueDiff + 3
-        if fixItem[trial][1] == 1:  # first item was left
-            if choice[trial] == -1:  # choice was left
+        idx = (valueDiff / 2) + 3
+        if fixItem[trial][1] == 1:  # First item was left.
+            if choice[trial] == -1:  # Choice was left.
                 countLeftChosenLeft[idx] +=1
                 countTotalLeft[idx] += 1
-            elif choice[trial] == 1:  # choice was right
+            elif choice[trial] == 1:  # Choice was right.
                 countTotalLeft[idx] += 1
-        if fixItem[trial][1] == 2:  # first item was right
-            if choice[trial] == -1:  # choice was left
+        if fixItem[trial][1] == 2:  # First item was right.
+            if choice[trial] == -1:  # Choice was left.
                 countLeftChosenRight[idx] +=1
                 countTotalRight[idx] += 1
-            elif choice[trial] == 1:  # choice was right
+            elif choice[trial] == 1:  # Choice was right.
                 countTotalRight[idx] += 1
 
     probLeftChosenLeft = np.zeros(7)
@@ -223,18 +224,18 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
-        idx = valueDiff + 3
-        if fixItem[trial][-1] == 1:  # last item was left
-            if choice[trial] == -1:  # choice was left
+        idx = (valueDiff / 2) + 3
+        if fixItem[trial][-1] == 1:  # Last item was left.
+            if choice[trial] == -1:  # Choice was left.
                 countLeftChosenLeft[idx] +=1
                 countTotalLeft[idx] += 1
-            elif choice[trial] == 1:  # choice was right
+            elif choice[trial] == 1:  # Choice was right.
                 countTotalLeft[idx] += 1
-        if fixItem[trial][-1] == 2:  # last item was right
-            if choice[trial] == -1:  # choice was left
+        if fixItem[trial][-1] == 2:  # Last item was right.
+            if choice[trial] == -1:  # Choice was left.
                 countLeftChosenRight[idx] +=1
                 countTotalRight[idx] += 1
-            elif choice[trial] == 1:  # choice was right
+            elif choice[trial] == 1:  # Choice was right.
                 countTotalRight[idx] += 1
 
     probLeftChosenLeft = np.zeros(7)
@@ -262,7 +263,7 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
-        idx = valueDiff + 3
+        idx = (valueDiff / 2) + 3
 
         # Get total fixation time for each item.
         fixTimeLeft = 0
@@ -273,17 +274,17 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
             elif fixItem[trial][i] == 2:
                 fixTimeRight += fixTime[trial][i]
 
-        if fixTimeLeft >= fixTimeRight:  # longest fixated item was left
-            if choice[trial] == -1:  # choice was left
+        if fixTimeLeft >= fixTimeRight:  # Longest fixated item was left.
+            if choice[trial] == -1:  # Choice was left.
                 countLeftChosenLeft[idx] +=1
                 countTotalLeft[idx] += 1
-            elif choice[trial] == 1:  # choice was right
+            elif choice[trial] == 1:  # Choice was right.
                 countTotalLeft[idx] += 1
-        else:  # longest fixated item was right
-            if choice[trial] == -1:  # choice was left
+        else:  # Longest fixated item was right.
+            if choice[trial] == -1:  # Choice was left.
                 countLeftChosenRight[idx] +=1
                 countTotalRight[idx] += 1
-            elif choice[trial] == 1:  # choice was right
+            elif choice[trial] == 1:  # Choice was right.
                 countTotalRight[idx] += 1
 
     probLeftChosenLeft = np.zeros(7)
@@ -322,13 +323,20 @@ def main():
     print("Starting coarse grid search...")
     rangeD = [0.0002, 0.0003, 0.0004]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeMu = [80, 100, 120]
+    rangeMu = [400, 500, 600]
 
     models = list()
     list_params = list()
+    modelLikelihoods = dict()
+    modelLikelihoods['d'] = list()
+    modelLikelihoods['theta'] = list()
+    modelLikelihoods['mu'] = list()
     for d in rangeD:
         for theta in rangeTheta:
             for mu in rangeMu:
+                modelLikelihoods['d'].append(d)
+                modelLikelihoods['theta'].append(theta)
+                modelLikelihoods['mu'].append(mu)
                 models.append((d, theta, mu))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
                     d, theta, mu, True, False)
@@ -347,6 +355,11 @@ def main():
     print("Optimal theta: " + str(optimTheta))
     print("Optimal mu: " + str(optimMu))
 
+    # Save coarse grid search results to CSV file.
+    modelLikelihoods['L'] = results_coarse
+    df = pd.DataFrame(modelLikelihoods)
+    df.to_csv('likelihood_coarse.csv', header=0, sep=',', index_col=None)
+
     # Fine grid search on the parameters of the model.
     print("Starting fine grid search...")
     rangeD = [optimD-0.000025, optimD, optimD+0.000025]
@@ -355,9 +368,16 @@ def main():
 
     models = list()
     list_params = list()
+    modelLikelihoods = dict()
+    modelLikelihoods['d'] = list()
+    modelLikelihoods['theta'] = list()
+    modelLikelihoods['mu'] = list()
     for d in rangeD:
         for theta in rangeTheta:
             for mu in rangeMu:
+                modelLikelihoods['d'].append(d)
+                modelLikelihoods['theta'].append(theta)
+                modelLikelihoods['mu'].append(mu)
                 models.append((d, theta, mu))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
                     d, theta, mu, True, False)
@@ -375,6 +395,11 @@ def main():
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
     print("Optimal mu: " + str(optimMu))
+
+    # Save fine grid search results to CSV file.
+    modelLikelihoods['L'] = results_fine
+    df = pd.DataFrame(modelLikelihoods)
+    df.to_csv('likelihood_fine.csv', header=0, sep=',', index_col=None)
 
     # Get empirical distributions from even trials.
     even_dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,

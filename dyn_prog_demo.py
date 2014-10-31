@@ -23,12 +23,12 @@ initialBarrierDown = -1
 decay = 0  # decay = 0 means barriers are constant.
 barrierUp = initialBarrierUp * np.ones(maxTime)
 barrierDown = initialBarrierDown * np.ones(maxTime)
-for t in xrange(0,maxTime):
+for t in xrange(1,maxTime):
     barrierUp[t] = initialBarrierUp / (1+decay*(t+1))
     barrierDown[t] = initialBarrierDown / (1+decay*(t+1))
 
 # The vertical axis is divided into states.
-states = np.arange(initialBarrierDown, initialBarrierUp+stateStep, stateStep)
+states = np.arange(initialBarrierDown, initialBarrierUp + stateStep, stateStep)
 idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
 states[idx] = 0
 
@@ -41,8 +41,7 @@ prStates[idx] = 1
 probUpCrossing = np.zeros(maxTime)
 probDownCrossing = np.zeros(maxTime)
 
-for t in xrange(0,maxTime):
-    #print 'Time: ' + str(t)
+for t in xrange(1, maxTime):
     prStatesNew = np.zeros(states.size)
     
     # Update the probability of the states that remain inside the barriers.
@@ -50,9 +49,12 @@ for t in xrange(0,maxTime):
         currState = states[s]
         if currState > barrierDown[t] and currState < barrierUp[t]:
             change = (currState * np.ones(states.size)) - states
-            # The probability of being in state B is the sum, over all
-            # states A, of the probability of being in A at the previous
-           	# timestep times the probability of changing from A to B.
+            # The probability of being in state B is the sum, over all states A,
+            # of the probability of being in A at the previous time step times
+           	# the probability of changing from A to B. We multiply the
+            # probability by the stateStep to ensure that the area under the
+            # curve for the probability distributions probUpCrossing and
+            # probDownCrossing each add up to 1.
             prStatesNew[s] = (stateStep *
             	np.sum(np.multiply(prStates, norm.pdf(change,mean,std))))
 
@@ -80,6 +82,10 @@ for t in xrange(0,maxTime):
     probUpCrossing[t] = tempUpCross
     probDownCrossing[t] = tempDownCross
 
+    # Probabilities at each time step DO NOT add up to 1.
+    print str(np.sum(prStates) + probUpCrossing[t] + probDownCrossing[t])
+
+# Probabilities of crossing the two barriers over time add up to 1.
 print str(np.sum(probUpCrossing))
 print str(np.sum(probDownCrossing))
 print str(np.sum(probUpCrossing) + np.sum(probDownCrossing))
