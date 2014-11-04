@@ -125,10 +125,10 @@ def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
                     trialTime += timeStep
 
                     # If the RDV hit one of the barriers, the trial is over.
-                    if RDV > L or RDV < -L:
-                        if RDV > L:
+                    if RDV >= L or RDV <= -L:
+                        if RDV >= L:
                             choice[trialCount] = -1
-                        elif RDV < -L:
+                        elif RDV <= -L:
                             choice[trialCount] = 1
                         rt[trialCount] = transitionTime + trialTime
                         valueLeft[trialCount] = vLeft
