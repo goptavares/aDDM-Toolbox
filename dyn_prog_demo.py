@@ -51,7 +51,7 @@ for t in xrange(1, maxTime):
             change = (currState * np.ones(states.size)) - states
             # The probability of being in state B is the sum, over all states A,
             # of the probability of being in A at the previous time step times
-           	# the probability of changing from A to B. We multiply the
+            # the probability of changing from A to B. We multiply the
             # probability by the stateStep to ensure that the area under the
             # curve for the probability distributions probUpCrossing and
             # probDownCrossing each add up to 1.

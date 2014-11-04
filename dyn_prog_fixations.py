@@ -121,11 +121,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     probDownCrossing = np.zeros(maxTime)
 
     # Create matrix of traces to keep track of the RDV position probabilities.
-    traces = np.zeros((states.size + 2, maxTime))
-    for i in xrange(int(transitionTime)):
-        traces[1:traces.shape[0]-1,i] = prStates
-        traces[0,i] = 0
-        traces[traces.shape[0]-1,i] = 0
+    if plotResults:
+        traces = np.zeros((states.size, maxTime))
+        for i in xrange(int(transitionTime)):
+            traces[:,i] = prStates
 
     # Iterate over all fixations in this trial.
     for fItem, fTime in zip(fixItem, fixTime):
@@ -185,9 +184,8 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             probDownCrossing[time] = tempDownCross
 
             # Update traces matrix.
-            traces[1:traces.shape[0]-1,time] = prStates
-            traces[0,time] = tempUpCross
-            traces[traces.shape[0]-1,time] = tempDownCross
+            if plotResults:
+                traces[:,time] = prStates
 
             time += 1
 
@@ -213,8 +211,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         plt.colorbar(heatmap)
 
         fig2 = plt.figure()
-        plt.plot(range(len(probUpCrossing)), probUpCrossing, label='Up')
-        plt.plot(range(len(probDownCrossing)), probDownCrossing, label='Down')
+        plt.plot(range(0, len(probUpCrossing) * timeStep, timeStep),
+            probUpCrossing, label='Up')
+        plt.plot(range(0, len(probDownCrossing) * timeStep, timeStep),
+            probDownCrossing, label='Down')
         plt.xlabel('Time')
         plt.ylabel('P(crossing)')
         plt.legend()
@@ -225,7 +225,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     mu, useOddTrials=True, useEvenTrials=True, verbose=True):
-    likelihood = 0
+    logLikelihood = 0
     subjects = rt.keys()
     for subject in subjects:
         if verbose:
@@ -238,15 +238,15 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            likelihood += analysis_per_trial(rt[subject][trial],
+            logLikelihood += np.log(analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu, plotResults=False)
+                fixTime[subject][trial], d, theta, mu, plotResults=False))
 
     if verbose:
-        print("Likelihood for " + str(d) + ", " + str(theta) + ", " + str(mu) +
-            ": " + str(likelihood))
-    return likelihood
+        print("Log likelihood for " + str(d) + ", " + str(theta) + ", "
+            + str(mu) + ": " + str(logLikelihood))
+    return logLikelihood
 
 
 def run_analysis_wrapper(params):
