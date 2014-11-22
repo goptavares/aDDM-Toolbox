@@ -3,7 +3,6 @@
 # dyn_prog_fixations.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
-from multiprocessing import Pool
 from numba import jit
 from scipy.stats import norm
 
@@ -23,7 +22,7 @@ def load_data_from_csv():
     rt = dict()
     choice = dict()
     valueLeft = dict()
-    valueRight = dict() 
+    valueRight = dict()
 
     for subject in subjects:
         rt[subject] = dict()
@@ -73,7 +72,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     theta, mu, plotResults=False):
     # Parameters of the grid.
     stateStep = 0.1
-    timeStep = 10
+    timeStep = 50
     initialBarrierUp = 1
     initialBarrierDown = -1
     std = mu * d
@@ -139,7 +138,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             continue
 
         # Iterate over the time interval of this fixation.
-        for t in xrange(0, int(fTime // timeStep)):
+        for t in xrange(int(fTime // timeStep)):
             prStatesNew = np.zeros(states.size)
 
             # Update the probability of the states that remain inside the
@@ -223,106 +222,148 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     return likelihood
 
 
-def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    mu, useOddTrials=True, useEvenTrials=True, verbose=True):
-    logLikelihood = 0
+def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
+    fixTime, useOddTrials=True, useEvenTrials=True):
+    valueDiffs = range(-6,8,2)
+
+    countLeftFirst = 0
+    countTotalTrials = 0
+    distTransitionList = list()
+    distFirstFixList = list()
+    distMiddleFixList = dict()
+    for valueDiff in valueDiffs:
+        distMiddleFixList[valueDiff] = list()
+
     subjects = rt.keys()
     for subject in subjects:
-        if verbose:
-            print("Running subject " + subject + "...")
         trials = rt[subject].keys()
         for trial in trials:
-            if verbose and trial % 200 == 0:
-                print("Running trial " + str(trial) + "...")
             if not useOddTrials and trial % 2 != 0:
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            logLikelihood += np.log(analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu, plotResults=False))
+            if fixItem[subject][trial].shape[0] < 2:
+                continue
+            # Get value difference between best and worst items for this trial.
+            valueDiff = (max(valueLeft[subject][trial],
+                valueRight[subject][trial]) - min(valueLeft[subject][trial],
+                valueRight[subject][trial]))
+            # Iterate over this trial's fixations (skip the last one).
+            firstFix = True
+            transitionTime = 0
+            for i in xrange(fixItem[subject][trial].shape[0] - 1):
+                item = fixItem[subject][trial][i]
+                if item != 1 and item != 2:
+                    transitionTime += fixTime[subject][trial][i]
+                else:
+                    if firstFix:
+                        firstFix = False
+                        distFirstFixList.append(fixTime[subject][trial][i])
+                        countTotalTrials +=1
+                        if item == 1:  # First fixation was left.
+                            countLeftFirst +=1
+                    else:
+                        distMiddleFixList[valueDiff].append(
+                            fixTime[subject][trial][i])
+            # Add transition time for this trial to distribution.
+            distTransitionList.append(transitionTime)
 
-    if verbose:
-        print("Log likelihood for " + str(d) + ", " + str(theta) + ", "
-            + str(mu) + ": " + str(logLikelihood))
-    return logLikelihood
+    probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
+    distTransition = np.array(distTransitionList)
+    distFirstFix = np.array(distFirstFixList)
+    distMiddleFix = dict()
+    for valueDiff in valueDiffs:
+        distMiddleFix[valueDiff] = np.array(distMiddleFixList[valueDiff])
 
-
-def run_analysis_wrapper(params):
-    return run_analysis(*params)
-
-
-def main():
-    numThreads = 8
-    pool = Pool(numThreads)
-
-    data = load_data_from_csv()
-    rt = data.rt
-    choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
-    fixItem = data.fixItem
-    fixTime = data.fixTime
-
-    # Coarse grid search on the parameters of the model.
-    print("Starting coarse grid search...")
-    rangeD = [0.0002, 0.0003, 0.0004]
-    rangeTheta = [0.3, 0.5, 0.7]
-    rangeMu = [80, 100, 120]
-
-    models = list()
-    list_params = list()
-    for d in rangeD:
-        for theta in rangeTheta:
-            for mu in rangeMu:
-                models.append((d, theta, mu))
-                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
-                    d, theta, mu)
-                list_params.append(params)
-
-    print("Starting pool of workers...")
-    results_coarse = pool.map(run_analysis_wrapper, list_params)
-
-    # Get optimal parameters.
-    max_likelihood_idx = results_coarse.index(max(results_coarse))
-    optimD = models[max_likelihood_idx][0]
-    optimTheta = models[max_likelihood_idx][1]
-    optimMu = models[max_likelihood_idx][2]
-    print("Finished coarse grid search!")
-    print("Optimal d: " + str(optimD))
-    print("Optimal theta: " + str(optimTheta))
-    print("Optimal mu: " + str(optimMu))
-
-    # Fine grid search on the parameters of the model.
-    print("Starting fine grid search...")
-    rangeD = [optimD-0.000025, optimD, optimD+0.000025]
-    rangeTheta = [optimTheta-0.1, optimTheta, optimTheta+0.1]
-    rangeMu = [optimMu-10, optimMu, optimMu+10]
-
-    models = list()
-    list_params = list()
-    for d in rangeD:
-        for theta in rangeTheta:
-            for mu in rangeMu:
-                models.append((d, theta, mu))
-                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
-                    d, theta, mu)
-                list_params.append(params)
-
-    print("Starting pool of workers...")
-    results_fine = pool.map(run_analysis_wrapper, list_params)
-
-    # Get optimal parameters.
-    max_likelihood_idx = results_fine.index(max(results_fine))
-    optimD = models[max_likelihood_idx][0]
-    optimTheta = models[max_likelihood_idx][1]
-    optimMu = models[max_likelihood_idx][2]
-    print("Finished fine grid search!")
-    print("Optimal d: " + str(optimD))
-    print("Optimal theta: " + str(optimTheta))
-    print("Optimal mu: " + str(optimMu))
+    dists = collections.namedtuple('Dists', ['probLeftFixFirst',
+        'distTransition', 'distFirstFix', 'distMiddleFix'])
+    return dists(probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
 
 
-if __name__ == '__main__':
-    main()
+def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
+    distTransition, distFirstFix, distMiddleFix):
+    timeStep = 50
+    L = 1
+
+    # Simulation data to be returned.
+    rt = dict()
+    choice = dict()
+    valueLeft = dict()
+    valueRight = dict()
+    fixItem = dict()
+    fixTime = dict()
+
+    trialCount = 0
+
+    for trialCondition in trialConditions:
+        vLeft = (-np.absolute(trialCondition[0]) / 2.5) + 3
+        vRight = (-np.absolute(trialCondition[1]) / 2.5) + 3
+        valueDiff = max(vLeft, vRight) - min(vLeft, vRight)
+        for trial in xrange(numTrials):
+            fixItem[trialCount] = list()
+            fixTime[trialCount] = list()
+
+            # Sample transition time from the empirical distribution.
+            transitionTime = np.random.choice(distTransition)
+            fixItem[trialCount].append(0)
+            fixTime[trialCount].append(transitionTime)
+
+            # Sample the first fixation for this trial.
+            probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
+            currFixItem = np.random.choice([1, 2], p=probLeftRight)
+            currFixTime = np.random.choice(distFirstFix)
+
+            # Iterate over all fixations in this trial.
+            RDV = 0
+            trialTime = 0
+            trialFinished = False
+            while True:
+                # Iterate over the time interval of the current fixation.
+                for t in xrange(int(currFixTime // timeStep)):
+                    # We use a distribution to model changes in RDV
+                    # stochastically. The mean of the distribution (the change
+                    # most likely to occur) is calculated from the model
+                    # parameters and from the values of the two items.
+                    if currFixItem == 1:  # Subject is looking left.
+                        mean = d * (vLeft - (theta * vRight))
+                    elif currFixItem == 2:  # Subject is looking right.
+                        mean = d * (-vRight + (theta * vLeft))
+
+                    # Sample the change in RDV from the distribution.
+                    std = mu * d
+                    RDV += np.random.normal(mean, std)
+
+                    trialTime += timeStep
+
+                    # If the RDV hit one of the barriers, the trial is over.
+                    if RDV >= L or RDV <= -L:
+                        if RDV >= L:
+                            choice[trialCount] = -1
+                        elif RDV <= -L:
+                            choice[trialCount] = 1
+                        rt[trialCount] = transitionTime + trialTime
+                        valueLeft[trialCount] = vLeft
+                        valueRight[trialCount] = vRight
+                        fixItem[trialCount].append(currFixItem)
+                        fixTime[trialCount].append((t + 1) * timeStep)
+                        trialCount += 1
+                        trialFinished = True
+                        break
+
+                if trialFinished:
+                    break
+
+                # Add previous fixation to this trial's data.
+                fixItem[trialCount].append(currFixItem)
+                fixTime[trialCount].append(currFixTime)
+
+                # Sample next fixation for this trial.
+                if currFixItem == 1:
+                    currFixItem = 2
+                elif currFixItem == 2:
+                    currFixItem = 1
+                currFixTime = np.random.choice(distMiddleFix[valueDiff])
+
+    simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
+        'valueRight', 'fixItem', 'fixTime'])
+    return simul(rt, choice, valueLeft, valueRight, fixItem, fixTime)

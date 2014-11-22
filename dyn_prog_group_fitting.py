@@ -3,16 +3,19 @@
 # dyn_prog_group_fitting.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+import matplotlib
+matplotlib.use('Agg')
+
+from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 
-import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import operator
 import pandas as pd
 
-from dyn_prog_fixations import load_data_from_csv, analysis_per_trial, run_analysis, run_analysis_wrapper
-from dyn_prog_test_algo import get_empirical_distributions, run_simulations
+from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
+    get_empirical_distributions, run_simulations)
 
 
 def generate_choice_curve_for_data(choice, valueLeft, valueRight):
@@ -305,8 +308,40 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     df.to_csv('choices_most_fix.csv', header=0, sep=',', index_col=None)
 
 
+def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
+    mu, useOddTrials=True, useEvenTrials=True, verbose=True):
+    trialsPerSubject = 200
+    logLikelihood = 0
+    subjects = rt.keys()
+    for subject in subjects:
+        if verbose:
+            print("Running subject " + subject + "...")
+        trials = rt[subject].keys()
+        trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
+        for trial in trialSet:
+            if not useOddTrials and trial % 2 != 0:
+                continue
+            if not useEvenTrials and trial % 2 == 0:
+                continue
+            likelihood = analysis_per_trial(rt[subject][trial],
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, mu, plotResults=False)
+            if likelihood != 0:
+                logLikelihood += np.log(likelihood)
+
+    if verbose:
+        print("Log likelihood for " + str(d) + ", " + str(theta) + ", "
+            + str(mu) + ": " + str(logLikelihood))
+    return logLikelihood
+
+
+def run_analysis_wrapper(params):
+    return run_analysis(*params)
+
+
 def main():
-    numThreads = 4
+    numThreads = 9
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
@@ -321,12 +356,12 @@ def main():
     # Maximum likelihood estimation using odd trials only.
     # Coarse grid search on the parameters of the model.
     print("Starting coarse grid search...")
-    rangeD = [0.0002, 0.0003, 0.0004]
+    rangeD = [0.0002, 0.0005, 0.0008]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeMu = [400, 500, 600]
+    rangeMu = [100, 300, 500]
 
     models = list()
-    list_params = list()
+    listParams = list()
     modelLikelihoods = dict()
     modelLikelihoods['d'] = list()
     modelLikelihoods['theta'] = list()
@@ -340,23 +375,23 @@ def main():
                 models.append((d, theta, mu))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
                     d, theta, mu, True, False)
-                list_params.append(params)
+                listParams.append(params)
 
     print("Starting pool of workers...")
-    results_coarse = pool.map(run_analysis_wrapper, list_params)
+    resultsCoarse = pool.map(run_analysis_wrapper, listParams)
 
     # Get optimal parameters.
-    max_likelihood_idx = results_coarse.index(max(results_coarse))
-    optimD = models[max_likelihood_idx][0]
-    optimTheta = models[max_likelihood_idx][1]
-    optimMu = models[max_likelihood_idx][2]
+    maxLikelihoodIdx = resultsCoarse.index(max(resultsCoarse))
+    optimD = models[maxLikelihoodIdx][0]
+    optimTheta = models[maxLikelihoodIdx][1]
+    optimMu = models[maxLikelihoodIdx][2]
     print("Finished coarse grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
     print("Optimal mu: " + str(optimMu))
 
     # Save coarse grid search results to CSV file.
-    modelLikelihoods['L'] = results_coarse
+    modelLikelihoods['L'] = resultsCoarse
     df = pd.DataFrame(modelLikelihoods)
     df.to_csv('likelihood_coarse.csv', header=0, sep=',', index_col=None)
 
@@ -367,7 +402,7 @@ def main():
     rangeMu = [optimMu-10, optimMu, optimMu+10]
 
     models = list()
-    list_params = list()
+    listParams = list()
     modelLikelihoods = dict()
     modelLikelihoods['d'] = list()
     modelLikelihoods['theta'] = list()
@@ -381,23 +416,23 @@ def main():
                 models.append((d, theta, mu))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
                     d, theta, mu, True, False)
-                list_params.append(params)
+                listParams.append(params)
 
     print("Starting pool of workers...")
-    results_fine = pool.map(run_analysis_wrapper, list_params)
+    resultsFine = pool.map(run_analysis_wrapper, listParams)
 
     # Get optimal parameters.
-    max_likelihood_idx = results_fine.index(max(results_fine))
-    optimD = models[max_likelihood_idx][0]
-    optimTheta = models[max_likelihood_idx][1]
-    optimMu = models[max_likelihood_idx][2]
+    maxLikelihoodIdx = resultsFine.index(max(resultsFine))
+    optimD = models[maxLikelihoodIdx][0]
+    optimTheta = models[maxLikelihoodIdx][1]
+    optimMu = models[maxLikelihoodIdx][2]
     print("Finished fine grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
     print("Optimal mu: " + str(optimMu))
 
     # Save fine grid search results to CSV file.
-    modelLikelihoods['L'] = results_fine
+    modelLikelihoods['L'] = resultsFine
     df = pd.DataFrame(modelLikelihoods)
     df.to_csv('likelihood_fine.csv', header=0, sep=',', index_col=None)
 
@@ -429,17 +464,25 @@ def main():
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
 
+    # Create pdf file to save figures.
+    pp = PdfPages("figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
+        str(optimMu) + "_" + str(numTrials) + ".pdf")
+
     # Generate histograms and choice curves for real data (odd trials) and
     # simulations (generated from even trials).
     fig1 = generate_choice_curve_for_data(choice, valueLeft, valueRight)
+    pp.savefig(fig1)
     fig2 = generate_rt_dist_for_data(rt, valueLeft, valueRight)
+    pp.savefig(fig2)
 
     totalTrials = numTrials * len(trialConditions)
     fig3 = generate_choice_curve_for_simulations(simulChoice, simulValueLeft,
         simulValueRight, totalTrials)
+    pp.savefig(fig3)
     fig4 = generate_rt_dist_for_simulations(simulRt, simulValueLeft,
         simulValueRight, totalTrials)
-    plt.show()
+    pp.savefig(fig4)
+    pp.close()
 
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
         simulValueRight, simulFixItem, simulFixTime, totalTrials)
