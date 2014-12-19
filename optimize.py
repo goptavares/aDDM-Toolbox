@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# dyn_prog_optimization.py
+# optimize.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 from scipy.optimize import basinhopping
@@ -8,7 +8,7 @@ from scipy.optimize import basinhopping
 import numpy as np
 
 from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions, run_simulations)
+    get_empirical_distributions)
 
 
 # Global variables.
@@ -18,24 +18,6 @@ valueLeft = dict()
 valueRight = dict()
 fixItem = dict()
 fixTime = dict()
-
-
-# # Random displacement with bounds.
-# class RandomDisplacementBounds(object):
-
-#     def __init__(self, xmin, xmax, stepsize=0.5):
-#         self.xmin = xmin
-#         self.xmax = xmax
-#         self.stepsize = stepsize
-
-#     def __call__(self, x):
-#         # Take a random step but ensure the new position is within the bounds.
-#         while True:
-#             xnew = x + np.random.uniform(-self.stepsize,
-#                 self.stepsize, np.shape(x))
-#             if np.all(xnew < xmax) and np.all(xnew > xmin):
-#                 break
-#         return xnew
 
 
 def run_analysis(x):
@@ -53,7 +35,7 @@ def run_analysis(x):
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu, plotResults=False)
+                fixTime[subject][trial], d, theta, mu=mu, plotResults=False)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(x) + ": " + str(-logLikelihood))
@@ -69,7 +51,7 @@ def main():
     global fixTime
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv()
+    data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft

@@ -8,7 +8,7 @@ from multiprocessing import Pool
 import numpy as np
 
 from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions, run_simulations)
+    get_empirical_distributions)
 
 
 def run_analysis_wrapper(params):
@@ -21,7 +21,7 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv()
+    data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
@@ -54,7 +54,7 @@ def main():
                 list_params.append((rt[subject][trial], choice[subject][trial],
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
-                    model[1], model[2], False))
+                    model[1], 0, model[2], False))
             likelihoods = pool.map(run_analysis_wrapper, list_params)
 
             # Get the denominator for normalizing the posteriors.

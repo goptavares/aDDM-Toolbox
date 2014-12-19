@@ -12,7 +12,7 @@ import random
 import sys
 
 from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions, run_simulations)
+    get_empirical_distributions)
 
 
 # Global variables.
@@ -25,10 +25,10 @@ fixTime = dict()
 
 
 def evaluate(individual):
-    trialsPerSubject = 100
+    trialsPerSubject = 200
     d = individual[0]
     theta = individual[1]
-    mu = individual[2]
+    std = individual[2]
 
     logLikelihood = 0
     subjects = rt.keys()
@@ -39,7 +39,7 @@ def evaluate(individual):
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu, plotResults=False)
+                fixTime[subject][trial], d, theta, std=std, plotResults=False)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(individual) + ": " + str(-logLikelihood))
@@ -55,7 +55,7 @@ def main():
     global fixTime
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv()
+    data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
@@ -64,12 +64,12 @@ def main():
     fixTime = data.fixTime
 
     # Constants.
-    dMin, dMax = 0.00005, 0.001
+    dMin, dMax = 0.0002, 0.08
     thetaMin, thetaMax = 0, 1
-    muMin, muMax = 50, 1000
+    stdMin, stdMax = 0.05, 0.15
     crossoverRate = 0.5
-    mutationRate = 0.2
-    numGenerations = 10
+    mutationRate = 0.3
+    numGenerations = 30
 
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -84,24 +84,30 @@ def main():
     # Create individual.
     toolbox.register("attr_d", random.uniform, dMin, dMax)
     toolbox.register("attr_theta", random.uniform, thetaMin, thetaMax)
-    toolbox.register("attr_mu", random.randint, muMin, muMax)
+    toolbox.register("attr_std", random.uniform, stdMin, stdMax)
     toolbox.register("individual", tools.initCycle, creator.Individual,
-        (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_mu), n=1)
+        (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_std), n=1)
 
     # Create population.
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     pop = toolbox.population(n=16)
 
     # Create operators.
-    toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.1)
+    toolbox.register("mate", tools.cxUniform, indpb=0.4)
+    toolbox.register("mutate", tools.mutGaussian, mu=0,
+        sigma=[0.0005, 0.05, 0.005], indpb=0.4)
     toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("evaluate", evaluate)
 
     # Evaluate the entire population.
     fitnesses = toolbox.map(toolbox.evaluate, pop)
+    bestFit = sys.float_info.max
+    bestInd = None
     for ind, fit in zip(pop, fitnesses):
         ind.fitness.values = fit
+        # Get best individual.
+        if fit < bestFit:
+            bestInd = ind
 
     for g in range(numGenerations):
         print("Generation " + str(g) + "...")
@@ -127,7 +133,7 @@ def main():
         invalidInd = list()
         for ind in offspring:
             if (ind[0] <= dMin or ind[0] >= dMax or ind[1] <= thetaMin or
-                ind[1] >= thetaMax or ind[2] <= muMin or ind[2] >= muMax):
+                ind[1] >= thetaMax or ind[2] <= stdMin or ind[2] >= stdMax):
                 ind.fitness.values = sys.float_info.max,
             elif not ind.fitness.valid:
                 invalidInd.append(ind)
@@ -138,15 +144,13 @@ def main():
         # The population is entirely replaced by the offspring.
         pop[:] = offspring
 
-    # Get best individual.
-    minValue = sys.float_info.max
-    bestInd = []
-    for ind in pop:
-        if ind.fitness.values[0] < minValue:
-            minValue = ind.fitness.values[0]
-            bestInd = ind
+        # Update best individual.
+        for ind in pop:
+            if ind.fitness.values[0] < bestFit:
+                bestFit = ind.fitness.values[0]
+                bestInd = ind
 
-    print minValue
+    print bestFit
     print bestInd
 
 

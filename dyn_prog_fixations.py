@@ -3,7 +3,6 @@
 # dyn_prog_fixations.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
-from numba import jit
 from scipy.stats import norm
 
 import collections
@@ -12,11 +11,11 @@ import numpy as np
 import pandas as pd
 
 
-def load_data_from_csv():
+def load_data_from_csv(expdataFile, fixationsFile):
     # Load experimental data from CSV file.
     # Format: parcode, trial, rt, choice, dist_left, dist_right.
-    # Angular distances to target are transformed to values in [-3, -1, 1, 3].
-    df = pd.DataFrame.from_csv('expdata.csv', header=0, sep=',', index_col=None)
+    # Angular distances to target are transformed to values in [0, 1, 2, 3].
+    df = pd.DataFrame.from_csv(expdataFile, header=0, sep=',', index_col=None)
     subjects = df.parcode.unique()
 
     rt = dict()
@@ -38,12 +37,14 @@ def load_data_from_csv():
                 'dist_right']])
             rt[subject][trial] = dataTrial[0,0]
             choice[subject][trial] = dataTrial[0,1]
-            valueLeft[subject][trial] = (-np.absolute(dataTrial[0,2])/2.5) + 3
-            valueRight[subject][trial] = (-np.absolute(dataTrial[0,3])/2.5) + 3
+            valueLeft[subject][trial] = np.absolute(
+                (np.absolute(dataTrial[0,2])-15)/5)
+            valueRight[subject][trial] = np.absolute(
+                (np.absolute(dataTrial[0,3])-15)/5)
 
     # Load fixation data from CSV file.
     # Format: parcode, trial, fix_item, fix_time.
-    df = pd.DataFrame.from_csv('fixations.csv', header=0, sep=',',
+    df = pd.DataFrame.from_csv(fixationsFile, header=0, sep=',',
         index_col=None)
     subjects = df.parcode.unique()
 
@@ -67,15 +68,19 @@ def load_data_from_csv():
     return data(rt, choice, valueLeft, valueRight, fixItem, fixTime)
 
 
-@jit("(f8,f8,f8,f8,f8[:],f8[:],f8,f8,f8)")
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, mu, plotResults=False):
+    theta, std=0, mu=0, plotResults=False):
     # Parameters of the grid.
     stateStep = 0.1
-    timeStep = 50
+    timeStep = 10
     initialBarrierUp = 1
     initialBarrierDown = -1
-    std = mu * d
+
+    if std == 0:
+        if mu != 0:
+            std = mu * d
+        else:
+            return 0
 
     # Iterate over the fixations and get the transition time for this trial.
     itemFixTime = 0
@@ -156,7 +161,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
                     # distributions probUpCrossing and probDownCrossing each add
                     # up to 1.
                     prStatesNew[s] = (stateStep * np.sum(np.multiply(prStates,
-                        norm.pdf(change,mean,std))))
+                        norm.pdf(change, mean, std))))
 
             # Calculate the probabilities of crossing the up barrier and the
             # down barrier. This is given by the sum, over all states A, of the
@@ -164,10 +169,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             # probability of crossing the barrier if A is the previous state.
             changeUp = (barrierUp[time] * np.ones(states.size)) - states
             tempUpCross = np.sum(np.multiply(prStates,
-                (1 - norm.cdf(changeUp,mean,std))))
+                (1 - norm.cdf(changeUp, mean, std))))
             changeDown = (barrierDown[time] * np.ones(states.size)) - states
             tempDownCross = np.sum(np.multiply(prStates,
-                (norm.cdf(changeDown,mean,std))))
+                (norm.cdf(changeDown, mean, std))))
 
             # Renormalize to cope with numerical approximations.
             sumIn = np.sum(prStates)
@@ -224,7 +229,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime, useOddTrials=True, useEvenTrials=True):
-    valueDiffs = range(-6,8,2)
+    valueDiffs = range(0,4,1)
 
     countLeftFirst = 0
     countTotalTrials = 0
@@ -245,9 +250,8 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
             if fixItem[subject][trial].shape[0] < 2:
                 continue
             # Get value difference between best and worst items for this trial.
-            valueDiff = (max(valueLeft[subject][trial],
-                valueRight[subject][trial]) - min(valueLeft[subject][trial],
-                valueRight[subject][trial]))
+            valueDiff = np.absolute(valueLeft[subject][trial] -
+                valueRight[subject][trial])
             # Iterate over this trial's fixations (skip the last one).
             firstFix = True
             transitionTime = 0
@@ -280,25 +284,31 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     return dists(probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
 
 
-def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
-    distTransition, distFirstFix, distMiddleFix):
-    timeStep = 50
+def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
+    distMiddleFix, numTrials, trialConditions, d, theta, std=0, mu=0):
+    timeStep = 10
     L = 1
+
+    if std == 0:
+        if mu != 0:
+            std = mu * d
+        else:
+            return None
 
     # Simulation data to be returned.
     rt = dict()
     choice = dict()
-    valueLeft = dict()
-    valueRight = dict()
+    distLeft = dict()
+    distRight = dict()
     fixItem = dict()
     fixTime = dict()
 
     trialCount = 0
 
     for trialCondition in trialConditions:
-        vLeft = (-np.absolute(trialCondition[0]) / 2.5) + 3
-        vRight = (-np.absolute(trialCondition[1]) / 2.5) + 3
-        valueDiff = max(vLeft, vRight) - min(vLeft, vRight)
+        vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
+        vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
+        valueDiff = np.absolute(vLeft - vRight)
         for trial in xrange(numTrials):
             fixItem[trialCount] = list()
             fixTime[trialCount] = list()
@@ -330,7 +340,6 @@ def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
                         mean = d * (-vRight + (theta * vLeft))
 
                     # Sample the change in RDV from the distribution.
-                    std = mu * d
                     RDV += np.random.normal(mean, std)
 
                     trialTime += timeStep
@@ -342,8 +351,8 @@ def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
                         elif RDV <= -L:
                             choice[trialCount] = 1
                         rt[trialCount] = transitionTime + trialTime
-                        valueLeft[trialCount] = vLeft
-                        valueRight[trialCount] = vRight
+                        distLeft[trialCount] = trialCondition[0]
+                        distRight[trialCount] = trialCondition[1]
                         fixItem[trialCount].append(currFixItem)
                         fixTime[trialCount].append((t + 1) * timeStep)
                         trialCount += 1
@@ -355,7 +364,7 @@ def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
 
                 # Add previous fixation to this trial's data.
                 fixItem[trialCount].append(currFixItem)
-                fixTime[trialCount].append(currFixTime)
+                fixTime[trialCount].append((t + 1) * timeStep)
 
                 # Sample next fixation for this trial.
                 if currFixItem == 1:
@@ -364,6 +373,6 @@ def run_simulations(numTrials, trialConditions, d, theta, mu, probLeftFixFirst,
                     currFixItem = 1
                 currFixTime = np.random.choice(distMiddleFix[valueDiff])
 
-    simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
-        'valueRight', 'fixItem', 'fixTime'])
-    return simul(rt, choice, valueLeft, valueRight, fixItem, fixTime)
+    simul = collections.namedtuple('Simul', ['rt', 'choice', 'distLeft',
+        'distRight', 'fixItem', 'fixTime'])
+    return simul(rt, choice, distLeft, distRight, fixItem, fixTime)

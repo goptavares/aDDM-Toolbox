@@ -5,6 +5,7 @@
 
 from multiprocessing import Pool
 
+import csv
 import numpy as np
 import operator
 
@@ -20,8 +21,8 @@ def run_analysis(numTrials, rt, choice, valueLeft, valueRight, fixItem, fixTime,
             print("Trial " + str(trial) + "/" + str(numTrials) + "...")
         logLikelihood += np.log(analysis_per_trial(rt[trial], choice[trial],
             valueLeft[trial], valueRight[trial], fixItem[trial], fixTime[trial],
-            d, theta, mu, plotResults=False))
-    return logLikelihood
+            d, theta, mu=mu, plotResults=False))
+    return -logLikelihood
 
 
 def run_analysis_wrapper(params):
@@ -33,7 +34,7 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv()
+    data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
@@ -50,9 +51,9 @@ def main():
     distMiddleFix = dists.distMiddleFix
 
     # Parameters for artificial data generation.
-    numTrials = 100
-    d = 0.0004
-    theta = 0.5
+    numTrials = 360
+    d = 0.001
+    theta = 0.3
     mu = 50
 
     orientations = range(-15,20,5)
@@ -64,21 +65,54 @@ def main():
 
     # Generate artificial data.
     print("Running simulations...")
-    simul = run_simulations(numTrials, trialConditions, d, theta, mu,
-        probLeftFixFirst, distTransition, distFirstFix, distMiddleFix)
+    simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
+        distMiddleFix, numTrials, trialConditions, d, theta, mu=mu)
     simulRt = simul.rt
     simulChoice = simul.choice
-    simulValueLeft = simul.valueLeft
-    simulValueRight = simul.valueRight
+    simulDistLeft = simul.distLeft
+    simulDistRight = simul.distRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
 
+    # Get item values.
+    totalTrials = numTrials * len(trialConditions)
+    simulValueLeft = dict()
+    simulValueRight = dict()
+    for trial in xrange(totalTrials):
+        simulValueLeft[trial] = np.absolute((np.absolute(
+            simulDistLeft[trial])-15)/5)
+        simulValueRight[trial] = np.absolute((np.absolute(
+            simulDistRight[trial])-15)/5)
+
+    # Write artificial data to CSV.
+    with open("expdata_" + str(d) + "_" + str(theta) + "_" + str(mu) + "_" +
+        str(numTrials) + ".csv", "wb") as csvFile:
+        csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
+            quoting=csv.QUOTE_MINIMAL)
+        csvWriter.writerow(["parcode", "trial", "rt", "choice", "dist_left",
+            "dist_right"])
+        for trial in xrange(totalTrials):
+            csvWriter.writerow(["dummy_subj", str(trial), str(simulRt[trial]),
+                str(simulChoice[trial]), str(simulDistLeft[trial]),
+                str(simulDistRight[trial])])
+
+    with open("fixations_" + str(d) + "_" + str(theta) + "_" + str(mu) + "_" +
+        str(numTrials) + ".csv", "wb") as csvFile:
+        csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
+            quoting=csv.QUOTE_MINIMAL)
+        csvWriter.writerow(["parcode", "trial", "fix_item", "fix_time"])
+        for trial in xrange(totalTrials):
+            for fix in xrange(len(simulFixItem[trial])):
+                csvWriter.writerow(["dummy_subj", str(trial),
+                    str(simulFixItem[trial][fix]),
+                    str(simulFixTime[trial][fix])])
+
     # Grid search to recover the parameters.
+    print("Starting grid search...")
     rangeD = [0.0002, 0.0004, 0.0006]
     rangeTheta = [0.3, 0.5, 0.7]
     rangeMu = [20, 50, 80]
 
-    totalTrials = numTrials * len(trialConditions)
     models = list()
     list_params = list()
     results = list()
@@ -94,15 +128,16 @@ def main():
     results = pool.map(run_analysis_wrapper, list_params)
 
     # Get optimal parameters.
-    maxLikelihoodIdx = results.index(max(results))
-    optimD = models[maxLikelihoodIdx][0]
-    optimTheta = models[maxLikelihoodIdx][1]
-    optimMu = models[maxLikelihoodIdx][2]
+    minNegLogLikeIdx = results.index(min(results))
+    optimD = models[minNegLogLikeIdx][0]
+    optimTheta = models[minNegLogLikeIdx][1]
+    optimMu = models[minNegLogLikeIdx][2]
 
     print("Finished grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
     print("Optimal mu: " + str(optimMu))
+    print("Min NLL: " + str(min(results)))
  
 
 if __name__ == '__main__':
