@@ -174,6 +174,20 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     df = pd.DataFrame(d)
     df.to_csv('rts.csv', header=0, sep=',', index_col=None)
 
+    maxLen = 0
+    for valueDiff in xrange(-3,4,1):
+        if len(rtsPerValueDiff[valueDiff]) > maxLen:
+            maxLen = len(rtsPerValueDiff[valueDiff])
+
+    d = dict()
+    for valueDiff in xrange(-3,4,1):
+        rts = np.zeros(maxLen)
+        for i in xrange(len(rtsPerValueDiff[valueDiff])):
+            rts[i] = rtsPerValueDiff[valueDiff][i]
+        d[valueDiff] = rts
+    df = pd.DataFrame(d)
+    df.to_csv('all_rts.csv', header=0, sep=',', index_col=None)
+
     # Pyschometric choice curve grouped by first fixation.
     countTotalLeft = np.zeros(7)
     countLeftChosenLeft = np.zeros(7)
@@ -303,7 +317,7 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    mu, useOddTrials=True, useEvenTrials=True, verbose=True):
+    std, useOddTrials=True, useEvenTrials=True, verbose=True):
     trialsPerSubject = 200
     logLikelihood = 0
     subjects = rt.keys()
@@ -320,13 +334,13 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu=mu, plotResults=False)
+                fixTime[subject][trial], d, theta, std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
         print("NLL for " + str(d) + ", " + str(theta) + ", "
-            + str(mu) + ": " + str(-logLikelihood))
+            + str(std) + ": " + str(-logLikelihood))
     return -logLikelihood
 
 
@@ -352,16 +366,16 @@ def main():
     print("Starting grid search...")
     rangeD = [0.0015, 0.0025, 0.0035]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeMu = [20, 40, 60]
+    rangeStd = [0.03, 0.06, 0.09]
 
     models = list()
     listParams = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for mu in rangeMu:
-                models.append((d, theta, mu))
+            for std in rangeStd:
+                models.append((d, theta, std))
                 params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
-                    d, theta, mu, True, False)
+                    d, theta, std, True, False)
                 listParams.append(params)
 
     print("Starting pool of workers...")
@@ -371,11 +385,11 @@ def main():
     minNegLogLikeIdx = results.index(min(results))
     optimD = models[minNegLogLikeIdx][0]
     optimTheta = models[minNegLogLikeIdx][1]
-    optimMu = models[minNegLogLikeIdx][2]
+    optimStd = models[minNegLogLikeIdx][2]
     print("Finished coarse grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal mu: " + str(optimMu))
+    print("Optimal std: " + str(optimStd))
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials.
@@ -399,7 +413,7 @@ def main():
     # estimated parameters.
     simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
         distMiddleFix, numTrials, trialConditions, optimD, optimTheta,
-        mu=optimMu)
+        std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft
@@ -419,7 +433,7 @@ def main():
 
     # Create pdf file to save figures.
     pp = PdfPages("figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
-        str(optimMu) + "_" + str(numTrials) + ".pdf")
+        str(optimStd) + "_" + str(numTrials) + ".pdf")
 
     # Generate choice and rt curves for real data (odd trials) and
     # simulations (generated from even trials).

@@ -12,7 +12,7 @@ from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial)
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     std, useOddTrials=True, useEvenTrials=True):
-    trialsPerSubject = 200
+    trialsPerSubject = 1200
     logLikelihood = 0
     subjects = rt.keys()
     for subject in subjects:
@@ -27,7 +27,7 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std=std, plotResults=False)
+                fixTime[subject][trial], d, theta, std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     return -logLikelihood

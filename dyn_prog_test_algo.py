@@ -14,14 +14,14 @@ from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
 
 
 def run_analysis(numTrials, rt, choice, valueLeft, valueRight, fixItem, fixTime,
-    d, theta, mu, verbose=True):
+    d, theta, std, verbose=True):
     logLikelihood = 0
     for trial in xrange(numTrials):
         if verbose and trial % 100 == 0:
             print("Trial " + str(trial) + "/" + str(numTrials) + "...")
         logLikelihood += np.log(analysis_per_trial(rt[trial], choice[trial],
             valueLeft[trial], valueRight[trial], fixItem[trial], fixTime[trial],
-            d, theta, mu=mu, plotResults=False))
+            d, theta, std=std))
     return -logLikelihood
 
 
@@ -53,8 +53,8 @@ def main():
     # Parameters for artificial data generation.
     numTrials = 360
     d = 0.001
-    theta = 0.3
-    mu = 50
+    theta = 0.5
+    std = 0.06
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -66,7 +66,7 @@ def main():
     # Generate artificial data.
     print("Running simulations...")
     simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distMiddleFix, numTrials, trialConditions, d, theta, mu=mu)
+        distMiddleFix, numTrials, trialConditions, d, theta, std=std)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft
@@ -85,7 +85,7 @@ def main():
             simulDistRight[trial])-15)/5)
 
     # Write artificial data to CSV.
-    with open("expdata_" + str(d) + "_" + str(theta) + "_" + str(mu) + "_" +
+    with open("expdata_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
         str(numTrials) + ".csv", "wb") as csvFile:
         csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
             quoting=csv.QUOTE_MINIMAL)
@@ -96,7 +96,7 @@ def main():
                 str(simulChoice[trial]), str(simulDistLeft[trial]),
                 str(simulDistRight[trial])])
 
-    with open("fixations_" + str(d) + "_" + str(theta) + "_" + str(mu) + "_" +
+    with open("fixations_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
         str(numTrials) + ".csv", "wb") as csvFile:
         csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
             quoting=csv.QUOTE_MINIMAL)
@@ -109,19 +109,19 @@ def main():
 
     # Grid search to recover the parameters.
     print("Starting grid search...")
-    rangeD = [0.0002, 0.0004, 0.0006]
+    rangeD = [0.001, 0.003, 0.005]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeMu = [20, 50, 80]
+    rangeStd = [0.03, 0.06, 0.09]
 
     models = list()
     list_params = list()
     results = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for mu in rangeMu:
-                models.append((d, theta, mu))
+            for std in rangeStd:
+                models.append((d, theta, std))
                 params = (totalTrials, simulRt, simulChoice, simulValueLeft,
-                    simulValueRight, simulFixItem, simulFixTime, d, theta, mu)
+                    simulValueRight, simulFixItem, simulFixTime, d, theta, std)
                 list_params.append(params)
 
     print("Starting pool of workers...")
@@ -131,12 +131,12 @@ def main():
     minNegLogLikeIdx = results.index(min(results))
     optimD = models[minNegLogLikeIdx][0]
     optimTheta = models[minNegLogLikeIdx][1]
-    optimMu = models[minNegLogLikeIdx][2]
+    optimStd = models[minNegLogLikeIdx][2]
 
     print("Finished grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal mu: " + str(optimMu))
+    print("Optimal std: " + str(optimStd))
     print("Min NLL: " + str(min(results)))
  
 

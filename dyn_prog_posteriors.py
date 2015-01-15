@@ -29,17 +29,17 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    rangeD = [0.0002, 0.0005, 0.0008]
+    rangeD = [0.002, 0.005, 0.008]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeMu = [100, 300, 500]
-    numModels = len(rangeD) * len(rangeTheta) * len(rangeMu)
+    rangeStd = [0.03, 0.06, 0.09]
+    numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
 
     models = list()
     posteriors = dict()
     for d in rangeD:
         for theta in rangeTheta:
-            for mu in rangeMu:
-                model = (d, theta, mu)
+            for std in rangeStd:
+                model = (d, theta, std)
                 models.append(model)
                 posteriors[model] = 1./ numModels
 
@@ -54,7 +54,7 @@ def main():
                 list_params.append((rt[subject][trial], choice[subject][trial],
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
-                    model[1], 0, model[2], False))
+                    model[1], 0, model[2]))
             likelihoods = pool.map(run_analysis_wrapper, list_params)
 
             # Get the denominator for normalizing the posteriors.

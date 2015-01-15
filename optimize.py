@@ -24,7 +24,7 @@ def run_analysis(x):
     trialsPerSubject = 200
     d = x[0]
     theta = x[1]
-    mu = x[2]
+    std = x[2]
 
     logLikelihood = 0
     subjects = rt.keys()
@@ -35,7 +35,7 @@ def run_analysis(x):
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu=mu, plotResults=False)
+                fixTime[subject][trial], d, theta, std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(x) + ": " + str(-logLikelihood))
@@ -59,12 +59,12 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    # Initial guess: d, theta, mu.
-    x0 = [0.0002, 0.5, 200]
+    # Initial guess: d, theta, std.
+    x0 = [0.0002, 0.5, 0.08]
 
     # Search bounds.
-    xmin = [0.00005, 0., 10]
-    xmax = [0.01, 1., 1000]
+    xmin = [0.00005, 0., 0.05]
+    xmax = [0.01, 1., 0.1]
     bounds = [(lower, upper) for lower, upper in zip(xmin, xmax)]
 
     # Optimize using Basinhopping algorithm.

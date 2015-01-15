@@ -19,7 +19,7 @@ from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial)
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    mu, verbose=True):
+    std, verbose=True):
     trialsPerSubject = 100
     logLikelihood = 0
     subjects = rt.keys()
@@ -32,13 +32,13 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, mu=mu, plotResults=False)
+                fixTime[subject][trial], d, theta, std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
         print("Negative log likelihood for " + str(d) + ", " + str(theta) + ", "
-            + str(mu) + ": " + str(-logLikelihood))
+            + str(std) + ": " + str(-logLikelihood))
     return -logLikelihood
 
 
@@ -59,14 +59,13 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    print("Starting coarse grid search...")
     coarseRangeD = [0.0008, 0.001, 0.0012]
     coarseRangeTheta = [0.3, 0.5, 0.7]
-    coarseRangeMu = [50, 100, 150]
+    coarseRangeStd = [0.03, 0.06, 0.09]
 
     fineRangeD = np.arange(0.0001, 0.001, 0.0001)
     fineRangeTheta = np.arange(0.1, 1.0, 0.1)
-    fineRangeMu = np.arange(100, 1000, 100)
+    fineRangeStd = np.arange(0.02, 0.11, 0.01)
 
     likelihoods = dict()
 
@@ -75,11 +74,11 @@ def main():
     list_params = list()
     for d in fineRangeD:
         for theta in coarseRangeTheta:
-            for mu in coarseRangeMu:
-                if not (d, theta, mu) in likelihoods:
-                    models.append((d, theta, mu))
+            for std in coarseRangeStd:
+                if not (d, theta, std) in likelihoods:
+                    models.append((d, theta, std))
                     params = (rt, choice, valueLeft, valueRight, fixItem,
-                        fixTime, d, theta, mu)
+                        fixTime, d, theta, std)
                     list_params.append(params)
 
     print("Starting pool of workers for d search...")
@@ -93,11 +92,11 @@ def main():
     list_params = list()
     for d in coarseRangeD:
         for theta in fineRangeTheta:
-            for mu in coarseRangeMu:
-                if not (d, theta, mu) in likelihoods:
-                    models.append((d, theta, mu))
+            for std in coarseRangeStd:
+                if not (d, theta, std) in likelihoods:
+                    models.append((d, theta, std))
                     params = (rt, choice, valueLeft, valueRight, fixItem,
-                        fixTime, d, theta, mu)
+                        fixTime, d, theta, std)
                     list_params.append(params)
 
     print("Starting pool of workers for theta search...")
@@ -106,19 +105,19 @@ def main():
     for i in xrange(0, len(results)):
         likelihoods[models[i]] = results[i]
 
-    # Coarse grid search for mu.
+    # Coarse grid search for std.
     models = list()
     list_params = list()
     for d in coarseRangeD:
         for theta in coarseRangeTheta:
-            for mu in fineRangeMu:
-                if not (d, theta, mu) in likelihoods:
-                    models.append((d, theta, mu))
+            for std in fineRangeStd:
+                if not (d, theta, std) in likelihoods:
+                    models.append((d, theta, std))
                     params = (rt, choice, valueLeft, valueRight, fixItem,
-                        fixTime, d, theta, mu)
+                        fixTime, d, theta, std)
                     list_params.append(params)
 
-    print("Starting pool of workers for mu search...")
+    print("Starting pool of workers for std search...")
     results = pool.map(run_analysis_wrapper, list_params)
 
     for i in xrange(0, len(results)):
@@ -138,12 +137,12 @@ def main():
     ax = plt.subplot(111)
     c = 0
     for theta in coarseRangeTheta:
-        for mu in coarseRangeMu:
+        for std in coarseRangeStd:
             d_likelihoods = list()
             for d in fineRangeD:
-                d_likelihoods.append(likelihoods[(d, theta, mu)])
+                d_likelihoods.append(likelihoods[(d, theta, std)])
             ax.plot(fineRangeD, d_likelihoods,
-                color=colors[c], label=(str(theta) + ", " + str(mu)))
+                color=colors[c], label=(str(theta) + ", " + str(std)))
             c += 1
     plt.xlabel("d")
     plt.ylabel("Negative log likelihood")
@@ -157,12 +156,12 @@ def main():
     ax = plt.subplot(111)
     c = 0
     for d in coarseRangeD:
-        for mu in coarseRangeMu:
+        for std in coarseRangeStd:
             theta_likelihoods = list()
             for theta in fineRangeTheta:
-                theta_likelihoods.append(likelihoods[(d, theta, mu)])
+                theta_likelihoods.append(likelihoods[(d, theta, std)])
             ax.plot(fineRangeTheta, theta_likelihoods,
-                color=colors[c], label=(str(d) + ", " + str(mu)))
+                color=colors[c], label=(str(d) + ", " + str(std)))
             c += 1
     plt.xlabel("theta")
     plt.ylabel("Negative log likelihood")
@@ -171,19 +170,19 @@ def main():
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     pp.savefig(fig2)
 
-    # Generate mu plots.
+    # Generate std plots.
     fig3 = plt.figure()
     ax = plt.subplot(111)
     c = 0
     for d in coarseRangeD:
         for theta in coarseRangeTheta:
-            mu_likelihoods = list()
-            for mu in fineRangeMu:
-                mu_likelihoods.append(likelihoods[(d, theta, mu)])
-            ax.plot(fineRangeMu, mu_likelihoods,
+            std_likelihoods = list()
+            for std in fineRangeStd:
+                std_likelihoods.append(likelihoods[(d, theta, std)])
+            ax.plot(fineRangeStd, std_likelihoods,
                 color=colors[c], label=(str(d) + ", " + str(theta)))
             c += 1
-    plt.xlabel("mu")
+    plt.xlabel("std")
     plt.ylabel("Negative log likelihood")
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -192,40 +191,40 @@ def main():
 
     # Generate zoomed-in d plots.
     for theta in coarseRangeTheta:
-        for mu in coarseRangeMu:
+        for std in coarseRangeStd:
             d_likelihoods = list()
             for d in fineRangeD:
-                d_likelihoods.append(likelihoods[(d, theta, mu)])
+                d_likelihoods.append(likelihoods[(d, theta, std)])
             fig = plt.figure()
             plt.plot(fineRangeD, d_likelihoods)
-            plt.title(str(theta) + ", " + str(mu))
+            plt.title(str(theta) + ", " + str(std))
             plt.xlabel("d")
             plt.ylabel("Negative log likelihood")
             pp.savefig(fig)
 
     # Generate zoomed-in theta plots.
     for d in coarseRangeD:
-        for mu in coarseRangeMu:
+        for std in coarseRangeStd:
             theta_likelihoods = list()
             for theta in fineRangeTheta:
-                theta_likelihoods.append(likelihoods[(d, theta, mu)])
+                theta_likelihoods.append(likelihoods[(d, theta, std)])
             fig = plt.figure()
             plt.plot(fineRangeTheta, theta_likelihoods)
-            plt.title(str(d) + ", " + str(mu))
+            plt.title(str(d) + ", " + str(std))
             plt.xlabel("theta")
             plt.ylabel("Negative log likelihood")
             pp.savefig(fig)
 
-    # Generate zoomed-in mu plots.
+    # Generate zoomed-in std plots.
     for d in coarseRangeD:
         for theta in coarseRangeTheta:
-            mu_likelihoods = list()
-            for mu in fineRangeMu:
-                mu_likelihoods.append(likelihoods[(d, theta, mu)])
+            std_likelihoods = list()
+            for std in fineRangeStd:
+                std_likelihoods.append(likelihoods[(d, theta, std)])
             fig = plt.figure()
-            plt.plot(fineRangeMu, mu_likelihoods)
+            plt.plot(fineRangeStd, std_likelihoods)
             plt.title(str(d) + ", " + str(theta))
-            plt.xlabel("mu")
+            plt.xlabel("std")
             plt.ylabel("Negative log likelihood")
             pp.savefig(fig)
 

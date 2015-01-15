@@ -252,10 +252,17 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
             # Get value difference between best and worst items for this trial.
             valueDiff = np.absolute(valueLeft[subject][trial] -
                 valueRight[subject][trial])
-            # Iterate over this trial's fixations (skip the last one).
+            # Find the last item fixation in this trial.
+            excludeCount = 0
+            for i in xrange(fixItem[subject][trial].shape[0] - 1, -1, -1):
+                excludeCount += 1
+                if (fixItem[subject][trial][i] == 1 or
+                    fixItem[subject][trial][i] == 2):
+                    break
+            # Iterate over this trial's fixations (skip the last item fixation).
             firstFix = True
             transitionTime = 0
-            for i in xrange(fixItem[subject][trial].shape[0] - 1):
+            for i in xrange(fixItem[subject][trial].shape[0] - excludeCount):
                 item = fixItem[subject][trial][i]
                 if item != 1 and item != 2:
                     transitionTime += fixTime[subject][trial][i]
@@ -265,7 +272,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                         distFirstFixList.append(fixTime[subject][trial][i])
                         countTotalTrials +=1
                         if item == 1:  # First fixation was left.
-                            countLeftFirst +=1
+                            countLeftFirst += 1
                     else:
                         distMiddleFixList[valueDiff].append(
                             fixTime[subject][trial][i])
