@@ -143,3 +143,7 @@ def main():
 
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
         simulValueRight, simulFixItem, simulFixTime, totalTrials)
+
+
+if __name__ == '__main__':
+    main()
