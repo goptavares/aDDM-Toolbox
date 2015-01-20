@@ -132,10 +132,12 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     # Psychometric choice curve.
     countTotal = np.zeros(7)
     countLeftChosen = np.zeros(7)
+    trialCount = np.zeros(7)
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
         idx = valueDiff + 3
+        trialCount[idx] += 1
         if choice[trial] == -1:  # Choice was left.
             countLeftChosen[idx] +=1
             countTotal[idx] += 1
@@ -144,12 +146,13 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     probLeftChosen = np.zeros(7)
     stdProbLeftChosen = np.zeros(7)
+
     for i in xrange(0,7):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
-        stdProbLeftChosen[i] = np.sqrt((probLeftChosen[i] *
-            (1 - probLeftChosen[i])) / countTotal[i])
+        stdProbLeftChosen[i] = np.sqrt(probLeftChosen[i] *
+            (1 - probLeftChosen[i]))
 
-    d = {'prob': probLeftChosen, 'std': stdProbLeftChosen}
+    d = {'a': probLeftChosen, 'b': stdProbLeftChosen, 'c': trialCount}
     df = pd.DataFrame(d)
     df.to_csv('choices.csv', header=0, sep=',', index_col=None)
 
@@ -158,8 +161,11 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     for valueDiff in xrange(-3,4,1):
         rtsPerValueDiff[valueDiff] = list()
 
+    trialCount = np.zeros(7)
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
+        idx = valueDiff + 3
+        trialCount[idx] += 1
         rtsPerValueDiff[valueDiff].append(rt[trial])
 
     meanRts = np.zeros(7)
@@ -167,10 +173,9 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     for valueDiff in xrange(-3,4,1):
         idx = valueDiff + 3
         meanRts[idx] = np.mean(np.array(rtsPerValueDiff[valueDiff]))
-        stdRts[idx] = (np.std(np.array(rtsPerValueDiff[valueDiff])) /
-            np.sqrt(len(rtsPerValueDiff[valueDiff])))
+        stdRts[idx] = np.std(np.array(rtsPerValueDiff[valueDiff]))
 
-    d = {'meanRt': meanRts, 'std': stdRts}
+    d = {'a': meanRts, 'b': stdRts, 'c': trialCount}
     df = pd.DataFrame(d)
     df.to_csv('rts.csv', header=0, sep=',', index_col=None)
 
@@ -191,24 +196,24 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     # Pyschometric choice curve grouped by first fixation.
     countTotalLeft = np.zeros(7)
     countLeftChosenLeft = np.zeros(7)
+    trialCountLeft = np.zeros(7)
     countTotalRight = np.zeros(7)
     countLeftChosenRight = np.zeros(7)
+    trialCountRight = np.zeros(7)
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
         idx = valueDiff + 3
         if fixItem[trial][1] == 1:  # First item was left.
+            trialCountLeft[idx] += 1
+            countTotalLeft[idx] += 1
             if choice[trial] == -1:  # Choice was left.
                 countLeftChosenLeft[idx] +=1
-                countTotalLeft[idx] += 1
-            elif choice[trial] == 1:  # Choice was right.
-                countTotalLeft[idx] += 1
-        if fixItem[trial][1] == 2:  # First item was right.
+        elif fixItem[trial][1] == 2:  # First item was right.
+            trialCountRight[idx] += 1
+            countTotalRight[idx] += 1
             if choice[trial] == -1:  # Choice was left.
                 countLeftChosenRight[idx] +=1
-                countTotalRight[idx] += 1
-            elif choice[trial] == 1:  # Choice was right.
-                countTotalRight[idx] += 1
 
     probLeftChosenLeft = np.zeros(7)
     stdProbLeftChosenLeft = np.zeros(7)
@@ -216,38 +221,39 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     stdProbLeftChosenRight = np.zeros(7)
     for i in xrange(0,7):
         probLeftChosenLeft[i] = countLeftChosenLeft[i] / countTotalLeft[i]
-        stdProbLeftChosenLeft[i] = np.sqrt((probLeftChosenLeft[i] *
-            (1 - probLeftChosenLeft[i])) / countTotalLeft[i])
+        stdProbLeftChosenLeft[i] = np.sqrt(probLeftChosenLeft[i] *
+            (1 - probLeftChosenLeft[i]))
         probLeftChosenRight[i] = countLeftChosenRight[i] / countTotalRight[i]
-        stdProbLeftChosenRight[i] = np.sqrt((probLeftChosenRight[i] *
-            (1 - probLeftChosenRight[i])) / countTotalRight[i])
+        stdProbLeftChosenRight[i] = np.sqrt(probLeftChosenRight[i] *
+            (1 - probLeftChosenRight[i]))
 
-    d = {'probLeft': probLeftChosenLeft, 'stdLeft': stdProbLeftChosenLeft,
-        'probRight': probLeftChosenRight, 'stdRight': stdProbLeftChosenRight}
+    d = {'a': probLeftChosenLeft, 'b': stdProbLeftChosenLeft,
+        'c': trialCountLeft, 'd': probLeftChosenRight,
+        'e': stdProbLeftChosenRight, 'f': trialCountRight}
     df = pd.DataFrame(d)
     df.to_csv('choices_first_fix.csv', header=0, sep=',', index_col=None)
 
     # Pyschometric choice curve grouped by last fixation.
     countTotalLeft = np.zeros(7)
     countLeftChosenLeft = np.zeros(7)
+    trialCountLeft = np.zeros(7)
     countTotalRight = np.zeros(7)
     countLeftChosenRight = np.zeros(7)
+    trialCountRight = np.zeros(7)
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
         idx = valueDiff + 3
         if fixItem[trial][-1] == 1:  # Last item was left.
+            trialCountLeft[idx] += 1
+            countTotalLeft[idx] += 1
             if choice[trial] == -1:  # Choice was left.
                 countLeftChosenLeft[idx] +=1
-                countTotalLeft[idx] += 1
-            elif choice[trial] == 1:  # Choice was right.
-                countTotalLeft[idx] += 1
-        if fixItem[trial][-1] == 2:  # Last item was right.
+        elif fixItem[trial][-1] == 2:  # Last item was right.
+            trialCountRight[idx] += 1
+            countTotalRight[idx] += 1
             if choice[trial] == -1:  # Choice was left.
                 countLeftChosenRight[idx] +=1
-                countTotalRight[idx] += 1
-            elif choice[trial] == 1:  # Choice was right.
-                countTotalRight[idx] += 1
 
     probLeftChosenLeft = np.zeros(7)
     stdProbLeftChosenLeft = np.zeros(7)
@@ -255,22 +261,25 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     stdProbLeftChosenRight = np.zeros(7)
     for i in xrange(0,7):
         probLeftChosenLeft[i] = countLeftChosenLeft[i] / countTotalLeft[i]
-        stdProbLeftChosenLeft[i] = np.sqrt((probLeftChosenLeft[i] *
-            (1 - probLeftChosenLeft[i])) / countTotalLeft[i])
+        stdProbLeftChosenLeft[i] = np.sqrt(probLeftChosenLeft[i] *
+            (1 - probLeftChosenLeft[i]))
         probLeftChosenRight[i] = countLeftChosenRight[i] / countTotalRight[i]
-        stdProbLeftChosenRight[i] = np.sqrt((probLeftChosenRight[i] *
-            (1 - probLeftChosenRight[i])) / countTotalRight[i])
+        stdProbLeftChosenRight[i] = np.sqrt(probLeftChosenRight[i] *
+            (1 - probLeftChosenRight[i]))
 
-    d = {'probLeft': probLeftChosenLeft, 'stdLeft': stdProbLeftChosenLeft,
-        'probRight': probLeftChosenRight, 'stdRight': stdProbLeftChosenRight}
+    d = {'a': probLeftChosenLeft, 'b': stdProbLeftChosenLeft,
+        'c': trialCountLeft, 'd': probLeftChosenRight,
+        'e': stdProbLeftChosenRight, 'f': trialCountRight}
     df = pd.DataFrame(d)
     df.to_csv('choices_last_fix.csv', header=0, sep=',', index_col=None)
 
     # Pyschometric choice curve grouped by longest fixation time.
     countTotalLeft = np.zeros(7)
     countLeftChosenLeft = np.zeros(7)
+    trialCountLeft = np.zeros(7)
     countTotalRight = np.zeros(7)
     countLeftChosenRight = np.zeros(7)
+    trialCountRight = np.zeros(7)
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeft[trial] - valueRight[trial]
@@ -286,17 +295,15 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
                 fixTimeRight += fixTime[trial][i]
 
         if fixTimeLeft >= fixTimeRight:  # Longest fixated item was left.
+            trialCountLeft[idx] += 1
+            countTotalLeft[idx] += 1
             if choice[trial] == -1:  # Choice was left.
                 countLeftChosenLeft[idx] +=1
-                countTotalLeft[idx] += 1
-            elif choice[trial] == 1:  # Choice was right.
-                countTotalLeft[idx] += 1
         else:  # Longest fixated item was right.
+            trialCountRight[idx] += 1
+            countTotalRight[idx] += 1
             if choice[trial] == -1:  # Choice was left.
                 countLeftChosenRight[idx] +=1
-                countTotalRight[idx] += 1
-            elif choice[trial] == 1:  # Choice was right.
-                countTotalRight[idx] += 1
 
     probLeftChosenLeft = np.zeros(7)
     stdProbLeftChosenLeft = np.zeros(7)
@@ -304,14 +311,15 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     stdProbLeftChosenRight = np.zeros(7)
     for i in xrange(0,7):
         probLeftChosenLeft[i] = countLeftChosenLeft[i] / countTotalLeft[i]
-        stdProbLeftChosenLeft[i] = np.sqrt((probLeftChosenLeft[i] *
-            (1 - probLeftChosenLeft[i])) / countTotalLeft[i])
+        stdProbLeftChosenLeft[i] = np.sqrt(probLeftChosenLeft[i] *
+            (1 - probLeftChosenLeft[i]))
         probLeftChosenRight[i] = countLeftChosenRight[i] / countTotalRight[i]
-        stdProbLeftChosenRight[i] = np.sqrt((probLeftChosenRight[i] *
-            (1 - probLeftChosenRight[i])) / countTotalRight[i])
+        stdProbLeftChosenRight[i] = np.sqrt(probLeftChosenRight[i] *
+            (1 - probLeftChosenRight[i]))
 
-    d = {'probLeft': probLeftChosenLeft, 'stdLeft': stdProbLeftChosenLeft,
-        'probRight': probLeftChosenRight, 'stdRight': stdProbLeftChosenRight}
+    d = {'a': probLeftChosenLeft, 'b': stdProbLeftChosenLeft,
+        'c': trialCountLeft, 'd': probLeftChosenRight,
+        'e': stdProbLeftChosenRight, 'f': trialCountRight}
     df = pd.DataFrame(d)
     df.to_csv('choices_most_fix.csv', header=0, sep=',', index_col=None)
 
@@ -356,10 +364,24 @@ def main():
     data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
+    distLeft = data.distLeft
+    distRight = data.distRight
     fixItem = data.fixItem
     fixTime = data.fixTime
+
+    # Get item values.
+    valueLeft = dict()
+    valueRight = dict()
+    subjects = distLeft.keys()
+    for subject in subjects:
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
+        trials = distLeft[subject].keys()
+        for trial in trials:
+            valueLeft[subject][trial] = np.absolute((np.absolute(
+                distLeft[subject][trial])-15)/5)
+            valueRight[subject][trial] = np.absolute((np.absolute(
+                distRight[subject][trial])-15)/5)
 
     # Maximum likelihood estimation using odd trials only.
     # Grid search on the parameters of the model.
@@ -393,7 +415,7 @@ def main():
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials.
-    evenDists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
+    evenDists = get_empirical_distributions(rt, choice, distLeft, distRight,
         fixItem, fixTime, useOddTrials=False, useEvenTrials=True)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distTransition = evenDists.distTransition

@@ -54,10 +54,24 @@ def main():
     data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
+    distLeft = data.distLeft
+    distRight = data.distRight
     fixItem = data.fixItem
     fixTime = data.fixTime
+
+    # Get item values.
+    valueLeft = dict()
+    valueRight = dict()
+    subjects = distLeft.keys()
+    for subject in subjects:
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
+        trials = distLeft[subject].keys()
+        for trial in trials:
+            valueLeft[subject][trial] = np.absolute((np.absolute(
+                distLeft[subject][trial])-15)/5)
+            valueRight[subject][trial] = np.absolute((np.absolute(
+                distRight[subject][trial])-15)/5)
 
     coarseRangeD = [0.0008, 0.001, 0.0012]
     coarseRangeTheta = [0.3, 0.5, 0.7]

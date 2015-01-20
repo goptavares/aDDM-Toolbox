@@ -20,14 +20,14 @@ def load_data_from_csv(expdataFile, fixationsFile):
 
     rt = dict()
     choice = dict()
-    valueLeft = dict()
-    valueRight = dict()
+    distLeft = dict()
+    distRight = dict()
 
     for subject in subjects:
         rt[subject] = dict()
         choice[subject] = dict()
-        valueLeft[subject] = dict()
-        valueRight[subject] = dict()
+        distLeft[subject] = dict()
+        distRight[subject] = dict()
         dataSubject = np.array(df.loc[df['parcode']==subject,
             ['trial','rt','choice','dist_left','dist_right']])
         trials = np.unique(dataSubject[:,0]).tolist()
@@ -37,10 +37,8 @@ def load_data_from_csv(expdataFile, fixationsFile):
                 'dist_right']])
             rt[subject][trial] = dataTrial[0,0]
             choice[subject][trial] = dataTrial[0,1]
-            valueLeft[subject][trial] = np.absolute(
-                (np.absolute(dataTrial[0,2])-15)/5)
-            valueRight[subject][trial] = np.absolute(
-                (np.absolute(dataTrial[0,3])-15)/5)
+            distLeft[subject][trial] = dataTrial[0,2]
+            distRight[subject][trial] = dataTrial[0,3]
 
     # Load fixation data from CSV file.
     # Format: parcode, trial, fix_item, fix_time.
@@ -63,9 +61,9 @@ def load_data_from_csv(expdataFile, fixationsFile):
             fixItem[subject][trial] = dataTrial[:,0]
             fixTime[subject][trial] = dataTrial[:,1]
 
-    data = collections.namedtuple('Data', ['rt', 'choice', 'valueLeft',
-        'valueRight', 'fixItem', 'fixTime'])
-    return data(rt, choice, valueLeft, valueRight, fixItem, fixTime)
+    data = collections.namedtuple('Data', ['rt', 'choice', 'distLeft',
+        'distRight', 'fixItem', 'fixTime'])
+    return data(rt, choice, distLeft, distRight, fixItem, fixTime)
 
 
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
@@ -227,8 +225,9 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     return likelihood
 
 
-def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
-    fixTime, useOddTrials=True, useEvenTrials=True):
+def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
+    fixTime, useOddTrials=True, useEvenTrials=True, useCisTrials=True,
+    useTransTrials=True):
     valueDiffs = range(0,4,1)
 
     countLeftFirst = 0
@@ -239,6 +238,20 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     for valueDiff in valueDiffs:
         distMiddleFixList[valueDiff] = list()
 
+    # Get item values.
+    valueLeft = dict()
+    valueRight = dict()
+    subjects = distLeft.keys()
+    for subject in subjects:
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
+        trials = distLeft[subject].keys()
+        for trial in trials:
+            valueLeft[subject][trial] = np.absolute((np.absolute(
+                distLeft[subject][trial])-15)/5)
+            valueRight[subject][trial] = np.absolute((np.absolute(
+                distRight[subject][trial])-15)/5)
+
     subjects = rt.keys()
     for subject in subjects:
         trials = rt[subject].keys()
@@ -246,6 +259,12 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
             if not useOddTrials and trial % 2 != 0:
                 continue
             if not useEvenTrials and trial % 2 == 0:
+                continue
+            if (not useCisTrials and (distLeft[subject][trial] *
+                distRight[subject][trial] > 0)):
+                continue
+            if (not useTransTrials and (distLeft[subject][trial] *
+                distRight[subject][trial] < 0)):
                 continue
             if fixItem[subject][trial].shape[0] < 2:
                 continue

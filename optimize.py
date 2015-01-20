@@ -7,8 +7,7 @@ from scipy.optimize import basinhopping
 
 import numpy as np
 
-from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions)
+from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
 
 
 # Global variables.
@@ -54,10 +53,22 @@ def main():
     data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
+    distLeft = data.distLeft
+    distRight = data.distRight
     fixItem = data.fixItem
     fixTime = data.fixTime
+
+    # Get item values.
+    subjects = distLeft.keys()
+    for subject in subjects:
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
+        trials = distLeft[subject].keys()
+        for trial in trials:
+            valueLeft[subject][trial] = np.absolute((np.absolute(
+                distLeft[subject][trial])-15)/5)
+            valueRight[subject][trial] = np.absolute((np.absolute(
+                distRight[subject][trial])-15)/5)
 
     # Initial guess: d, theta, std.
     x0 = [0.0002, 0.5, 0.08]

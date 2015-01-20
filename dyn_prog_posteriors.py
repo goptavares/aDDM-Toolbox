@@ -8,7 +8,65 @@ from multiprocessing import Pool
 import numpy as np
 
 from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions)
+    get_empirical_distributions, run_simulations)
+from dyn_prog_group_fitting import save_simulations_to_csv
+
+def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
+    distFirstFix, distMiddleFix, posteriors):
+    posteriorsList = list()
+    models = dict()
+    i = 0
+    for model, posterior in posteriors.iteritems():
+        posteriorsList.append(posterior)
+        models[i] = model
+        i += 1
+
+    # Parameters for generating simulations.
+    numSamples = 100
+    numSimulationsPerSample = 10
+    orientations = range(-15,20,5)
+    trialConditions = list()
+    for oLeft in orientations:
+        for oRight in orientations:
+            if oLeft != oRight:
+                trialConditions.append((oLeft, oRight))
+
+    rt = dict()
+    choice = dict()
+    valueLeft = dict()
+    valueRight = dict()
+    fixItem = dict()
+    fixTime = dict()
+
+    numModels = len(models.keys())
+    trialCount = 0
+    for i in xrange(numSamples):
+        # Sample model from posteriors distribution.
+        modelIndex = np.random.choice(np.array(range(numModels)),
+            p=np.array(posteriorsList))
+        model = models[modelIndex]
+        d = model[0]
+        theta = model[1]
+        std = model[2]
+
+        # Generate simulations with the sampled model.
+        simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
+            distMiddleFix, numSimulationsPerSample, trialConditions, d, theta,
+            std=std)
+        for trial in simul.rt.keys():
+            rt[trialCount] = simul.rt[trial]
+            choice[trialCount] = simul.choice[trial]
+            fixTime[trialCount] = simul.fixTime[trial]
+            fixItem[trialCount] = simul.fixItem[trial]
+            valueLeft[trialCount] = np.absolute((np.absolute(
+                simul.distLeft[trial])-15)/5)
+            valueRight[trialCount] = np.absolute((np.absolute(
+                simul.distRight[trial])-15)/5)
+            trialCount += 1
+
+    numTrials = len(rt.keys())
+    save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem, fixTime,
+        numTrials)
 
 
 def run_analysis_wrapper(params):
@@ -16,7 +74,7 @@ def run_analysis_wrapper(params):
 
 
 def main():
-    trialsPerSubject = 200
+    trialsPerSubject = 500
     numThreads = 9
     pool = Pool(numThreads)
 
@@ -24,14 +82,28 @@ def main():
     data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
+    distLeft = data.distLeft
+    distRight = data.distRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    rangeD = [0.002, 0.005, 0.008]
-    rangeTheta = [0.3, 0.5, 0.7]
-    rangeStd = [0.03, 0.06, 0.09]
+    # Get item values.
+    valueLeft = dict()
+    valueRight = dict()
+    subjects = distLeft.keys()
+    for subject in subjects:
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
+        trials = distLeft[subject].keys()
+        for trial in trials:
+            valueLeft[subject][trial] = np.absolute((np.absolute(
+                distLeft[subject][trial])-15)/5)
+            valueRight[subject][trial] = np.absolute((np.absolute(
+                distRight[subject][trial])-15)/5)
+
+    rangeD = [0.0045, 0.005, 0.0055]
+    rangeTheta = [0.25, 0.3, 0.35]
+    rangeStd = [0.08, 0.085, 0.09]
     numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
 
     models = list()
@@ -54,7 +126,7 @@ def main():
                 list_params.append((rt[subject][trial], choice[subject][trial],
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
-                    model[1], 0, model[2]))
+                    model[1], model[2]))
             likelihoods = pool.map(run_analysis_wrapper, list_params)
 
             # Get the denominator for normalizing the posteriors.
@@ -77,6 +149,17 @@ def main():
         for model in posteriors:
             print("P" + str(model) + " = " + str(posteriors[model]))
         print("Sum: " + str(sum(posteriors.values())))
+
+    # Get empirical distributions for the data.
+    dists = get_empirical_distributions(rt, choice, distLeft, distRight,
+        fixItem, fixTime, useOddTrials=True, useEvenTrials=True)
+    probLeftFixFirst = dists.probLeftFixFirst
+    distTransition = dists.distTransition
+    distFirstFix = dists.distFirstFix
+    distMiddleFix = dists.distMiddleFix
+
+    generate_probabilistic_simulations(probLeftFixFirst, distTransition,
+        distFirstFix, distMiddleFix, posteriors)
 
 
 if __name__ == '__main__':

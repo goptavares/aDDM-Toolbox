@@ -37,13 +37,13 @@ def main():
     data = load_data_from_csv("expdata.csv", "fixations.csv")
     rt = data.rt
     choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
+    distLeft = data.distLeft
+    distRight = data.distRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
     # Get empirical distributions.
-    dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
+    dists = get_empirical_distributions(rt, choice, distLeft, distRight,
         fixItem, fixTime)
     probLeftFixFirst = dists.probLeftFixFirst
     distTransition = dists.distTransition
