@@ -11,7 +11,7 @@ import operator
 import random
 import sys
 
-from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
+from handle_fixations import load_data_from_csv, analysis_per_trial
 
 
 # Global variables.

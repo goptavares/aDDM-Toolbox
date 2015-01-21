@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
-# dyn_prog_posteriors.py
+# posteriors.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 from multiprocessing import Pool
 
 import numpy as np
 
-from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
+from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions, run_simulations)
-from dyn_prog_group_fitting import save_simulations_to_csv
+from group_fitting import save_simulations_to_csv
 
 def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
     distFirstFix, distMiddleFix, posteriors):

@@ -7,7 +7,7 @@ from scipy.optimize import basinhopping
 
 import numpy as np
 
-from dyn_prog_fixations import load_data_from_csv, analysis_per_trial
+from handle_fixations import load_data_from_csv, analysis_per_trial
 
 
 # Global variables.

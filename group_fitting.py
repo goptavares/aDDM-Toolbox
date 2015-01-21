@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# dyn_prog_group_fitting.py
+# group_fitting.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 import matplotlib
@@ -15,7 +15,7 @@ import numpy as np
 import operator
 import pandas as pd
 
-from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
+from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions, run_simulations)
 
 

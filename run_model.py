@@ -7,7 +7,7 @@
 import numpy as np
 import sys
 
-from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial)
+from handle_fixations import load_data_from_csv, analysis_per_trial
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,

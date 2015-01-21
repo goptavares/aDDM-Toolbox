@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# dyn_prog_test_algo.py
+# test_algo.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 from multiprocessing import Pool
@@ -9,7 +9,7 @@ import csv
 import numpy as np
 import operator
 
-from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
+from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions, run_simulations)
 
 

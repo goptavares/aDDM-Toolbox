@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# dyn_prog_fixations.py
+# handle_fixations.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 from scipy.stats import norm

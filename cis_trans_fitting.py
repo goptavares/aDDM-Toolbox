@@ -7,9 +7,9 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from dyn_prog_fixations import (load_data_from_csv, analysis_per_trial,
+from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions, run_simulations)
-from dyn_prog_group_fitting import save_simulations_to_csv
+from group_fitting import save_simulations_to_csv
 
 
 def run_analysis(rt, choice, distLeft, distRight, fixItem, fixTime, d, theta,
@@ -84,7 +84,7 @@ def main():
         for theta in rangeTheta:
             for std in rangeStd:
                 models.append((d, theta, std))
-                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
+                params = (rt, choice, distLeft, distRight, fixItem, fixTime,
                     d, theta, std, True, False)
                 listParams.append(params)
 
