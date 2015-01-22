@@ -13,7 +13,8 @@ from group_fitting import save_simulations_to_csv
 
 
 def run_analysis(rt, choice, distLeft, distRight, fixItem, fixTime, d, theta,
-    std, useCisTrials=True, useTransTrials=True, verbose=True):
+    std, useOddTrials=True, useTransTrials=True, useCisTrials=True,
+    useTransTrials=True, verbose=True):
     # Get item values.
     valueLeft = dict()
     valueRight = dict()
@@ -35,6 +36,10 @@ def run_analysis(rt, choice, distLeft, distRight, fixItem, fixTime, d, theta,
             print("Running subject " + subject + "...")
         trials = rt[subject].keys()
         for trial in trials:
+            if not useOddTrials and trial % 2 != 0:
+                continue
+            if not useEvenTrials and trial % 2 == 0:
+                continue
             if (not useCisTrials and (distLeft[subject][trial] *
                 distRight[subject][trial] > 0)):
                 continue
@@ -59,6 +64,9 @@ def run_analysis_wrapper(params):
 
 
 def main():
+    useCisTrials = float(argv[0])
+    useTransTrials = float(argv[1])
+
     numThreads = 9
     pool = Pool(numThreads)
 
@@ -72,7 +80,7 @@ def main():
     fixTime = data.fixTime
 
     # Maximum likelihood estimation.
-    # Grid search on the parameters of the model.
+    # Grid search on the parameters of the model using odd trials only.
     print("Starting grid search...")
     rangeD = [0.004, 0.005, 0.006]
     rangeTheta = [0.3, 0.5, 0.7]
@@ -85,7 +93,7 @@ def main():
             for std in rangeStd:
                 models.append((d, theta, std))
                 params = (rt, choice, distLeft, distRight, fixItem, fixTime,
-                    d, theta, std, True, False)
+                    d, theta, std, True, False, useCisTrials, useTransTrials)
                 listParams.append(params)
 
     print("Starting pool of workers...")
@@ -102,9 +110,10 @@ def main():
     print("Optimal std: " + str(optimStd))
     print("Min NLL: " + str(min(results)))
 
-    # Get empirical distributions.
+    # Get empirical distributions from even trials only.
     evenDists = get_empirical_distributions(rt, choice, distLeft, distRight,
-        fixItem, fixTime, useCisTrials=True, useTransTrials=False)
+        fixItem, fixTime, useOddTrials=False, useEvenTrials=True,
+        useCisTrials=useCisTrials, useTransTrials=useTransTrials)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distTransition = evenDists.distTransition
     distFirstFix = evenDists.distFirstFix
@@ -116,7 +125,9 @@ def main():
     trialConditions = list()
     for oLeft in orientations:
         for oRight in orientations:
-            if oLeft != oRight and oLeft * oRight > 0:
+            if oLeft != oRight and useCisTrials and oLeft * oRight >= 0:
+                trialConditions.append((oLeft, oRight))
+            if oLeft != oRight and useTransTrials and oLeft * oRight <= 0:
                 trialConditions.append((oLeft, oRight))
 
     # Generate simulations using the empirical distributions and the
@@ -146,4 +157,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
