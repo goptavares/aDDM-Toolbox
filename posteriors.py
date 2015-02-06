@@ -7,12 +7,14 @@ from multiprocessing import Pool
 
 import numpy as np
 
+from group_fitting import save_simulations_to_csv
 from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions, run_simulations)
-from group_fitting import save_simulations_to_csv
+
 
 def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-    distFirstFix, distMiddleFix, posteriors):
+    distFirstFix, distMiddleFix, posteriors, numSamples=100,
+    numSimulationsPerSample=10):
     posteriorsList = list()
     models = dict()
     i = 0
@@ -22,8 +24,6 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
         i += 1
 
     # Parameters for generating simulations.
-    numSamples = 100
-    numSimulationsPerSample = 10
     orientations = range(-15,20,5)
     trialConditions = list()
     for oLeft in orientations:
@@ -101,6 +101,7 @@ def main():
             valueRight[subject][trial] = np.absolute((np.absolute(
                 distRight[subject][trial])-15)/5)
 
+    print("Starting grid search...")
     rangeD = [0.0045, 0.005, 0.0055]
     rangeTheta = [0.25, 0.3, 0.35]
     rangeStd = [0.08, 0.085, 0.09]

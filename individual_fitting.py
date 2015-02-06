@@ -27,8 +27,6 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     logLikelihood = 0
     subjects = rt.keys()
     for subject in subjects:
-        if verbose:
-            print("Running subject " + subject + "...")
         trials = rt[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
@@ -88,7 +86,7 @@ def main():
 
     # Maximum likelihood estimation using odd trials only.
     # Grid search on the parameters of the model.
-    print("Starting grid search...")
+    print("Starting grid search for subject " + subject + "...")
     rangeD = [0.005, 0.006, 0.007]
     rangeTheta = [0.1, 0.2, 0.3]
     rangeStd = [0.08, 0.09, 0.1]
@@ -103,7 +101,6 @@ def main():
                     d, theta, std, True, False)
                 listParams.append(params)
 
-    print("Starting pool of workers...")
     results = pool.map(run_analysis_wrapper, listParams)
 
     # Get optimal parameters.

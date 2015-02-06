@@ -76,35 +76,28 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         else:
             return 0
 
+
     # Iterate over the fixations and discount visual delay.
     for i in xrange(len(fixItem)):
         if fixItem[i] == 1 or fixItem[i] == 2:
             fixTime[i] = max(fixTime[i] - visualDelay, 0)
+            fiItem = np.append(fixItem, 0)
+            fixTime = np.append(fixTime, visualDelay)
 
     # Iterate over the fixations and discount motor delay from last fixation.
     for i in xrange(len(fixItem) - 1, -1, -1):
         if fixItem[i] == 1 or fixItem[i] == 2:
             fixTime[i] = max(fixTime[i] - motorDelay, 0)
+            fiItem = np.append(fixItem, 0)
+            fixTime = np.append(fixTime, motorDelay)
             break
 
-
-    # Iterate over the fixations and get the transition time for this trial.
-    itemFixTime = 0
-    transitionTime = 0
+    # Iterate over the fixations and get the total time for this trial.
+    maxTime = 0
     for fItem, fTime in zip(fixItem, fixTime):
-        if fItem == 1 or fItem == 2:
-            itemFixTime += fTime // timeStep
-        else:
-            transitionTime += fTime // timeStep
-
-    # The total time of this trial is given by the sum of all fixations in the
-    # trial.
-    maxTime = int(itemFixTime + transitionTime)
+        maxTime += int(fTime // timeStep)
     if maxTime == 0:
         return 0
-
-    # We start couting the trial time at the end of the transition time.
-    time = int(transitionTime)
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
@@ -132,8 +125,9 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     # Create matrix of traces to keep track of the RDV position probabilities.
     if plotResults:
         traces = np.zeros((states.size, maxTime))
-        for i in xrange(int(transitionTime)):
-            traces[:,i] = prStates
+        traces[:, 0] = prStates
+
+    time = 0
 
     # Iterate over all fixations in this trial.
     for fItem, fTime in zip(fixItem, fixTime):
@@ -145,7 +139,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         elif fItem == 2:  # Subject is looking right.
             mean = d * (-valueRight + (theta * valueLeft))
         else:
-            continue
+            mean = 0
 
         # Iterate over the time interval of this fixation.
         for t in xrange(int(fTime // timeStep)):
@@ -295,15 +289,18 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
                 else:
                     if firstFix:
                         firstFix = False
-                        distFirstFixList.append(fixTime[subject][trial][i])
+                        if fixTime[subject][trial][i] > 0:
+                            distFirstFixList.append(fixTime[subject][trial][i])
                         countTotalTrials +=1
                         if item == 1:  # First fixation was left.
                             countLeftFirst += 1
                     else:
-                        distMiddleFixList[valueDiff].append(
-                            fixTime[subject][trial][i])
+                        if fixTime[subject][trial][i] > 0:
+                            distMiddleFixList[valueDiff].append(
+                                fixTime[subject][trial][i])
             # Add transition time for this trial to distribution.
-            distTransitionList.append(transitionTime)
+            if transitionTime > 0:
+                distTransitionList.append(transitionTime)
 
     probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
     distTransition = np.array(distTransitionList)
@@ -349,16 +346,42 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
             fixItem[trialCount].append(0)
             fixTime[trialCount].append(transitionTime)
 
+            # Iterate over the transition time in this trial.
+            RDV = 0
+            for t in xrange(int(transitionTime // timeStep)):
+                RDV += np.random.normal(0, std)
+
             # Sample the first fixation for this trial.
             probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
             currFixItem = np.random.choice([1, 2], p=probLeftRight)
             currFixTime = np.random.choice(distFirstFix) - visualDelay
 
             # Iterate over all fixations in this trial.
-            RDV = 0
-            trialTime = 0
+            trialTime = transitionTime
             trialFinished = False
             while True:
+                # Iterate over the visual delay for this fixation.
+                for t in xrange(int(visualDelay // timeStep)):
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(0, std)
+
+                    # If the RDV hit one of the barriers, the trial is over.
+                    if RDV >= barrier or RDV <= -barrier:
+                        if RDV >= barrier:
+                            choice[trialCount] = -1
+                        elif RDV <= -barrier:
+                            choice[trialCount] = 1
+                        distLeft[trialCount] = trialCondition[0]
+                        distRight[trialCount] = trialCondition[1]
+                        fixItem[trialCount].append(currFixItem)
+                        fixTime[trialCount].append(((t + 1) * timeStep) +
+                            motorDelay)
+                        trialTime += ((t + 1) * timeStep) + motorDelay
+                        rt[trialCount] = trialTime
+                        trialCount += 1
+                        trialFinished = True
+                        break
+
                 # Iterate over the time interval of the current fixation.
                 for t in xrange(int(currFixTime // timeStep)):
                     # We use a distribution to model changes in RDV
@@ -386,7 +409,7 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
                             visualDelay + motorDelay)
                         trialTime += (((t + 1) * timeStep) + visualDelay +
                             motorDelay)
-                        rt[trialCount] = transitionTime + trialTime
+                        rt[trialCount] = trialTime
                         trialCount += 1
                         trialFinished = True
                         break
