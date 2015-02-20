@@ -120,6 +120,7 @@ def main():
     probLeftFixFirst = evenDists.probLeftFixFirst
     distTransition = evenDists.distTransition
     distFirstFix = evenDists.distFirstFix
+    distSecondFix = evenDists.distSecondFix
     distMiddleFix = evenDists.distMiddleFix
 
     # Parameters for generating simulations.
@@ -134,8 +135,8 @@ def main():
     # Generate simulations using the even trials distributions and the
     # estimated parameters.
     simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distMiddleFix, numTrials, trialConditions, optimD, optimTheta,
-        std=optimStd)
+        distSecondFix, distMiddleFix, numTrials, trialConditions, optimD,
+        optimTheta, std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft

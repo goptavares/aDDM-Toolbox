@@ -12,14 +12,9 @@ import numpy as np
 import pandas as pd
 
 
-def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std=0, mu=0,
-    timeStep=10, barrier=1, plotResults=False):
+def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
+    barrier=1, plotResults=False):
     stateStep = 0.1
-    if std == 0:
-        if mu != 0:
-            std = mu * d
-        else:
-            return 0
 
     # Get the total time for this trial.
     maxTime = int(rt // timeStep)
@@ -139,14 +134,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std=0, mu=0,
     return likelihood
 
 
-def run_simulations(numTrials, trialConditions, d, std=0, mu=0, timeStep=10,
-    barrier=1):
-    if std == 0:
-        if mu != 0:
-            std = mu * d
-        else:
-            return None
-
+def run_simulations(numTrials, trialConditions, d, std, timeStep=10, barrier=1):
     # Simulation data to be returned.
     rt = dict()
     choice = dict()
@@ -188,17 +176,8 @@ def run_simulations(numTrials, trialConditions, d, std=0, mu=0, timeStep=10,
     return simul(rt, choice, valueLeft, valueRight)
 
 
-def run_analysis(rt, choice, valueLeft, valueRight, d, std):
-    NLL = 0
-    for trial in rt.keys():
-        likelihood = analysis_per_trial(rt[trial], choice[trial],
-            valueLeft[trial], valueRight[trial], d, std)
-        NLL -= np.log(likelihood)
-    return NLL
-
-
 def run_analysis_wrapper(params):
-    return run_analysis(*params)
+    return analysis_per_trial(*params)
 
 
 def main():
@@ -208,44 +187,63 @@ def main():
     # Parameters for generating simulations.
     d = 0.006
     std = 0.08
-    numTrials = 1000
-    values = range(0,4,1)
+    numTrials = 20
+    numValues = 4
+    values = range(0,numValues,1)
     trialConditions = list()
     for vLeft in values:
         for vRight in values:
             trialConditions.append((vLeft, vRight))
 
-    # Generate simulations using the even trials distributions and the
-    # estimated parameters.
+    # Generate simulations.
     simul = run_simulations(numTrials, trialConditions, d, std)
     rt = simul.rt
     choice = simul.choice
     valueLeft = simul.valueLeft
     valueRight = simul.valueRight
 
-    rangeD = [0.005, 0.006, 0.007]
-    rangeStd = [0.075, 0.08, 0.085]
+    rangeD = [0.004, 0.006, 0.008]
+    rangeStd = [0.07, 0.08, 0.09]
+    numModels = len(rangeD) * len(rangeStd)
 
     models = list()
-    listParams = list()
+    posteriors = dict()
     for d in rangeD:
         for std in rangeStd:
-            models.append((d, std))
-            params = (rt, choice, valueLeft, valueRight, d, std)
-            listParams.append(params)
-    results = pool.map(run_analysis_wrapper, listParams)
+            model = (d, std)
+            models.append(model)
+            posteriors[model] = 1./ numModels
 
-    for i in xrange(len(results)):
-        print("NLL(" + str(models[i][0]) + ", " + str(models[i][1]) + ") = " +
-            str(results[i]))
+    trials = rt.keys()
+    for trial in trials:
+        listParams = list()
+        for model in models:
+            listParams.append((rt[trial], choice[trial], valueLeft[trial],
+                valueRight[trial], model[0], model[1]))
+        likelihoods = pool.map(run_analysis_wrapper, listParams)
 
-    # Get optimal parameters.
-    minNegLogLikeIdx = results.index(min(results))
-    optimD = models[minNegLogLikeIdx][0]
-    optimStd = models[minNegLogLikeIdx][1]
-    print("Optimal d: " + str(optimD))
-    print("Optimal std: " + str(optimStd))
-    print("Min NLL: " + str(min(results)))
+        # Get the denominator for normalizing the posteriors.
+        i = 0
+        denominator = 0
+        for model in models:
+            denominator += posteriors[model] * likelihoods[i]
+            i += 1
+        if denominator == 0:
+            continue
+
+        # Calculate the posteriors after this trial.
+        i = 0
+        for model in models:
+            if likelihoods[i] != 0:
+                prior = posteriors[model]
+                posteriors[model] = likelihoods[i] * prior / denominator
+            i += 1
+
+    print("Number of trials: " + str(numTrials))
+    print("Number of values: " + str(numValues))
+    for model in posteriors:
+        print("P" + str(model) + " = " + str(posteriors[model]))
+    print("Sum: " + str(sum(posteriors.values())))
 
 
 if __name__ == '__main__':

@@ -7,7 +7,6 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from group_fitting import save_simulations_to_csv
 from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions)
 from posteriors import generate_probabilistic_simulations
@@ -69,13 +68,13 @@ def main():
     for subject in subjects:
         trials = rt[subject].keys()
         for trial in trials:
-            list_params = list()
+            listParams = list()
             for model in models:
-                list_params.append((rt[subject][trial], choice[subject][trial],
+                listParams.append((rt[subject][trial], choice[subject][trial],
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
                     model[1], model[2]))
-            likelihoods = pool.map(run_analysis_wrapper, list_params)
+            likelihoods = pool.map(run_analysis_wrapper, listParams)
 
             # Get the denominator for normalizing the posteriors.
             i = 0
@@ -104,10 +103,11 @@ def main():
     probLeftFixFirst = dists.probLeftFixFirst
     distTransition = dists.distTransition
     distFirstFix = dists.distFirstFix
+    distSecondFix = evenDists.distSecondFix
     distMiddleFix = dists.distMiddleFix
 
     generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-        distFirstFix, distMiddleFix, posteriors, numSamples=32,
+        distFirstFix, distSecondFix, distMiddleFix, posteriors, numSamples=32,
         numSimulationsPerSample=1)
 
 

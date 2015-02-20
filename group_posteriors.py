@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# posteriors.py
+# group_posteriors.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 from multiprocessing import Pool
@@ -13,7 +13,7 @@ from handle_fixations import (load_data_from_csv, analysis_per_trial,
 
 
 def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-    distFirstFix, distMiddleFix, posteriors, numSamples=100,
+    distFirstFix, distSecondFix, distMiddleFix, posteriors, numSamples=100,
     numSimulationsPerSample=10):
     posteriorsList = list()
     models = dict()
@@ -51,8 +51,8 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
 
         # Generate simulations with the sampled model.
         simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-            distMiddleFix, numSimulationsPerSample, trialConditions, d, theta,
-            std=std)
+            distSecondFix, distMiddleFix, numSimulationsPerSample,
+            trialConditions, d, theta, std=std)
         for trial in simul.rt.keys():
             rt[trialCount] = simul.rt[trial]
             choice[trialCount] = simul.choice[trial]
@@ -122,13 +122,13 @@ def main():
         trials = rt[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            list_params = list()
+            listParams = list()
             for model in models:
-                list_params.append((rt[subject][trial], choice[subject][trial],
+                listParams.append((rt[subject][trial], choice[subject][trial],
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
                     model[1], model[2]))
-            likelihoods = pool.map(run_analysis_wrapper, list_params)
+            likelihoods = pool.map(run_analysis_wrapper, listParams)
 
             # Get the denominator for normalizing the posteriors.
             i = 0
@@ -157,10 +157,11 @@ def main():
     probLeftFixFirst = dists.probLeftFixFirst
     distTransition = dists.distTransition
     distFirstFix = dists.distFirstFix
+    distSecondFix = evenDists.distSecondFix
     distMiddleFix = dists.distMiddleFix
 
     generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-        distFirstFix, distMiddleFix, posteriors)
+        distFirstFix, distSecondFix, distMiddleFix, posteriors)
 
 
 if __name__ == '__main__':

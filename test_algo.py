@@ -48,6 +48,7 @@ def main():
     probLeftFixFirst = dists.probLeftFixFirst
     distTransition = dists.distTransition
     distFirstFix = dists.distFirstFix
+    distSecondFix = evenDists.distSecondFix
     distMiddleFix = dists.distMiddleFix
 
     # Parameters for artificial data generation.
@@ -66,7 +67,8 @@ def main():
     # Generate artificial data.
     print("Running simulations...")
     simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distMiddleFix, numTrials, trialConditions, d, theta, std=std)
+        distSecondFix, distMiddleFix, numTrials, trialConditions, d, theta,
+        std=std)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft
