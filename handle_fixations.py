@@ -233,11 +233,13 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
     distTransitionList = list()
     distFirstFixList = dict()
     distSecondFixList = dict()
-    distMiddleFixList = dict()
+    distThirdFixList = dict()
+    distOtherFixList = dict()
     for valueDiff in valueDiffs:
         distFirstFixList[valueDiff] = list()
         distSecondFixList[valueDiff] = list()
-        distMiddleFixList[valueDiff] = list()
+        distThirdFixList[valueDiff] = list()
+        distOtherFixList[valueDiff] = list()
 
     # Get item values.
     valueLeft = dict()
@@ -284,55 +286,57 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
                     fixItem[subject][trial][i] == 2):
                     break
             # Iterate over this trial's fixations (skip the last item fixation).
-            firstFix = True
-            secondFix = False
-            transitionTime = 0
+            fixNumber = 1
             for i in xrange(fixItem[subject][trial].shape[0] - excludeCount):
                 item = fixItem[subject][trial][i]
                 if item != 1 and item != 2:
-                    transitionTime += fixTime[subject][trial][i]
+                    distTransitionList.append(fixTime[subject][trial][i])
                 else:
-                    if firstFix:
-                        firstFix = False
-                        secondFix = True
+                    if fixNumber == 1:
+                        fixNumber += 1
                         if fixTime[subject][trial][i] > 0:
                             distFirstFixList[valueDiff].append(
                                 fixTime[subject][trial][i])
                         countTotalTrials +=1
                         if item == 1:  # First fixation was left.
                             countLeftFirst += 1
-                    elif secondFix:
-                        secondFix = False
+                    elif fixNumber == 2:
+                        fixNumber += 1
                         if fixTime[subject][trial][i] > 0:
                             distSecondFixList[valueDiff].append(
                                 fixTime[subject][trial][i])
+                    elif fixNumber == 3:
+                        fixNumber += 1
+                        if fixTime[subject][trial][i] > 0:
+                            distThirdFixList[valueDiff].append(
+                                fixTime[subject][trial][i])
                     else:
                         if fixTime[subject][trial][i] > 0:
-                            distMiddleFixList[valueDiff].append(
+                            distOtherFixList[valueDiff].append(
                                 fixTime[subject][trial][i])
-            # Add transition time for this trial to distribution.
-            if transitionTime > 0:
-                distTransitionList.append(transitionTime)
 
     probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
     distTransition = np.array(distTransitionList)
     distFirstFix = dict()
     distSecondFix = dict()
-    distMiddleFix = dict()
+    distThirdFix = dict()
+    distOtherFix = dict()
     for valueDiff in valueDiffs:
         distFirstFix[valueDiff] = np.array(distFirstFixList[valueDiff])
         distSecondFix[valueDiff] = np.array(distSecondFixList[valueDiff])
-        distMiddleFix[valueDiff] = np.array(distMiddleFixList[valueDiff])
+        distThirdFix[valueDiff] = np.array(distThirdFixList[valueDiff])
+        distOtherFix[valueDiff] = np.array(distOtherFixList[valueDiff])
 
     dists = collections.namedtuple('Dists', ['probLeftFixFirst',
-        'distTransition', 'distFirstFix', 'distSecondFix', 'distMiddleFix'])
+        'distTransition', 'distFirstFix', 'distSecondFix', 'distThirdFix',
+        'distOtherFix'])
     return dists(probLeftFixFirst, distTransition, distFirstFix, distSecondFix,
-        distMiddleFix)
+        distThirdFix, distOtherFix)
 
 
 def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-    distSecondFix, distMiddleFix, numTrials, trialConditions, d, theta, std=0,
-    mu=0, timeStep=10, barrier=1, visualDelay=0, motorDelay=0):
+    distSecondFix, distThirdFix, distOtherFix, numTrials, trialConditions, d,
+    theta, std=0, mu=0, timeStep=10, barrier=1, visualDelay=0, motorDelay=0):
     if std == 0:
         if mu != 0:
             std = mu * d
@@ -346,6 +350,7 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
     distRight = dict()
     fixItem = dict()
     fixTime = dict()
+    fixRDV = dict()
 
     trialCount = 0
 
@@ -353,19 +358,11 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
         vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
         vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
         valueDiff = np.absolute(vLeft - vRight)
-        for trial in xrange(numTrials):
+        trial = 0
+        while trial < numTrials:
             fixItem[trialCount] = list()
             fixTime[trialCount] = list()
-
-            # Sample transition time from the empirical distribution.
-            transitionTime = np.random.choice(distTransition)
-            fixItem[trialCount].append(0)
-            fixTime[trialCount].append(transitionTime)
-
-            # Iterate over the transition time in this trial.
-            RDV = 0
-            for t in xrange(int(transitionTime // timeStep)):
-                RDV += np.random.normal(0, std)
+            fixRDV[trialCount] = list()
 
             # Sample the first fixation for this trial.
             probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
@@ -374,15 +371,15 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
                 visualDelay)
 
             # Iterate over all fixations in this trial.
-            trialTime = transitionTime
-            isSecondFix = True
+            fixNumber = 2
             trialFinished = False
+            trialAborted = False
+            RDV = 0
+            trialTime = 0
             while True:
-                # Iterate over the visual delay for this fixation.
+                # Iterate over the visual delay for the current fixation.
+                currRDV = RDV
                 for t in xrange(int(visualDelay // timeStep)):
-                    # Sample the change in RDV from the distribution.
-                    RDV += np.random.normal(0, std)
-
                     # If the RDV hit one of the barriers, the trial is over.
                     if RDV >= barrier or RDV <= -barrier:
                         if RDV >= barrier:
@@ -391,19 +388,40 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
                             choice[trialCount] = 1
                         distLeft[trialCount] = trialCondition[0]
                         distRight[trialCount] = trialCondition[1]
+                        fixRDV[trialCount].append(currRDV)
                         fixItem[trialCount].append(currFixItem)
-                        fixTime[trialCount].append(((t + 1) * timeStep) +
-                            motorDelay)
-                        trialTime += ((t + 1) * timeStep) + motorDelay
+                        fixTime[trialCount].append((t * timeStep) + motorDelay)
+                        trialTime += (t * timeStep) + motorDelay
                         rt[trialCount] = trialTime
                         trialFinished = True
                         break
+
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(0, std)
 
                 if trialFinished:
                     break
 
                 # Iterate over the time interval of the current fixation.
                 for t in xrange(int(currFixTime // timeStep)):
+                    # If the RDV hit one of the barriers, the trial is over.
+                    if RDV >= barrier or RDV <= -barrier:
+                        if RDV >= barrier:
+                            choice[trialCount] = -1
+                        elif RDV <= -barrier:
+                            choice[trialCount] = 1
+                        distLeft[trialCount] = trialCondition[0]
+                        distRight[trialCount] = trialCondition[1]
+                        fixRDV[trialCount].append(currRDV)
+                        fixItem[trialCount].append(currFixItem)
+                        fixTime[trialCount].append((t * timeStep) +
+                            visualDelay + motorDelay)
+                        trialTime += ((t  * timeStep) + visualDelay +
+                            motorDelay)
+                        rt[trialCount] = trialTime
+                        trialFinished = True
+                        break
+
                     # We use a distribution to model changes in RDV
                     # stochastically. The mean of the distribution (the change
                     # most likely to occur) is calculated from the model
@@ -416,47 +434,60 @@ def run_simulations(probLeftFixFirst, distTransition, distFirstFix,
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(mean, std)
 
-                    # If the RDV hit one of the barriers, the trial is over.
-                    if RDV >= barrier or RDV <= -barrier:
-                        if RDV >= barrier:
-                            choice[trialCount] = -1
-                        elif RDV <= -barrier:
-                            choice[trialCount] = 1
-                        distLeft[trialCount] = trialCondition[0]
-                        distRight[trialCount] = trialCondition[1]
-                        fixItem[trialCount].append(currFixItem)
-                        fixTime[trialCount].append(((t + 1) * timeStep) +
-                            visualDelay + motorDelay)
-                        trialTime += (((t + 1) * timeStep) + visualDelay +
-                            motorDelay)
-                        rt[trialCount] = trialTime
-                        trialFinished = True
-                        break
-
                 if trialFinished:
                     break
 
                 # Add previous fixation to this trial's data.
+                fixRDV[trialCount].append(currRDV)
                 fixItem[trialCount].append(currFixItem)
                 fixTime[trialCount].append(((t + 1) * timeStep) + visualDelay)
                 trialTime += ((t + 1) * timeStep) + visualDelay
 
-                # Sample next fixation for this trial.
+                # Sample and iterate over transition time.
+                transitionTime = np.random.choice(distTransition)
+                currRDV = RDV
+                for t in xrange(int(transitionTime // timeStep)):
+                    # If the RDV hit one of the barriers, we abort the trial,
+                    # since a trial must end on an item fixation.
+                    if RDV >= barrier or RDV <= -barrier:
+                        trialFinished = True
+                        trialAborted = True
+                        break
+
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(0, std)
+
+                if trialFinished:
+                    break
+
+                # Add previous transition to this trial's data.
+                fixRDV[trialCount].append(currRDV)
+                fixItem[trialCount].append(0)
+                fixTime[trialCount].append((t + 1) * timeStep)
+                trialTime += (t + 1) * timeStep
+
+                # Sample the next fixation for this trial.
                 if currFixItem == 1:
                     currFixItem = 2
                 elif currFixItem == 2:
                     currFixItem = 1
-                if isSecondFix:
+                if fixNumber == 2:
+                    fixNumber += 1
                     currFixTime = (np.random.choice(distSecondFix[valueDiff]) -
                         visualDelay)
-                    isSecondFix = False
+                if fixNumber == 3:
+                    fixNumber += 1
+                    currFixTime = (np.random.choice(distThirdFix[valueDiff]) -
+                        visualDelay)
                 else:
-                    currFixTime = (np.random.choice(distMiddleFix[valueDiff]) -
+                    currFixTime = (np.random.choice(distOtherFix[valueDiff]) -
                         visualDelay)
 
             # Move on to the next trial.
-            trialCount += 1
+            if not trialAborted:
+                trial += 1
+                trialCount += 1
 
     simul = collections.namedtuple('Simul', ['rt', 'choice', 'distLeft',
-        'distRight', 'fixItem', 'fixTime'])
-    return simul(rt, choice, distLeft, distRight, fixItem, fixTime)
+        'distRight', 'fixItem', 'fixTime', 'fixRDV'])
+    return simul(rt, choice, distLeft, distRight, fixItem, fixTime, fixRDV)

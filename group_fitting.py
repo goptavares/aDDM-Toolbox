@@ -128,7 +128,7 @@ def generate_rt_curves(rtsData, valueLeftData, valueRightData, rtsSimul,
 
 
 def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
-    fixTime, numTrials):
+    fixTime, fixRDV, numTrials):
     df = pd.DataFrame(choice, index=range(1))
     df.to_csv('choice.csv', header=0, sep=',', index_col=None)
 
@@ -139,11 +139,13 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     dictValueRight = dict()
     dictItem = dict()
     dictTime = dict()
+    dictRDV = dict()
     for trial in xrange(0, numTrials):
         dictValueLeft[trial] = (valueLeft[trial] - 3) * 5
         dictValueRight[trial] = (valueRight[trial] - 3) * 5
         dictItem[trial] = pd.Series(fixItem[trial])
         dictTime[trial] = pd.Series(fixTime[trial])
+        dictRDV[trial] = pd.Series(fixRDV[trial])
     df = pd.DataFrame(dictValueLeft, index=range(1))
     df.to_csv('value_left.csv', header=0, sep=',', index_col=None)
     df = pd.DataFrame(dictValueRight, index=range(1))
@@ -152,6 +154,8 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     df.to_csv('fix_item.csv', header=0, sep=',', index_col=None)
     df = pd.DataFrame(dictTime)
     df.to_csv('fix_time.csv', header=0, sep=',', index_col=None)
+    df = pd.DataFrame(dictRDV)
+    df.to_csv('fix_rdv.csv', header=0, sep=',', index_col=None)
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
@@ -250,7 +254,8 @@ def main():
     distTransition = evenDists.distTransition
     distFirstFix = evenDists.distFirstFix
     distSecondFix = evenDists.distSecondFix
-    distMiddleFix = evenDists.distMiddleFix
+    distThirdFix = evenDists.distThirdFix
+    distOtherFix = evenDists.distOtherFix
 
     # Parameters for generating simulations.
     numTrials = 800
@@ -264,14 +269,15 @@ def main():
     # Generate simulations using the even trials distributions and the
     # estimated parameters.
     simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distSecondFix, distMiddleFix, numTrials, trialConditions, optimD,
-        optimTheta, std=optimStd)
+        distSecondFix, distThirdFix, distOtherFix, numTrials, trialConditions,
+        optimD, optimTheta, std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft
     simulDistRight = simul.distRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
+    simulFixRDV = simul.fixRDV
 
     # Get item values for simulations.
     totalTrials = numTrials * len(trialConditions)
@@ -298,7 +304,7 @@ def main():
     pp.close()
 
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, totalTrials)
+        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

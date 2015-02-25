@@ -119,7 +119,8 @@ def main(argv):
     distTransition = evenDists.distTransition
     distFirstFix = evenDists.distFirstFix
     distSecondFix = evenDists.distSecondFix
-    distMiddleFix = evenDists.distMiddleFix
+    distThirdFix = evenDists.distThirdFix
+    distOtherFix = evenDists.distOtherFix
 
     # Parameters for generating simulations.
     numTrials = 400
@@ -135,14 +136,15 @@ def main(argv):
     # Generate simulations using the empirical distributions and the
     # estimated parameters.
     simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distSecondFix, distMiddleFix, numTrials, trialConditions, optimD,
-        optimTheta, std=optimStd)
+        distSecondFix, distThirdFix, distOtherFix, numTrials, trialConditions,
+        optimD, optimTheta, std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft
     simulDistRight = simul.distRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
+    simulFixRDV = simul.fixRDV
 
     # Get item values for simulations.
     totalTrials = numTrials * len(trialConditions)
@@ -155,7 +157,7 @@ def main(argv):
             simulDistRight[trial])-15)/5)
 
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, totalTrials)
+        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

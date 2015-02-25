@@ -103,12 +103,13 @@ def main():
     probLeftFixFirst = dists.probLeftFixFirst
     distTransition = dists.distTransition
     distFirstFix = dists.distFirstFix
-    distSecondFix = evenDists.distSecondFix
-    distMiddleFix = dists.distMiddleFix
+    distSecondFix = dists.distSecondFix
+    distThirdFix = dists.distThirdFix
+    distOtherFix = dists.distOtherFix
 
     generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-        distFirstFix, distSecondFix, distMiddleFix, posteriors, numSamples=32,
-        numSimulationsPerSample=1)
+        distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors,
+        numSamples=32, numSimulationsPerSample=1)
 
 
 if __name__ == '__main__':
