@@ -10,7 +10,7 @@ Created on Wed Mar 11 10:23:16 2015
 # parameters
 
 # Load packages
-
+# This is a silly comment
 import csv
 import numpy as np
 import matplotlib
