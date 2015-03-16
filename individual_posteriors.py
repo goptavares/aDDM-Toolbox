@@ -9,7 +9,7 @@ import numpy as np
 
 from handle_fixations import (load_data_from_csv, analysis_per_trial,
     get_empirical_distributions)
-from posteriors import generate_probabilistic_simulations
+from group_posteriors import generate_probabilistic_simulations
 
 
 def run_analysis_wrapper(params):
@@ -20,7 +20,7 @@ def main():
     numThreads = 9
     pool = Pool(numThreads)
 
-    subject = "gel"
+    subject = "cai"
     rt = dict()
     choice = dict()
     distLeft = dict()
@@ -88,9 +88,8 @@ def main():
             # Calculate the posteriors after this trial.
             i = 0
             for model in models:
-                if likelihoods[i] != 0:
-                    prior = posteriors[model]
-                    posteriors[model] = likelihoods[i] * prior / denominator
+                prior = posteriors[model]
+                posteriors[model] = likelihoods[i] * prior / denominator
                 i += 1
 
         for model in posteriors:

@@ -144,9 +144,8 @@ def main():
             # Calculate the posteriors after this trial.
             i = 0
             for model in models:
-                if likelihoods[i] != 0:
-                    prior = posteriors[model]
-                    posteriors[model] = likelihoods[i] * prior / denominator
+                prior = posteriors[model]
+                posteriors[model] = likelihoods[i] * prior / denominator
                 i += 1
 
         for model in posteriors:

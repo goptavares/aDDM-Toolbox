@@ -9,8 +9,6 @@ matplotlib.use('Agg')
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
 import numpy as np
 import operator
 import pandas as pd
@@ -23,13 +21,10 @@ from group_fitting import (generate_choice_curves, generate_rt_curves,
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     std, useOddTrials=True, useEvenTrials=True, verbose=True):
-    trialsPerSubject = 200
-    logLikelihood = 0
+    NLL = 0
     subjects = rt.keys()
     for subject in subjects:
-        trials = rt[subject].keys()
-        trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
-        for trial in trialSet:
+        for trial in rt[subject].keys():
             if not useOddTrials and trial % 2 != 0:
                 continue
             if not useEvenTrials and trial % 2 == 0:
@@ -39,12 +34,12 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
                 valueRight[subject][trial], fixItem[subject][trial],
                 fixTime[subject][trial], d, theta, std=std)
             if likelihood != 0:
-                logLikelihood += np.log(likelihood)
+                NLL -= np.log(likelihood)
 
     if verbose:
         print("NLL for " + str(d) + ", " + str(theta) + ", "
-            + str(std) + ": " + str(-logLikelihood))
-    return -logLikelihood
+            + str(std) + ": " + str(NLL))
+    return NLL
 
 
 def run_analysis_wrapper(params):
@@ -55,7 +50,7 @@ def main():
     numThreads = 9
     pool = Pool(numThreads)
 
-    subject = "pai"
+    subject = "cai"
     rt = dict()
     choice = dict()
     distLeft = dict()
@@ -87,9 +82,9 @@ def main():
     # Maximum likelihood estimation using odd trials only.
     # Grid search on the parameters of the model.
     print("Starting grid search for subject " + subject + "...")
-    rangeD = [0.005, 0.006, 0.007]
-    rangeTheta = [0.1, 0.2, 0.3]
-    rangeStd = [0.08, 0.09, 0.1]
+    rangeD = [0.003, 0.006, 0.009]
+    rangeTheta = [0.2, 0.4, 0.6]
+    rangeStd = [0.06, 0.08, 0.1]
 
     models = list()
     listParams = list()

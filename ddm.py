@@ -234,16 +234,18 @@ def main():
         # Calculate the posteriors after this trial.
         i = 0
         for model in models:
-            if likelihoods[i] != 0:
-                prior = posteriors[model]
-                posteriors[model] = likelihoods[i] * prior / denominator
+            prior = posteriors[model]
+            posteriors[model] = likelihoods[i] * prior / denominator
             i += 1
 
-    print("Number of trials: " + str(numTrials))
-    print("Number of values: " + str(numValues))
+        if trial % 200 == 0:
+            for model in posteriors:
+                print("P" + str(model) + " = " + str(posteriors[model]))
+            print("Sum: " + str(sum(posteriors.values())))
+
     for model in posteriors:
         print("P" + str(model) + " = " + str(posteriors[model]))
-    print("Sum: " + str(sum(posteriors.values())))
+        print("Sum: " + str(sum(posteriors.values())))
 
 
 if __name__ == '__main__':
