@@ -1,36 +1,24 @@
 #!/usr/bin/python
 
-# test_algo.py
+# test_addm_group.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 from multiprocessing import Pool
 
 import csv
 import numpy as np
-import operator
 
-from handle_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions, run_simulations)
-
-
-def run_analysis(numTrials, rt, choice, valueLeft, valueRight, fixItem, fixTime,
-    d, theta, std, verbose=True):
-    logLikelihood = 0
-    for trial in xrange(numTrials):
-        if verbose and trial % 100 == 0:
-            print("Trial " + str(trial) + "/" + str(numTrials) + "...")
-        logLikelihood += np.log(analysis_per_trial(rt[trial], choice[trial],
-            valueLeft[trial], valueRight[trial], fixItem[trial], fixTime[trial],
-            d, theta, std=std))
-    return -logLikelihood
+from addm import (analysis_per_trial, get_empirical_distributions,
+    run_simulations)
+from util import load_data_from_csv
 
 
 def run_analysis_wrapper(params):
-    return run_analysis(*params)
+    return analysis_per_trial(*params)
 
 
 def main():
-    numThreads = 8
+    numThreads = 9
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
@@ -46,17 +34,14 @@ def main():
     dists = get_empirical_distributions(rt, choice, distLeft, distRight,
         fixItem, fixTime)
     probLeftFixFirst = dists.probLeftFixFirst
-    distTransition = dists.distTransition
-    distFirstFix = dists.distFirstFix
-    distSecondFix = dists.distSecondFix
-    distThirdFix = dists.distThirdFix
-    distOtherFix = dists.distOtherFix
+    distTransitions = dists.distTransitions
+    distFixations = dists.distFixations
 
     # Parameters for artificial data generation.
-    numTrials = 360
-    d = 0.001
+    numTrials = 800
+    d = 0.006
     theta = 0.5
-    std = 0.06
+    std = 0.07
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -67,9 +52,8 @@ def main():
 
     # Generate artificial data.
     print("Running simulations...")
-    simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distSecondFix, distThirdFix, distOtherFix, numTrials, trialConditions,
-        d, theta, std=std)
+    simul = run_simulations(probLeftFixFirst, distTransitions, distFixations,
+        numTrials, trialConditions, d, theta, std=std)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft
@@ -112,36 +96,55 @@ def main():
 
     # Grid search to recover the parameters.
     print("Starting grid search...")
-    rangeD = [0.001, 0.003, 0.005]
+    rangeD = [0.0055, 0.006, 0.0065]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeStd = [0.03, 0.06, 0.09]
+    rangeStd = [0.065, 0.07, 0.075]
+    numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
 
     models = list()
-    list_params = list()
-    results = list()
+    posteriors = dict()
     for d in rangeD:
         for theta in rangeTheta:
             for std in rangeStd:
-                models.append((d, theta, std))
-                params = (totalTrials, simulRt, simulChoice, simulValueLeft,
-                    simulValueRight, simulFixItem, simulFixTime, d, theta, std)
-                list_params.append(params)
+                model = (d, theta, std)
+                models.append(model)
+                posteriors[model] = 1./ numModels
 
-    print("Starting pool of workers...")
-    results = pool.map(run_analysis_wrapper, list_params)
+    trials = simulRt.keys()
+    for trial in trials:
+        listParams = list()
+        for model in models:
+            listParams.append((simulRt[trial], simulChoice[trial],
+                simulValueLeft[trial], simulValueRight[trial],
+                simulFixItem[trial], simulFixTime[trial], model[0], model[1],
+                model[2]))
+        likelihoods = pool.map(run_analysis_wrapper, listParams)
 
-    # Get optimal parameters.
-    minNegLogLikeIdx = results.index(min(results))
-    optimD = models[minNegLogLikeIdx][0]
-    optimTheta = models[minNegLogLikeIdx][1]
-    optimStd = models[minNegLogLikeIdx][2]
+        # Get the denominator for normalizing the posteriors.
+        i = 0
+        denominator = 0
+        for model in models:
+            denominator += posteriors[model] * likelihoods[i]
+            i += 1
+        if denominator == 0:
+            continue
 
-    print("Finished grid search!")
-    print("Optimal d: " + str(optimD))
-    print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
-    print("Min NLL: " + str(min(results)))
+        # Calculate the posteriors after this trial.
+        i = 0
+        for model in models:
+            prior = posteriors[model]
+            posteriors[model] = likelihoods[i] * prior / denominator
+            i += 1
+
+        if trial % 200 == 0:
+            for model in posteriors:
+                print("P" + str(model) + " = " + str(posteriors[model]))
+            print("Sum: " + str(sum(posteriors.values())))
  
+    for model in posteriors:
+        print("P" + str(model) + " = " + str(posteriors[model]))
+    print("Sum: " + str(sum(posteriors.values())))
+
 
 if __name__ == '__main__':
     main()

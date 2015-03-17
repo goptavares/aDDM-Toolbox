@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# handle_fixations.py
+# addm.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
 import matplotlib
@@ -11,62 +11,6 @@ from scipy.stats import norm
 import collections
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-
-
-def load_data_from_csv(expdataFile, fixationsFile):
-    # Load experimental data from CSV file.
-    # Format: parcode, trial, rt, choice, dist_left, dist_right.
-    # Angular distances to target are transformed to values in [0, 1, 2, 3].
-    df = pd.DataFrame.from_csv(expdataFile, header=0, sep=',', index_col=None)
-    subjects = df.parcode.unique()
-
-    rt = dict()
-    choice = dict()
-    distLeft = dict()
-    distRight = dict()
-
-    for subject in subjects:
-        rt[subject] = dict()
-        choice[subject] = dict()
-        distLeft[subject] = dict()
-        distRight[subject] = dict()
-        dataSubject = np.array(df.loc[df['parcode']==subject,
-            ['trial','rt','choice','dist_left','dist_right']])
-        trials = np.unique(dataSubject[:,0]).tolist()
-        for trial in trials:
-            dataTrial = np.array(df.loc[(df['trial']==trial) &
-                (df['parcode']==subject), ['rt','choice','dist_left',
-                'dist_right']])
-            rt[subject][trial] = dataTrial[0,0]
-            choice[subject][trial] = dataTrial[0,1]
-            distLeft[subject][trial] = dataTrial[0,2]
-            distRight[subject][trial] = dataTrial[0,3]
-
-    # Load fixation data from CSV file.
-    # Format: parcode, trial, fix_item, fix_time.
-    df = pd.DataFrame.from_csv(fixationsFile, header=0, sep=',',
-        index_col=None)
-    subjects = df.parcode.unique()
-
-    fixItem = dict()
-    fixTime = dict()
-
-    for subject in subjects:
-        fixItem[subject] = dict()
-        fixTime[subject] = dict()
-        dataSubject = np.array(df.loc[df['parcode']==subject,
-            ['trial','fix_item','fix_time']])
-        trials = np.unique(dataSubject[:,0]).tolist()
-        for trial in trials:
-            dataTrial = np.array(df.loc[(df['trial']==trial) &
-                (df['parcode']==subject), ['fix_item','fix_time']])
-            fixItem[subject][trial] = dataTrial[:,0]
-            fixTime[subject][trial] = dataTrial[:,1]
-
-    data = collections.namedtuple('Data', ['rt', 'choice', 'distLeft',
-        'distRight', 'fixItem', 'fixTime'])
-    return data(rt, choice, distLeft, distRight, fixItem, fixTime)
 
 
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
@@ -227,8 +171,8 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 
 def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
-    fixTime, timeStep=10, useOddTrials=True, useEvenTrials=True,
-    useCisTrials=True, useTransTrials=True):
+    fixTime, timeStep=10, maxFixTime=1500, useOddTrials=True,
+    useEvenTrials=True, useCisTrials=True, useTransTrials=True):
     valueDiffs = range(0,4,1)
 
     countLeftFirst = 0
@@ -290,7 +234,7 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
                 item = fixItem[subject][trial][i]
                 if item != 1 and item != 2:
                     if (fixTime[subject][trial][i] >= timeStep and
-                        fixTime[subject][trial][i] <= 1500):
+                        fixTime[subject][trial][i] <= maxFixTime):
                         distTransitionsList.append(fixTime[subject][trial][i])
                 else:
                     if fixNumber == 1:
@@ -298,7 +242,7 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
                         if item == 1:  # First fixation was left.
                             countLeftFirst += 1
                     if (fixTime[subject][trial][i] >= timeStep and
-                        fixTime[subject][trial][i] <= 1500):
+                        fixTime[subject][trial][i] <= maxFixTime):
                         distFixationsList[fixNumber][valueDiff].append(
                             fixTime[subject][trial][i])
                     if fixNumber < 9:
@@ -468,6 +412,63 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
             if not trialAborted:
                 trial += 1
                 trialCount += 1
+
+    simul = collections.namedtuple('Simul', ['rt', 'choice', 'distLeft',
+        'distRight', 'fixItem', 'fixTime', 'fixRDV'])
+    return simul(rt, choice, distLeft, distRight, fixItem, fixTime, fixRDV)
+
+
+def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
+    distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors,
+    numSamples=100, numSimulationsPerSample=10):
+    posteriorsList = list()
+    models = dict()
+    i = 0
+    for model, posterior in posteriors.iteritems():
+        posteriorsList.append(posterior)
+        models[i] = model
+        i += 1
+
+    # Parameters for generating simulations.
+    orientations = range(-15,20,5)
+    trialConditions = list()
+    for oLeft in orientations:
+        for oRight in orientations:
+            if oLeft != oRight:
+                trialConditions.append((oLeft, oRight))
+
+    rt = dict()
+    choice = dict()
+    distLeft = dict()
+    distRight = dict()
+    fixItem = dict()
+    fixTime = dict()
+    fixRDV = dict()
+
+    numModels = len(models.keys())
+    trialCount = 0
+    for i in xrange(numSamples):
+        # Sample model from posteriors distribution.
+        modelIndex = np.random.choice(np.array(range(numModels)),
+            p=np.array(posteriorsList))
+        model = models[modelIndex]
+        d = model[0]
+        theta = model[1]
+        std = model[2]
+
+        # Generate simulations with the sampled model.
+        simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
+            distSecondFix, distThirdFix, distOtherFix, numSimulationsPerSample,
+            trialConditions, d, theta, std=std)
+        for trial in simul.rt.keys():
+            rt[trialCount] = simul.rt[trial]
+            choice[trialCount] = simul.choice[trial]
+            fixTime[trialCount] = simul.fixTime[trial]
+            fixItem[trialCount] = simul.fixItem[trial]
+            fixRDV[trialCount] = simul.fixRDV[trial]
+            distLeft[trialCount] = simul.distLeft[trial]
+            distRight[trialCount] = simul.distRight[trial]
+            trialCount += 1
 
     simul = collections.namedtuple('Simul', ['rt', 'choice', 'distLeft',
         'distRight', 'fixItem', 'fixTime', 'fixRDV'])

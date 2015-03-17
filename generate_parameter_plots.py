@@ -3,19 +3,15 @@
 # generate_parameter_plots.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
-import matplotlib
-matplotlib.use('Agg')
-
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-import operator
-import pandas as pd
 
-from handle_fixations import load_data_from_csv, analysis_per_trial
+from addm import analysis_per_trial
+from util import load_data_from_csv
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,

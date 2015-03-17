@@ -7,11 +7,11 @@ from deap import base, creator, tools
 from multiprocessing import Pool
 
 import numpy as np
-import operator
 import random
 import sys
 
-from handle_fixations import load_data_from_csv, analysis_per_trial
+from addm import analysis_per_trial
+from util import load_data_from_csv
 
 
 # Global variables.

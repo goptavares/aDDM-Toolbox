@@ -7,9 +7,9 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from handle_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions)
-from group_posteriors import generate_probabilistic_simulations
+from addm import (analysis_per_trial, get_empirical_distributions,
+    generate_probabilistic_simulations)
+from util import load_data_from_csv
 
 
 def run_analysis_wrapper(params):
@@ -49,6 +49,7 @@ def main():
         valueRight[subject][trial] = np.absolute((np.absolute(
             distRight[subject][trial])-15)/5)
 
+    # Posteriors estimation for the parameters of the model.
     print("Starting grid search for subject " + subject + "...")
     rangeD = [0.004, 0.0045, 0.005]
     rangeTheta = [0.3, 0.35, 0.4]
@@ -106,9 +107,30 @@ def main():
     distThirdFix = dists.distThirdFix
     distOtherFix = dists.distOtherFix
 
-    generate_probabilistic_simulations(probLeftFixFirst, distTransition,
+    # Generate probabilistic simulations using the posteriors distribution.
+    simul = generate_probabilistic_simulations(probLeftFixFirst, distTransition,
         distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors,
         numSamples=32, numSimulationsPerSample=1)
+    simulRt = simul.rt
+    simulChoice = simul.choice
+    simulDistLeft = simul.distLeft
+    simulDistRight = simul.distRight
+    simulFixItem = simul.fixItem
+    simulFixTime = simul.fixTime
+    simulFixRDV = simul.fixRDV
+
+    # Get item values for simulations.
+    totalTrials = len(simulRt.keys())
+    simulValueLeft = dict()
+    simulValueRight = dict()
+    for trial in xrange(totalTrials):
+        simulValueLeft[trial] = np.absolute((np.absolute(
+            simulDistLeft[trial])-15)/5)
+        simulValueRight[trial] = np.absolute((np.absolute(
+            simulDistRight[trial])-15)/5)
+
+    save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
+        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

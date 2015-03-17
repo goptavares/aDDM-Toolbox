@@ -7,68 +7,9 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from group_fitting import save_simulations_to_csv
-from handle_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions, run_simulations)
-
-
-def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-    distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors,
-    numSamples=100, numSimulationsPerSample=10):
-    posteriorsList = list()
-    models = dict()
-    i = 0
-    for model, posterior in posteriors.iteritems():
-        posteriorsList.append(posterior)
-        models[i] = model
-        i += 1
-
-    # Parameters for generating simulations.
-    orientations = range(-15,20,5)
-    trialConditions = list()
-    for oLeft in orientations:
-        for oRight in orientations:
-            if oLeft != oRight:
-                trialConditions.append((oLeft, oRight))
-
-    rt = dict()
-    choice = dict()
-    valueLeft = dict()
-    valueRight = dict()
-    fixItem = dict()
-    fixTime = dict()
-    fixRDV = dict()
-
-    numModels = len(models.keys())
-    trialCount = 0
-    for i in xrange(numSamples):
-        # Sample model from posteriors distribution.
-        modelIndex = np.random.choice(np.array(range(numModels)),
-            p=np.array(posteriorsList))
-        model = models[modelIndex]
-        d = model[0]
-        theta = model[1]
-        std = model[2]
-
-        # Generate simulations with the sampled model.
-        simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-            distSecondFix, distThirdFix, distOtherFix, numSimulationsPerSample,
-            trialConditions, d, theta, std=std)
-        for trial in simul.rt.keys():
-            rt[trialCount] = simul.rt[trial]
-            choice[trialCount] = simul.choice[trial]
-            fixTime[trialCount] = simul.fixTime[trial]
-            fixItem[trialCount] = simul.fixItem[trial]
-            fixRDV[trialCount] = simul.fixRDV[trial]
-            valueLeft[trialCount] = np.absolute((np.absolute(
-                simul.distLeft[trial])-15)/5)
-            valueRight[trialCount] = np.absolute((np.absolute(
-                simul.distRight[trial])-15)/5)
-            trialCount += 1
-
-    numTrials = len(rt.keys())
-    save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem, fixTime,
-        fixRDV, numTrials)
+from addm import (analysis_per_trial, get_empirical_distributions,
+    generate_probabilistic_simulations)
+from util import load_data_from_csv, save_simulations_to_csv
 
 
 def run_analysis_wrapper(params):
@@ -103,6 +44,7 @@ def main():
             valueRight[subject][trial] = np.absolute((np.absolute(
                 distRight[subject][trial])-15)/5)
 
+    # Posteriors estimation for the parameters of the model.
     print("Starting grid search...")
     rangeD = [0.0045, 0.005, 0.0055]
     rangeTheta = [0.25, 0.3, 0.35]
@@ -162,8 +104,29 @@ def main():
     distThirdFix = dists.distThirdFix
     distOtherFix = dists.distOtherFix
 
-    generate_probabilistic_simulations(probLeftFixFirst, distTransition,
+    # Generate probabilistic simulations using the posteriors distribution.
+    simul = generate_probabilistic_simulations(probLeftFixFirst, distTransition,
         distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors)
+    simulRt = simul.rt
+    simulChoice = simul.choice
+    simulDistLeft = simul.distLeft
+    simulDistRight = simul.distRight
+    simulFixItem = simul.fixItem
+    simulFixTime = simul.fixTime
+    simulFixRDV = simul.fixRDV
+
+    # Get item values for simulations.
+    totalTrials = len(simulRt.keys())
+    simulValueLeft = dict()
+    simulValueRight = dict()
+    for trial in xrange(totalTrials):
+        simulValueLeft[trial] = np.absolute((np.absolute(
+            simulDistLeft[trial])-15)/5)
+        simulValueRight[trial] = np.absolute((np.absolute(
+            simulDistRight[trial])-15)/5)
+
+    save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
+        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

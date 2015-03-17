@@ -1,22 +1,17 @@
 #!/usr/bin/python
 
-# individual_fitting.py
+# individual_mle.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
-
-import matplotlib
-matplotlib.use('Agg')
 
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 
 import numpy as np
-import operator
-import pandas as pd
 
-from handle_fixations import (load_data_from_csv, analysis_per_trial,
-    get_empirical_distributions, run_simulations)
-from group_fitting import (generate_choice_curves, generate_rt_curves,
-    save_simulations_to_csv)
+from addm import (analysis_per_trial, get_empirical_distributions,
+    run_simulations)
+from util import (load_data_from_csv, save_simulations_to_csv,
+    generate_choice_curves, generate_rt_curves)
 
 
 def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
