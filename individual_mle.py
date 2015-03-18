@@ -108,11 +108,8 @@ def main():
     evenDists = get_empirical_distributions(rt, choice, distLeft, distRight,
         fixItem, fixTime, useOddTrials=False, useEvenTrials=True)
     probLeftFixFirst = evenDists.probLeftFixFirst
-    distTransition = evenDists.distTransition
-    distFirstFix = evenDists.distFirstFix
-    distSecondFix = evenDists.distSecondFix
-    distThirdFix = evenDists.distThirdFix
-    distOtherFix = evenDists.distOtherFix
+    distTransitions = evenDists.distTransitions
+    distFixations = evenDists.distFixations
 
     # Parameters for generating simulations.
     numTrials = 32
@@ -125,9 +122,8 @@ def main():
 
     # Generate simulations using the even trials distributions and the
     # estimated parameters.
-    simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distSecondFix, distThirdFix, distOtherFix, numTrials, trialConditions,
-        optimD, optimTheta, std=optimStd)
+    simul = run_simulations(probLeftFixFirst, distTransitions, distFixations,
+        numTrials, trialConditions, optimD, optimTheta, std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft

@@ -98,15 +98,12 @@ def main():
     dists = get_empirical_distributions(rt, choice, distLeft, distRight,
         fixItem, fixTime, useOddTrials=True, useEvenTrials=True)
     probLeftFixFirst = dists.probLeftFixFirst
-    distTransition = dists.distTransition
-    distFirstFix = dists.distFirstFix
-    distSecondFix = dists.distSecondFix
-    distThirdFix = dists.distThirdFix
-    distOtherFix = dists.distOtherFix
+    distTransitions = dists.distTransitions
+    distFixations = dists.distFixations
 
     # Generate probabilistic simulations using the posteriors distribution.
-    simul = generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-        distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors)
+    simul = generate_probabilistic_simulations(probLeftFixFirst,
+        distTransitions, distFixations, posteriors)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulDistLeft = simul.distLeft

@@ -418,9 +418,8 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
     return simul(rt, choice, distLeft, distRight, fixItem, fixTime, fixRDV)
 
 
-def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
-    distFirstFix, distSecondFix, distThirdFix, distOtherFix, posteriors,
-    numSamples=100, numSimulationsPerSample=10):
+def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
+    distFixations, posteriors, numSamples=100, numSimulationsPerSample=10):
     posteriorsList = list()
     models = dict()
     i = 0
@@ -457,9 +456,9 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransition,
         std = model[2]
 
         # Generate simulations with the sampled model.
-        simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-            distSecondFix, distThirdFix, distOtherFix, numSimulationsPerSample,
-            trialConditions, d, theta, std=std)
+        simul = run_simulations(probLeftFixFirst, distTransitions,
+            distFixations, numSimulationsPerSample, trialConditions, d, theta,
+            std=std)
         for trial in simul.rt.keys():
             rt[trialCount] = simul.rt[trial]
             choice[trialCount] = simul.choice[trial]
