@@ -22,16 +22,16 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv")
+    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
     rt = data.rt
     choice = data.choice
-    distLeft = data.distLeft
-    distRight = data.distRight
+    valueLeft = data.valueLeft
+    valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
     # Get empirical distributions.
-    dists = get_empirical_distributions(rt, choice, distLeft, distRight,
+    dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
         fixItem, fixTime)
     probLeftFixFirst = dists.probLeftFixFirst
     distTransitions = dists.distTransitions
@@ -48,7 +48,9 @@ def main():
     for oLeft in orientations:
         for oRight in orientations:
             if oLeft != oRight:
-                trialConditions.append((oLeft, oRight))
+                vLeft = np.absolute((np.absolute(oLeft)-15)/5)
+                vRight = np.absolute((np.absolute(oRight)-15)/5)
+                trialConditions.append((vLeft, vRight))
 
     # Generate artificial data.
     print("Running simulations...")
@@ -56,32 +58,22 @@ def main():
         numTrials, trialConditions, d, theta, std=std)
     simulRt = simul.rt
     simulChoice = simul.choice
-    simulDistLeft = simul.distLeft
-    simulDistRight = simul.distRight
+    simulValueLeft = simul.valueLeft
+    simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-
-    # Get item values.
-    totalTrials = numTrials * len(trialConditions)
-    simulValueLeft = dict()
-    simulValueRight = dict()
-    for trial in xrange(totalTrials):
-        simulValueLeft[trial] = np.absolute((np.absolute(
-            simulDistLeft[trial])-15)/5)
-        simulValueRight[trial] = np.absolute((np.absolute(
-            simulDistRight[trial])-15)/5)
 
     # Write artificial data to CSV.
     with open("expdata_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
         str(numTrials) + ".csv", "wb") as csvFile:
         csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
             quoting=csv.QUOTE_MINIMAL)
-        csvWriter.writerow(["parcode", "trial", "rt", "choice", "dist_left",
-            "dist_right"])
+        csvWriter.writerow(["parcode", "trial", "rt", "choice", "value_left",
+            "value_right"])
         for trial in xrange(totalTrials):
             csvWriter.writerow(["dummy_subj", str(trial), str(simulRt[trial]),
-                str(simulChoice[trial]), str(simulDistLeft[trial]),
-                str(simulDistRight[trial])])
+                str(simulChoice[trial]), str(simulValueLeft[trial]),
+                str(simulValueRight[trial])])
 
     with open("fixations_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
         str(numTrials) + ".csv", "wb") as csvFile:

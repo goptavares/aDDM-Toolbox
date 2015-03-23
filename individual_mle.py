@@ -48,31 +48,19 @@ def main():
     subject = "cai"
     rt = dict()
     choice = dict()
-    distLeft = dict()
-    distRight = dict()
+    valueLeft = dict()
+    valueRight = dict()
     fixItem = dict()
     fixTime = dict()
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv")
+    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
     rt[subject] = data.rt[subject]
     choice[subject] = data.choice[subject]
-    distLeft[subject] = data.distLeft[subject]
-    distRight[subject] = data.distRight[subject]
+    valueLeft[subject] = data.valueLeft[subject]
+    valueRight[subject] = data.valueRight[subject]
     fixItem[subject] = data.fixItem[subject]
     fixTime[subject] = data.fixTime[subject]
-
-    # Get item values.
-    valueLeft = dict()
-    valueRight = dict()
-    valueLeft[subject] = dict()
-    valueRight[subject] = dict()
-    trials = distLeft[subject].keys()
-    for trial in trials:
-        valueLeft[subject][trial] = np.absolute((np.absolute(
-            distLeft[subject][trial])-15)/5)
-        valueRight[subject][trial] = np.absolute((np.absolute(
-            distRight[subject][trial])-15)/5)
 
     # Maximum likelihood estimation using odd trials only.
     # Grid search on the parameters of the model.
@@ -105,7 +93,7 @@ def main():
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials.
-    evenDists = get_empirical_distributions(rt, choice, distLeft, distRight,
+    evenDists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
         fixItem, fixTime, useOddTrials=False, useEvenTrials=True)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distTransitions = evenDists.distTransitions
@@ -118,7 +106,9 @@ def main():
     for oLeft in orientations:
         for oRight in orientations:
             if oLeft != oRight:
-                trialConditions.append((oLeft, oRight))
+                vLeft = np.absolute((np.absolute(oLeft)-15)/5)
+                vRight = np.absolute((np.absolute(oRight)-15)/5)
+                trialConditions.append((vLeft, vRight))
 
     # Generate simulations using the even trials distributions and the
     # estimated parameters.
@@ -126,21 +116,11 @@ def main():
         numTrials, trialConditions, optimD, optimTheta, std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
-    simulDistLeft = simul.distLeft
-    simulDistRight = simul.distRight
+    simulValueLeft = simul.valueLeft
+    simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
     simulFixRDV = simul.fixRDV
-
-    # Get item values for simulations.
-    totalTrials = numTrials * len(trialConditions)
-    simulValueLeft = dict()
-    simulValueRight = dict()
-    for trial in xrange(totalTrials):
-        simulValueLeft[trial] = np.absolute((np.absolute(
-            simulDistLeft[trial])-15)/5)
-        simulValueRight[trial] = np.absolute((np.absolute(
-            simulDistRight[trial])-15)/5)
 
     # Create pdf file to save figures.
     pp = PdfPages("figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
@@ -148,6 +128,7 @@ def main():
 
     # Generate choice and rt curves for real data (odd trials) and
     # simulations (generated from even trials).
+    totalTrials = numTrials * len(trialConditions)
     fig1 = generate_choice_curves(choice, valueLeft, valueRight, simulChoice,
         simulValueLeft, simulValueRight, totalTrials)
     pp.savefig(fig1)

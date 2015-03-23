@@ -3,6 +3,9 @@
 # addm.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Implementation of the attentional drift-diffusion model (aDDM), as described
+# by Krajbich et al. (2010).
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -170,9 +173,10 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     return likelihood
 
 
-def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
+def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime, timeStep=10, maxFixTime=1500, useOddTrials=True,
-    useEvenTrials=True, useCisTrials=True, useTransTrials=True):
+    useEvenTrials=True, isCisTrial=None, isTransTrial=None, useCisTrials=True,
+    useTransTrials=True):
     valueDiffs = range(0,4,1)
 
     countLeftFirst = 0
@@ -184,20 +188,6 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
         for valueDiff in valueDiffs:
             distFixationsList[i][valueDiff] = list()
 
-    # Get item values.
-    valueLeft = dict()
-    valueRight = dict()
-    subjects = distLeft.keys()
-    for subject in subjects:
-        valueLeft[subject] = dict()
-        valueRight[subject] = dict()
-        trials = distLeft[subject].keys()
-        for trial in trials:
-            valueLeft[subject][trial] = np.absolute((np.absolute(
-                distLeft[subject][trial])-15)/5)
-            valueRight[subject][trial] = np.absolute((np.absolute(
-                distRight[subject][trial])-15)/5)
-
     subjects = rt.keys()
     for subject in subjects:
         trials = rt[subject].keys()
@@ -206,11 +196,11 @@ def get_empirical_distributions(rt, choice, distLeft, distRight, fixItem,
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            if (not useCisTrials and (distLeft[subject][trial] *
-                distRight[subject][trial] > 0)):
+            if (not useCisTrials and isCisTrial[subject][trial] and
+                not isTransTrial[subject][trial]):
                 continue
-            if (not useTransTrials and (distLeft[subject][trial] *
-                distRight[subject][trial] < 0)):
+            if (not useTransTrials and isTransTrial[subject][trial] and
+                not isCisTrial[subject][trial]):
                 continue
             if fixItem[subject][trial].shape[0] < 2:
                 continue
@@ -274,17 +264,18 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
     # Simulation data to be returned.
     rt = dict()
     choice = dict()
-    distLeft = dict()
-    distRight = dict()
+    valueLeft = dict()
+    valueRight = dict()
     fixItem = dict()
     fixTime = dict()
     fixRDV = dict()
+    uninterruptedLastFixTime = dict()
 
     trialCount = 0
 
     for trialCondition in trialConditions:
-        vLeft = np.absolute((np.absolute(trialCondition[0])-15)/5)
-        vRight = np.absolute((np.absolute(trialCondition[1])-15)/5)
+        vLeft = trialCondition[0]
+        vRight = trialCondition[1]
         valueDiff = np.absolute(vLeft - vRight)
         trial = 0
         while trial < numTrials:
@@ -317,14 +308,15 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                             choice[trialCount] = -1
                         elif RDV <= -barrier:
                             choice[trialCount] = 1
-                        distLeft[trialCount] = trialCondition[0]
-                        distRight[trialCount] = trialCondition[1]
+                        valueLeft[trialCount] = vLeft
+                        valueRight[trialCount] = vRight
                         fixRDV[trialCount].append(currRDV)
                         fixItem[trialCount].append(currFixItem)
                         fixTime[trialCount].append(((t + 1) * timeStep) +
                             motorDelay)
                         trialTime += ((t + 1) * timeStep) + motorDelay
                         rt[trialCount] = trialTime
+                        uninterruptedLastFixTime[trialCount] = currFixTime
                         trialFinished = True
                         break
 
@@ -351,8 +343,8 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                             choice[trialCount] = -1
                         elif RDV <= -barrier:
                             choice[trialCount] = 1
-                        distLeft[trialCount] = trialCondition[0]
-                        distRight[trialCount] = trialCondition[1]
+                        valueLeft[trialCount] = vLeft
+                        valueRight[trialCount] = vRight
                         fixRDV[trialCount].append(currRDV)
                         fixItem[trialCount].append(currFixItem)
                         fixTime[trialCount].append(((t + 1) * timeStep) +
@@ -360,6 +352,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                         trialTime += (((t + 1) * timeStep) + visualDelay +
                             motorDelay)
                         rt[trialCount] = trialTime
+                        uninterruptedLastFixTime[trialCount] = currFixTime
                         trialFinished = True
                         break
 
@@ -413,13 +406,16 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                 trial += 1
                 trialCount += 1
 
-    simul = collections.namedtuple('Simul', ['rt', 'choice', 'distLeft',
-        'distRight', 'fixItem', 'fixTime', 'fixRDV'])
-    return simul(rt, choice, distLeft, distRight, fixItem, fixTime, fixRDV)
+    simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
+        'valueRight', 'fixItem', 'fixTime', 'fixRDV',
+        'uninterruptedLastFixTime'])
+    return simul(rt, choice, valueLeft, valueRight, fixItem, fixTime, fixRDV,
+        uninterruptedLastFixTime)
 
 
 def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
-    distFixations, posteriors, numSamples=100, numSimulationsPerSample=10):
+    distFixations, trialConditions, posteriors, numSamples=100,
+    numSimulationsPerSample=10):
     posteriorsList = list()
     models = dict()
     i = 0
@@ -428,18 +424,10 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
         models[i] = model
         i += 1
 
-    # Parameters for generating simulations.
-    orientations = range(-15,20,5)
-    trialConditions = list()
-    for oLeft in orientations:
-        for oRight in orientations:
-            if oLeft != oRight:
-                trialConditions.append((oLeft, oRight))
-
     rt = dict()
     choice = dict()
-    distLeft = dict()
-    distRight = dict()
+    valueLeft = dict()
+    valueRight = dict()
     fixItem = dict()
     fixTime = dict()
     fixRDV = dict()
@@ -465,10 +453,10 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
             fixTime[trialCount] = simul.fixTime[trial]
             fixItem[trialCount] = simul.fixItem[trial]
             fixRDV[trialCount] = simul.fixRDV[trial]
-            distLeft[trialCount] = simul.distLeft[trial]
-            distRight[trialCount] = simul.distRight[trial]
+            valueLeft[trialCount] = simul.valueLeft[trial]
+            valueRight[trialCount] = simul.valueRight[trial]
             trialCount += 1
 
-    simul = collections.namedtuple('Simul', ['rt', 'choice', 'distLeft',
-        'distRight', 'fixItem', 'fixTime', 'fixRDV'])
-    return simul(rt, choice, distLeft, distRight, fixItem, fixTime, fixRDV)
+    simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
+        'valueRight', 'fixItem', 'fixTime', 'fixRDV'])
+    return simul(rt, choice, valueLeft, valueRight, fixItem, fixTime, fixRDV)

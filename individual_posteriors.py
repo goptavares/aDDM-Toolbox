@@ -23,31 +23,19 @@ def main():
     subject = "cai"
     rt = dict()
     choice = dict()
-    distLeft = dict()
-    distRight = dict()
+    valueLeft = dict()
+    valueRight = dict()
     fixItem = dict()
     fixTime = dict()
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv")
+    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
     rt[subject] = data.rt[subject]
     choice[subject] = data.choice[subject]
-    distLeft[subject] = data.distLeft[subject]
-    distRight[subject] = data.distRight[subject]
+    valueLeft[subject] = data.valueLeft[subject]
+    valueRight[subject] = data.valueRight[subject]
     fixItem[subject] = data.fixItem[subject]
     fixTime[subject] = data.fixTime[subject]
-
-    # Get item values.
-    valueLeft = dict()
-    valueRight = dict()
-    valueLeft[subject] = dict()
-    valueRight[subject] = dict()
-    trials = distLeft[subject].keys()
-    for trial in trials:
-        valueLeft[subject][trial] = np.absolute((np.absolute(
-            distLeft[subject][trial])-15)/5)
-        valueRight[subject][trial] = np.absolute((np.absolute(
-            distRight[subject][trial])-15)/5)
 
     # Posteriors estimation for the parameters of the model.
     print("Starting grid search for subject " + subject + "...")
@@ -98,34 +86,35 @@ def main():
         print("Sum: " + str(sum(posteriors.values())))
 
     # Get empirical distributions for the data.
-    dists = get_empirical_distributions(rt, choice, distLeft, distRight,
+    dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
         fixItem, fixTime, useOddTrials=True, useEvenTrials=True)
     probLeftFixFirst = dists.probLeftFixFirst
     distTransitions = dists.distTransitions
     distFixations = dists.distFixations
 
+    # Trial conditions for generating simulations.
+    orientations = range(-15,20,5)
+    trialConditions = list()
+    for oLeft in orientations:
+        for oRight in orientations:
+            if oLeft != oRight:
+                vLeft = np.absolute((np.absolute(oLeft)-15)/5)
+                vRight = np.absolute((np.absolute(oRight)-15)/5)
+                trialConditions.append((vLeft, vRight))
+
     # Generate probabilistic simulations using the posteriors distribution.
     simul = generate_probabilistic_simulations(probLeftFixFirst,
-        distTransitions, distFixations, posteriors, numSamples=32,
-        numSimulationsPerSample=1)
+        distTransitions, distFixations, trialConditions, posteriors,
+        numSamples=32, numSimulationsPerSample=1)
     simulRt = simul.rt
     simulChoice = simul.choice
-    simulDistLeft = simul.distLeft
-    simulDistRight = simul.distRight
+    simulValueLeft = simul.valueLeft
+    simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
     simulFixRDV = simul.fixRDV
 
-    # Get item values for simulations.
     totalTrials = len(simulRt.keys())
-    simulValueLeft = dict()
-    simulValueRight = dict()
-    for trial in xrange(totalTrials):
-        simulValueLeft[trial] = np.absolute((np.absolute(
-            simulDistLeft[trial])-15)/5)
-        simulValueRight[trial] = np.absolute((np.absolute(
-            simulDistRight[trial])-15)/5)
-
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
         simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
 

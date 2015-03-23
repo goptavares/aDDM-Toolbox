@@ -3,6 +3,9 @@
 # ddm.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Implementation of the traditional drift-diffusion model (DDM), as described by
+# Ratcliff et al. (1998).
+
 import matplotlib
 matplotlib.use('Agg')
 
