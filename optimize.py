@@ -51,25 +51,13 @@ def main():
     global fixTime
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv("expdata.csv", "fixations.csv")
+    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
     rt = data.rt
     choice = data.choice
-    distLeft = data.distLeft
-    distRight = data.distRight
+    valueLeft = data.valueLeft
+    valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
-
-    # Get item values.
-    subjects = distLeft.keys()
-    for subject in subjects:
-        valueLeft[subject] = dict()
-        valueRight[subject] = dict()
-        trials = distLeft[subject].keys()
-        for trial in trials:
-            valueLeft[subject][trial] = np.absolute((np.absolute(
-                distLeft[subject][trial])-15)/5)
-            valueRight[subject][trial] = np.absolute((np.absolute(
-                distRight[subject][trial])-15)/5)
 
     # Initial guess: d, theta, std.
     x0 = [0.0002, 0.5, 0.08]

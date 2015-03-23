@@ -1,4 +1,4 @@
-parcode,trial,rt,choice,dist_left,dist_right,valid
+parcode,trial,rt,choice,item_left,item_right,valid
 mar,0,496.000000,1,-5,5,1
 mar,1,1744.000000,-1,15,0,1
 mar,2,2646.000000,-1,-10,-15,1

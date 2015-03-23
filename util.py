@@ -3,6 +3,8 @@
 # util.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Utility functions for the aDDM toolbox.
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -13,37 +15,59 @@ import numpy as np
 import pandas as pd
 
 
-def load_data_from_csv(expdataFile, fixationsFile):
+# Loads experimental data from two CSV files: expdataFile and fixationsFile.
+# Flag useAngularDists must be set when the data is from a perceptual task and
+# contains angular distances instead of item values. The angular distances are
+# converted into values within [0,1,2,3].
+# Format for expdataFile: parcode, trial, rt, choice, item_left, item_right.
+# Format for fixationsFile: parcode, trial, fix_item, fix_time.
+def load_data_from_csv(expdataFile, fixationsFile, useAngularDists=False):
     # Load experimental data from CSV file.
-    # Format: parcode, trial, rt, choice, dist_left, dist_right.
-    # Angular distances to target are transformed to values in [0, 1, 2, 3].
     df = pd.DataFrame.from_csv(expdataFile, header=0, sep=',', index_col=None)
     subjects = df.parcode.unique()
 
     rt = dict()
     choice = dict()
-    distLeft = dict()
-    distRight = dict()
+    valueLeft = dict()
+    valueRight = dict()
+    isCisTrial = dict()
+    isTransTrial = dict()
 
     for subject in subjects:
         rt[subject] = dict()
         choice[subject] = dict()
-        distLeft[subject] = dict()
-        distRight[subject] = dict()
+        valueLeft[subject] = dict()
+        valueRight[subject] = dict()
+        isCisTrial[subject] = dict()
+        isTransTrial[subject] = dict()
         dataSubject = np.array(df.loc[df['parcode']==subject,
-            ['trial','rt','choice','dist_left','dist_right']])
+            ['trial','rt','choice','item_left','item_right']])
         trials = np.unique(dataSubject[:,0]).tolist()
         for trial in trials:
             dataTrial = np.array(df.loc[(df['trial']==trial) &
-                (df['parcode']==subject), ['rt','choice','dist_left',
-                'dist_right']])
+                (df['parcode']==subject), ['rt','choice','item_left',
+                'item_right']])
             rt[subject][trial] = dataTrial[0,0]
             choice[subject][trial] = dataTrial[0,1]
-            distLeft[subject][trial] = dataTrial[0,2]
-            distRight[subject][trial] = dataTrial[0,3]
+            itemLeft = dataTrial[0,2]
+            itemRight = dataTrial[0,3]
+            isCisTrial[subject][trial] = False
+            isTransTrial[subject][trial] = False
+
+            if useAngularDists:
+                valueLeft[subject][trial] = np.absolute(
+                    (np.absolute(itemLeft)-15)/5)
+                valueRight[subject][trial] = np.absolute(
+                    (np.absolute(itemRight)-15)/5)
+                if itemLeft * itemRight >= 0:
+                    isCisTrial[subject][trial] = True
+                if itemLeft * itemRight <= 0:
+                    isTransTrial[subject][trial] = True
+            else:
+                valueLeft[subject][trial] = itemLeft
+                valueRight[subject][trial] = itemRight
 
     # Load fixation data from CSV file.
-    # Format: parcode, trial, fix_item, fix_time.
     df = pd.DataFrame.from_csv(fixationsFile, header=0, sep=',',
         index_col=None)
     subjects = df.parcode.unique()
@@ -63,11 +87,21 @@ def load_data_from_csv(expdataFile, fixationsFile):
             fixItem[subject][trial] = dataTrial[:,0]
             fixTime[subject][trial] = dataTrial[:,1]
 
-    data = collections.namedtuple('Data', ['rt', 'choice', 'distLeft',
-        'distRight', 'fixItem', 'fixTime'])
-    return data(rt, choice, distLeft, distRight, fixItem, fixTime)
+    data = collections.namedtuple('Data', ['rt', 'choice', 'valueLeft',
+        'valueRight', 'fixItem', 'fixTime', 'isCisTrial', 'isTransTrial'])
+    return data(rt, choice, valueLeft, valueRight, fixItem, fixTime, isCisTrial,
+        isTransTrial)
 
 
+# Saves the simulations generated with the aDDM algorithm into 7 CSV files.
+# In the following files, each entry corresponds to a simulated trial:
+# choice.csv contains the chosen item; rt.csv contains the reaction time;
+# value_left.csv contains the value of the left item; and value_right.csv
+# contains the value of the right item. In the following files, each column
+# corresponds to a simulated trial, and each column entry corresponds to a
+# fixation within the trial: fix_item.csv contains the fixated item;
+# fix_time.csv contains the fixation time in miliseconds; and fix_rdv.csv
+# contains the value of the RDV at the beginning of the fixation.
 def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     fixTime, fixRDV, numTrials):
     df = pd.DataFrame(choice, index=range(1))
@@ -99,6 +133,7 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     df.to_csv('fix_rdv.csv', header=0, sep=',', index_col=None)
 
 
+# Plots the psychometric choice curves for data and simulations.
 def generate_choice_curves(choicesData, valueLeftData, valueRightData,
     choicesSimul, valueLeftSimul, valueRightSimul, numTrials):
     countTotal = np.zeros(7)
@@ -156,6 +191,7 @@ def generate_choice_curves(choicesData, valueLeftData, valueRightData,
     return fig
 
 
+# Plots the reaction times for data and simulations.
 def generate_rt_curves(rtsData, valueLeftData, valueRightData, rtsSimul,
     valueLeftSimul, valueRightSimul, numTrials):
     rtsPerValueDiff = dict()

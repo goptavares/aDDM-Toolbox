@@ -13,23 +13,9 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv, save_simulations_to_csv
 
 
-def run_analysis(rt, choice, distLeft, distRight, fixItem, fixTime, d, theta,
-    std, useOddTrials=True, useEvenTrials=True, useCisTrials=True,
-    useTransTrials=True, verbose=True):
-    # Get item values.
-    valueLeft = dict()
-    valueRight = dict()
-    subjects = distLeft.keys()
-    for subject in subjects:
-        valueLeft[subject] = dict()
-        valueRight[subject] = dict()
-        trials = distLeft[subject].keys()
-        for trial in trials:
-            valueLeft[subject][trial] = np.absolute((np.absolute(
-                distLeft[subject][trial])-15)/5)
-            valueRight[subject][trial] = np.absolute((np.absolute(
-                distRight[subject][trial])-15)/5)
-
+def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
+    std, useOddTrials=True, useEvenTrials=True, isCisTrial=None,
+    isTransTrial=None, useCisTrials=True, useTransTrials=True, verbose=True):
     logLikelihood = 0
     subjects = rt.keys()
     for subject in subjects:
@@ -41,11 +27,11 @@ def run_analysis(rt, choice, distLeft, distRight, fixItem, fixTime, d, theta,
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            if (not useCisTrials and (distLeft[subject][trial] *
-                distRight[subject][trial] > 0)):
+            if (not useCisTrials and isCisTrial[subject][trial] and
+                not isTransTrial[subject][trial]):
                 continue
-            if (not useTransTrials and (distLeft[subject][trial] *
-                distRight[subject][trial] < 0)):
+            if (not useTransTrials and isTransTrial[subject][trial] and
+                not isCisTrial[subject][trial]):
                 continue
             likelihood = analysis_per_trial(rt[subject][trial],
                 choice[subject][trial], valueLeft[subject][trial],
@@ -72,13 +58,15 @@ def main(argv):
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv")
+    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
     rt = data.rt
     choice = data.choice
-    distLeft = data.distLeft
-    distRight = data.distRight
+    valueLeft = data.valueLeft
+    valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
+    isCisTrial = data.isCisTrial
+    isTransTrial = data.isTransTrial
 
     # Maximum likelihood estimation.
     # Grid search on the parameters of the model using odd trials only.
@@ -93,8 +81,9 @@ def main(argv):
         for theta in rangeTheta:
             for std in rangeStd:
                 models.append((d, theta, std))
-                params = (rt, choice, distLeft, distRight, fixItem, fixTime,
-                    d, theta, std, True, False, useCisTrials, useTransTrials)
+                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
+                    d, theta, std, True, False, isCisTrial, isTransTrial,
+                    useCisTrials, useTransTrials)
                 listParams.append(params)
 
     print("Starting pool of workers...")
@@ -112,15 +101,13 @@ def main(argv):
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials only.
-    evenDists = get_empirical_distributions(rt, choice, distLeft, distRight,
+    evenDists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
         fixItem, fixTime, useOddTrials=False, useEvenTrials=True,
+        isCisTrial=isCisTrial, isTransTrial=isTransTrial,
         useCisTrials=useCisTrials, useTransTrials=useTransTrials)
     probLeftFixFirst = evenDists.probLeftFixFirst
-    distTransition = evenDists.distTransition
-    distFirstFix = evenDists.distFirstFix
-    distSecondFix = evenDists.distSecondFix
-    distThirdFix = evenDists.distThirdFix
-    distOtherFix = evenDists.distOtherFix
+    distTransitions = evenDists.distTransitions
+    distFixations = evenDists.distFixations
 
     # Parameters for generating simulations.
     numTrials = 400
@@ -128,34 +115,26 @@ def main(argv):
     trialConditions = list()
     for oLeft in orientations:
         for oRight in orientations:
+            vLeft = np.absolute((np.absolute(oLeft)-15)/5)
+            vRight = np.absolute((np.absolute(oRight)-15)/5)
             if oLeft != oRight and useCisTrials and oLeft * oRight >= 0:
-                trialConditions.append((oLeft, oRight))
-            if oLeft != oRight and useTransTrials and oLeft * oRight <= 0:
-                trialConditions.append((oLeft, oRight))
+                trialConditions.append((vLeft, vRight))
+            elif oLeft != oRight and useTransTrials and oLeft * oRight <= 0:
+                trialConditions.append((vLeft, vRight))
 
     # Generate simulations using the empirical distributions and the
     # estimated parameters.
-    simul = run_simulations(probLeftFixFirst, distTransition, distFirstFix,
-        distSecondFix, distThirdFix, distOtherFix, numTrials, trialConditions,
-        optimD, optimTheta, std=optimStd)
+    simul = run_simulations(probLeftFixFirst, distTransitions, distFixations,
+        numTrials, trialConditions, optimD, optimTheta, std=optimStd)
     simulRt = simul.rt
     simulChoice = simul.choice
-    simulDistLeft = simul.distLeft
-    simulDistRight = simul.distRight
+    simulValueLeft = simul.valueLeft
+    simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
     simulFixRDV = simul.fixRDV
 
-    # Get item values for simulations.
     totalTrials = numTrials * len(trialConditions)
-    simulValueLeft = dict()
-    simulValueRight = dict()
-    for trial in xrange(totalTrials):
-        simulValueLeft[trial] = np.absolute((np.absolute(
-            simulDistLeft[trial])-15)/5)
-        simulValueRight[trial] = np.absolute((np.absolute(
-            simulDistRight[trial])-15)/5)
-
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
         simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
 
