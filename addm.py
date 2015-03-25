@@ -27,12 +27,18 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
             return 0
 
     # Iterate over the fixations and discount visual delay.
-    for i in xrange(len(fixItem)):
+    # fTimeOld remembers the original fixTime[i]; this is needed in case 
+    # visualDelay exceeds the original fixTime[i]
+    i = 0    
+    while i < len(fixItem): # use 'while' because len(fixItem) can change
         if fixItem[i] == 1 or fixItem[i] == 2:
-            fixTime[i] = max(fixTime[i] - visualDelay, 0)
-            fiItem = np.append(fixItem, 0)
-            fixTime = np.append(fixTime, visualDelay)
-
+            fTimeOld = fixTime[i] # need this in min() below
+            fixTime[i] = max(fTimeOld - visualDelay, 0)
+            fixItem = np.insert(fixItem, i, 0)
+            fixTime = np.insert(fixTime, i, min(visualDelay, fTimeOld))
+            i += 1 #  because we've made the arrays 1 longer
+        i += 1 
+        
     # Iterate over the fixations and discount motor delay from last fixation.
     for i in xrange(len(fixItem) - 1, -1, -1):
         if fixItem[i] == 1 or fixItem[i] == 2:
