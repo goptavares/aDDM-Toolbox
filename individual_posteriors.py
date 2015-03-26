@@ -9,7 +9,7 @@ import numpy as np
 
 from addm import (analysis_per_trial, get_empirical_distributions,
     generate_probabilistic_simulations)
-from util import load_data_from_csv
+from util import load_data_from_csv, save_simulations_to_csv
 
 
 def run_analysis_wrapper(params):

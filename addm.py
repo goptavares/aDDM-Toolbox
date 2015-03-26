@@ -40,10 +40,11 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         i += 1 
         
     # Iterate over the fixations and discount motor delay from last fixation.
-    for i in xrange(len(fixItem) - 1, -1, -1):
-        if fixItem[i] == 1 or fixItem[i] == 2:
-            fixTime[i] = max(fixTime[i] - motorDelay, 0)
-            break
+    if motorDelay > 0:
+        for i in xrange(len(fixItem) - 1, -1, -1):
+            if fixItem[i] == 1 or fixItem[i] == 2:
+                fixTime[i] = max(fixTime[i] - motorDelay, 0)
+                break
 
     # Iterate over the fixations and get the total time for this trial.
     maxTime = 0
@@ -180,7 +181,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
-    fixTime, timeStep=10, maxFixTime=1500, useOddTrials=True,
+    fixTime, timeStep=10, maxFixTime=1500, numFixDists=3, useOddTrials=True,
     useEvenTrials=True, isCisTrial=None, isTransTrial=None, useCisTrials=True,
     useTransTrials=True):
     valueDiffs = range(0,4,1)
@@ -189,10 +190,10 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     countTotalTrials = 0
     distTransitionsList = list()
     distFixationsList = dict()
-    for i in xrange(1,10):
-        distFixationsList[i] = dict()
+    for fixNumber in xrange(1, numFixDists + 1):
+        distFixationsList[fixNumber] = dict()
         for valueDiff in valueDiffs:
-            distFixationsList[i][valueDiff] = list()
+            distFixationsList[fixNumber][valueDiff] = list()
 
     subjects = rt.keys()
     for subject in subjects:
@@ -241,17 +242,17 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                         fixTime[subject][trial][i] <= maxFixTime):
                         distFixationsList[fixNumber][valueDiff].append(
                             fixTime[subject][trial][i])
-                    if fixNumber < 9:
+                    if fixNumber < numFixDists:
                         fixNumber += 1
 
     probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
     distTransitions = np.array(distTransitionsList)
     distFixations = dict()
-    for i in xrange(1,10):
-        distFixations[i] = dict()
+    for fixNumber in xrange(1, numFixDists + 1):
+        distFixations[fixNumber] = dict()
         for valueDiff in valueDiffs:
-            distFixations[i][valueDiff] = np.array(
-                distFixationsList[i][valueDiff])
+            distFixations[fixNumber][valueDiff] = np.array(
+                distFixationsList[fixNumber][valueDiff])
 
     dists = collections.namedtuple('Dists', ['probLeftFixFirst',
         'distTransitions', 'distFixations'])
@@ -260,7 +261,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
 
 def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
     trialConditions, d, theta, std=0, mu=0, timeStep=10, barrier=1,
-    visualDelay=0, motorDelay=0):
+    numFixDists=3, visualDelay=0, motorDelay=0):
     if std == 0:
         if mu != 0:
             std = mu * d
@@ -404,7 +405,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                     currFixItem = 1
                 currFixTime = (np.random.choice(
                     distFixations[fixNumber][valueDiff]) - visualDelay)
-                if fixNumber < 9:
+                if fixNumber < numFixDists:
                     fixNumber += 1
 
             # Move on to the next trial.
