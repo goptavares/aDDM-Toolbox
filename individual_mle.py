@@ -3,6 +3,9 @@
 # individual_mle.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+import matplotlib
+matplotlib.use('Agg')
+
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 
