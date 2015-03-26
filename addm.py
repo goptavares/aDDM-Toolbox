@@ -17,9 +17,8 @@ import numpy as np
 
 
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, std=0, mu=0, timeStep=10, barrier=1, visualDelay=0, motorDelay=0,
-    plotResults=False):
-    stateStep = 0.1
+    theta, std=0, mu=0, timeStep=10, stateStep=0.1, barrier=1, visualDelay=0,
+    motorDelay=0, plotResults=False):
     if std == 0:
         if mu != 0:
             std = mu * d
@@ -28,30 +27,31 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
     # Iterate over the fixations and discount visual delay.
     if visualDelay > 0:
-        tempFixItem = list()
-        tempFixTime = list()
+        correctedFixItem = list()
+        correctedFixTime = list()
         for i in xrange(len(fixItem)):
             if fixItem[i] == 1 or fixItem[i] == 2:
-                tempFixItem.append(0)
-                tempFixTime.append(visualDelay)
-                tempFixItem.append(fixItem[i])
-                tempFixTime.append(max(fixTime[i] - visualDelay, 0))
+                correctedFixItem.append(0)
+                correctedFixTime.append(min(visualDelay, fixTime[i]))
+                correctedFixItem.append(fixItem[i])
+                correctedFixTime.append(max(fixTime[i] - visualDelay, 0))
             else:
-                tempFixItem.append(fixItem[i])
-                tempFixTime.append(fixTime[i])
-        fixItem = tempFixItem
-        fixTime = tempFixTime
+                correctedFixItem.append(fixItem[i])
+                correctedFixTime.append(fixTime[i])
+    else:
+        correctedFixItem = list(fixItem)
+        correctedFixTime = list(fixTime)
 
     # Iterate over the fixations and discount motor delay from last fixation.
     if motorDelay > 0:
-        for i in xrange(len(fixItem) - 1, -1, -1):
-            if fixItem[i] == 1 or fixItem[i] == 2:
-                fixTime[i] = max(fixTime[i] - motorDelay, 0)
+        for i in xrange(len(correctedFixItem) - 1, -1, -1):
+            if correctedFixItem[i] == 1 or correctedFixItem[i] == 2:
+                correctedFixTime[i] = max(correctedFixTime[i] - motorDelay, 0)
                 break
 
     # Iterate over the fixations and get the total time for this trial.
     maxTime = 0
-    for fItem, fTime in zip(fixItem, fixTime):
+    for fItem, fTime in zip(correctedFixItem, correctedFixTime):
         maxTime += int(fTime // timeStep)
     if maxTime == 0:
         return 0
@@ -87,7 +87,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     time = 0
 
     # Iterate over all fixations in this trial.
-    for fItem, fTime in zip(fixItem, fixTime):
+    for fItem, fTime in zip(correctedFixItem, correctedFixTime):
         # We use a normal distribution to model changes in RDV stochastically.
         # The mean of the distribution (the change most likely to occur) is
         # calculated from the model parameters and from the item values.
