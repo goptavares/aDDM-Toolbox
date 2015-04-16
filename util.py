@@ -83,9 +83,9 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
 
             if useAngularDists:
                 valueLeft[subject][trial] = np.absolute(
-                    (np.absolute(itemLeft)-15)/5)
+                    (np.absolute(itemLeft) - 15) / 5)
                 valueRight[subject][trial] = np.absolute(
-                    (np.absolute(itemRight)-15)/5)
+                    (np.absolute(itemRight) - 15) / 5)
                 if itemLeft * itemRight >= 0:
                     isCisTrial[subject][trial] = True
                 if itemLeft * itemRight <= 0:
@@ -155,20 +155,16 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     df = pd.DataFrame(rt, index=range(1))
     df.to_csv('rt.csv', header=0, sep=',', index_col=None)
 
-    dictValueLeft = dict()
-    dictValueRight = dict()
     dictItem = dict()
     dictTime = dict()
     dictRDV = dict()
     for trial in xrange(0, numTrials):
-        dictValueLeft[trial] = (valueLeft[trial] - 3) * 5
-        dictValueRight[trial] = (valueRight[trial] - 3) * 5
         dictItem[trial] = pd.Series(fixItem[trial])
         dictTime[trial] = pd.Series(fixTime[trial])
         dictRDV[trial] = pd.Series(fixRDV[trial])
-    df = pd.DataFrame(dictValueLeft, index=range(1))
+    df = pd.DataFrame(valueLeft, index=range(1))
     df.to_csv('value_left.csv', header=0, sep=',', index_col=None)
-    df = pd.DataFrame(dictValueRight, index=range(1))
+    df = pd.DataFrame(valueRight, index=range(1))
     df.to_csv('value_right.csv', header=0, sep=',', index_col=None)
     df = pd.DataFrame(dictItem)
     df.to_csv('fix_item.csv', header=0, sep=',', index_col=None)

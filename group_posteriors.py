@@ -32,9 +32,9 @@ def main():
 
     # Posteriors estimation for the parameters of the model.
     print("Starting grid search...")
-    rangeD = [0.0045, 0.005, 0.0055]
+    rangeD = [0.004, 0.0045, 0.005]
     rangeTheta = [0.25, 0.3, 0.35]
-    rangeStd = [0.08, 0.085, 0.09]
+    rangeStd = [0.07, 0.075, 0.08]
     numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
 
     models = list()
@@ -93,8 +93,8 @@ def main():
     for oLeft in orientations:
         for oRight in orientations:
             if oLeft != oRight:
-                vLeft = np.absolute((np.absolute(oLeft)-15)/5)
-                vRight = np.absolute((np.absolute(oRight)-15)/5)
+                vLeft = np.absolute((np.absolute(oLeft) - 15) / 5)
+                vRight = np.absolute((np.absolute(oRight) - 15) / 5)
                 trialConditions.append((vLeft, vRight))
 
     # Generate probabilistic simulations using the posteriors distribution.

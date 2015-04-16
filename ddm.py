@@ -45,18 +45,18 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     barrierUp = barrier * np.ones(maxTime)
     barrierDown = -barrier * np.ones(maxTime)
     for t in xrange(maxTime):
-        barrierUp[t] = float(barrier) / float(1+decay*(t+1))
-        barrierDown[t] = float(-barrier) / float(1+decay*(t+1))
+        barrierUp[t] = float(barrier) / float(1 + decay * (t + 1))
+        barrierDown[t] = float(-barrier) / float(1 + decay * (t + 1))
 
     # The vertical axis (RDV space) is divided into states.
     states = np.arange(-barrier, barrier + stateStep, stateStep)
-    idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
+    idx = np.where(np.logical_and(states < 0.01, states > -0.01))[0]
     states[idx] = 0
 
     # Initial probability for all states is zero, except for the zero state,
     # which has initial probability equal to one.
     prStates = np.zeros(states.size)
-    idx = np.where(states==0)[0]
+    idx = np.where(states == 0)[0]
     prStates[idx] = 1
 
     # The probability of crossing each barrier over the time of the trial.

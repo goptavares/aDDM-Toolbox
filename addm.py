@@ -19,6 +19,37 @@ import numpy as np
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     theta, std=0, mu=0, timeStep=10, stateStep=0.1, barrier=1, visualDelay=0,
     motorDelay=0, plotResults=False):
+    # Computes the likelihood of a set of aDDM parameters based on the data from
+    # one single trial.
+    # Args:
+    #   rt: reaction time in miliseconds.
+    #   choice: integer, either -1 (for left item) or +1 (for right item).
+    #   valueLeft: integer, value of the left item.
+    #   valueRight, integer, value of the right item.
+    #   fixItem: list of items fixated during the trial in chronological order.
+    #       1 correponds to left, 2 corresponds to right, and any other value is
+    #       considered a transition/blank fixation.
+    #   fixTime: list of fixation durations (in miliseconds) in chronological
+    #       order.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   theta: float from the interval [0,1], parameter of the model which
+    #       controls the attentional bias.
+    #   std: float, parameter of the model, standard deviation.
+    #   mu: to be used as an alternative to std, in which case std = mu * d.
+    #   timeStep: integer, value in miliseconds to be used when splitting the
+    #       time axis into bins.
+    #   stateStep: float, to be used when splitting the RDV axis into bins.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    #   visualDelay: delay to be discounted from the beginning of all fixations,
+    #       in miliseconds.
+    #   motorDelay: delay to be discounted from the last fixation only, in
+    #       miliseconds.
+    #   plotResults: boolean, flag that determines whether the algorithm
+    #       evolution for the trial should be plotted.
+    # Returns:
+    #   likelihood: likelihood obtained for the given trial and model.
+
     if std == 0:
         if mu != 0:
             std = mu * d
@@ -61,12 +92,12 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     barrierUp = barrier * np.ones(maxTime)
     barrierDown = -barrier * np.ones(maxTime)
     for t in xrange(0, int(maxTime)):
-        barrierUp[t] = float(barrier) / float(1+decay*(t+1))
-        barrierDown[t] = float(-barrier) / float(1+decay*(t+1))
+        barrierUp[t] = float(barrier) / float(1 + decay * (t + 1))
+        barrierDown[t] = float(-barrier) / float(1 + decay * (t + 1))
 
     # The vertical axis (RDV space) is divided into states.
     states = np.arange(-barrier, barrier + stateStep, stateStep)
-    idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
+    idx = np.where(np.logical_and(states < 0.01, states > -0.01))[0]
     states[idx] = 0
 
     # Initial probability for all states is zero, except for the zero state,
@@ -187,10 +218,8 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime, timeStep=10, maxFixTime=1500, numFixDists=3, useOddTrials=True,
     useEvenTrials=True, isCisTrial=None, isTransTrial=None, useCisTrials=True,
     useTransTrials=True):
-    valueDiffs = range(0,4,1)
+    valueDiffs = range(-3,4,1)
 
-    countLeftFirst = 0
-    countTotalTrials = 0
     distTransitionsList = list()
     distFixationsList = dict()
     for fixNumber in xrange(1, numFixDists + 1):
@@ -212,15 +241,14 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
             if (not useTransTrials and isTransTrial[subject][trial] and
                 not isCisTrial[subject][trial]):
                 continue
-            if fixItem[subject][trial].shape[0] < 2:
-                continue
+
             # Discard trial if it has 1 or less item fixations.
             items = fixItem[subject][trial]
             if items[(items==1) | (items==2)].shape[0] <= 1:
                 continue
-            # Get value difference between best and worst items for this trial.
-            valueDiff = np.absolute(valueLeft[subject][trial] -
-                valueRight[subject][trial])
+            fixUnfixValueDiffs = {1: valueLeft[subject][trial] - 
+                valueRight[subject][trial], 2: valueRight[subject][trial] -
+                valueLeft[subject][trial]} 
             # Find the last item fixation in this trial.
             excludeCount = 0
             for i in xrange(fixItem[subject][trial].shape[0] - 1, -1, -1):
@@ -243,6 +271,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                             countLeftFirst += 1
                     if (fixTime[subject][trial][i] >= timeStep and
                         fixTime[subject][trial][i] <= maxFixTime):
+                        valueDiff = fixUnfixValueDiffs[item]
                         distFixationsList[fixNumber][valueDiff].append(
                             fixTime[subject][trial][i])
                     if fixNumber < numFixDists:
@@ -381,15 +410,15 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                 transitionTime = np.random.choice(distTransitions)
                 currRDV = RDV
                 for t in xrange(int(transitionTime // timeStep)):
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(0, std)
+
                     # If the RDV hit one of the barriers, we abort the trial,
                     # since a trial must end on an item fixation.
                     if RDV >= barrier or RDV <= -barrier:
                         trialFinished = True
                         trialAborted = True
                         break
-
-                    # Sample the change in RDV from the distribution.
-                    RDV += np.random.normal(0, std)
 
                 if trialFinished:
                     break
