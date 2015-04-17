@@ -220,6 +220,8 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     useTransTrials=True):
     valueDiffs = range(-3,4,1)
 
+    countLeftFirst = 0
+    countTotalTrials = 0
     distTransitionsList = list()
     distFixationsList = dict()
     for fixNumber in xrange(1, numFixDists + 1):
