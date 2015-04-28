@@ -17,8 +17,25 @@ import numpy as np
 
 
 def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
-    barrier=1, plotResults=False):
-    stateStep = 0.1
+    stateStep=0.1, barrier=1, plotResults=False):
+    # Computes the likelihood of a set of DDM parameters based on the data from
+    # one single trial.
+    # Args:
+    #   rt: reaction time in miliseconds.
+    #   choice: integer, either -1 (for left item) or +1 (for right item).
+    #   valueLeft: integer, value of the left item.
+    #   valueRight, integer, value of the right item.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   std: float, parameter of the model, standard deviation.
+    #   timeStep: integer, value in miliseconds to be used when splitting the
+    #       time axis into bins.
+    #   stateStep: float, to be used when splitting the RDV axis into bins.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    #   plotResults: boolean, flag that determines whether the algorithm
+    #       evolution for the trial should be plotted.
+    # Returns:
+    #   likelihood: likelihood obtained for the given trial and model.
 
     # Get the total time for this trial.
     maxTime = int(rt // timeStep)
@@ -28,18 +45,18 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     barrierUp = barrier * np.ones(maxTime)
     barrierDown = -barrier * np.ones(maxTime)
     for t in xrange(maxTime):
-        barrierUp[t] = float(barrier) / float(1+decay*(t+1))
-        barrierDown[t] = float(-barrier) / float(1+decay*(t+1))
+        barrierUp[t] = float(barrier) / float(1 + decay * (t + 1))
+        barrierDown[t] = float(-barrier) / float(1 + decay * (t + 1))
 
     # The vertical axis (RDV space) is divided into states.
     states = np.arange(-barrier, barrier + stateStep, stateStep)
-    idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
+    idx = np.where(np.logical_and(states < 0.01, states > -0.01))[0]
     states[idx] = 0
 
     # Initial probability for all states is zero, except for the zero state,
     # which has initial probability equal to one.
     prStates = np.zeros(states.size)
-    idx = np.where(states==0)[0]
+    idx = np.where(states == 0)[0]
     prStates[idx] = 1
 
     # The probability of crossing each barrier over the time of the trial.
@@ -139,6 +156,28 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
 
 
 def run_simulations(numTrials, trialConditions, d, std, timeStep=10, barrier=1):
+    # Generates DDM simulations given the model parameters.
+    # Args:
+    #   numTrials: integer, number of simulations to be generated for each trial
+    #       condition.
+    #   trialConditions: list of tuples, where each entry is a pair (valueLeft,
+    #       valueRight), containing the values of the two items.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   std: float, parameter of the model, standard deviation.
+    #   timeStep: integer, value in miliseconds to be used when splitting the
+    #       time axis into bins.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    # Returns:
+    #   rt: dict indexed by trial number, where each entry corresponds to the
+    #       reaction time in miliseconds.
+    #   choice: dict indexed by trial number, where each entry is either -1 (for
+    #       left item) or +1 (for right item).
+    #   valueLeft: dict indexed by trial number, where each entry corresponds to
+    #       the value of the left item.
+    #   valueRight: dict indexed by trial number, where each entry corresponds
+    #       to the value of the right item.
+
     # Simulation data to be returned.
     rt = dict()
     choice = dict()

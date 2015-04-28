@@ -115,8 +115,8 @@ def main(argv):
     trialConditions = list()
     for oLeft in orientations:
         for oRight in orientations:
-            vLeft = np.absolute((np.absolute(oLeft)-15)/5)
-            vRight = np.absolute((np.absolute(oRight)-15)/5)
+            vLeft = np.absolute((np.absolute(oLeft) - 15) / 5)
+            vRight = np.absolute((np.absolute(oRight) - 15) / 5)
             if oLeft != oRight and useCisTrials and oLeft * oRight >= 0:
                 trialConditions.append((vLeft, vRight))
             elif oLeft != oRight and useTransTrials and oLeft * oRight <= 0:

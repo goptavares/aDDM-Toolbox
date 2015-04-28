@@ -98,8 +98,8 @@ def main():
     for oLeft in orientations:
         for oRight in orientations:
             if oLeft != oRight:
-                vLeft = np.absolute((np.absolute(oLeft)-15)/5)
-                vRight = np.absolute((np.absolute(oRight)-15)/5)
+                vLeft = np.absolute((np.absolute(oLeft) - 15) / 5)
+                vRight = np.absolute((np.absolute(oRight) - 15) / 5)
                 trialConditions.append((vLeft, vRight))
 
     # Generate probabilistic simulations using the posteriors distribution.
