@@ -215,13 +215,14 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
-    fixTime, timeStep=10, maxFixTime=1500, numFixDists=3, useOddTrials=True,
+    fixTime, timeStep=10, maxFixTime=3000, numFixDists=3, useOddTrials=True,
     useEvenTrials=True, isCisTrial=None, isTransTrial=None, useCisTrials=True,
     useTransTrials=True):
     valueDiffs = range(-3,4,1)
 
     countLeftFirst = 0
     countTotalTrials = 0
+    distLatenciesList = list()
     distTransitionsList = list()
     distFixationsList = dict()
     for fixNumber in xrange(1, numFixDists + 1):
@@ -259,14 +260,21 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                     fixItem[subject][trial][i] == 2):
                     break
             # Iterate over this trial's fixations (skip the last item fixation).
+            latency = 0
+            firstItemFixReached = False
             fixNumber = 1
             for i in xrange(fixItem[subject][trial].shape[0] - excludeCount):
                 item = fixItem[subject][trial][i]
                 if item != 1 and item != 2:
-                    if (fixTime[subject][trial][i] >= timeStep and
+                    if not firstItemFixReached:
+                        latency += fixTime[subject][trial][i]
+                    elif (fixTime[subject][trial][i] >= timeStep and
                         fixTime[subject][trial][i] <= maxFixTime):
                         distTransitionsList.append(fixTime[subject][trial][i])
                 else:
+                    if not firstItemFixReached:
+                        firstItemFixReached = True
+                        distLatenciesList.append(latency)
                     if fixNumber == 1:
                         countTotalTrials +=1
                         if item == 1:  # First fixation was left.
@@ -280,6 +288,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                         fixNumber += 1
 
     probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
+    distLatencies = np.array(distLatenciesList)
     distTransitions = np.array(distTransitionsList)
     distFixations = dict()
     for fixNumber in xrange(1, numFixDists + 1):
@@ -289,13 +298,14 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                 distFixationsList[fixNumber][valueDiff])
 
     dists = collections.namedtuple('Dists', ['probLeftFixFirst',
-        'distTransitions', 'distFixations'])
-    return dists(probLeftFixFirst, distTransitions, distFixations)
+        'distLatencies','distTransitions', 'distFixations'])
+    return dists(probLeftFixFirst, distLatencies, distTransitions,
+        distFixations)
 
 
-def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
-    trialConditions, d, theta, std=0, mu=0, timeStep=10, barrier=1,
-    numFixDists=3, visualDelay=0, motorDelay=0):
+def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
+    distFixations, numTrials, trialConditions, d, theta, std=0, mu=0,
+    timeStep=10, barrier=1, numFixDists=3, visualDelay=0, motorDelay=0):
     if std == 0:
         if mu != 0:
             std = mu * d
@@ -317,16 +327,45 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
     for trialCondition in trialConditions:
         vLeft = trialCondition[0]
         vRight = trialCondition[1]
-        valueDiff = np.absolute(vLeft - vRight)
+        fixUnfixValueDiffs = {1: vLeft - vRight, 2: vRight - vLeft}
         trial = 0
         while trial < numTrials:
             fixItem[trialCount] = list()
             fixTime[trialCount] = list()
             fixRDV[trialCount] = list()
 
+            RDV = 0
+            trialTime = 0
+
+            # Sample and iterate over the latency for this trial.
+            trialAborted = False
+            while True:
+                latency = np.random.choice(distLatencies)
+                for t in xrange(int(latency // timeStep)):
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(0, std)
+                    # If the RDV hit one of the barriers, we abort the trial,
+                    # since a trial must end on an item fixation.
+                    if RDV >= barrier or RDV <= -barrier:
+                        trialAborted = True
+                        break
+
+                if trialAborted:
+                    RDV = 0
+                    trialAborted = False
+                    continue
+                else:
+                    # Add latency to this trial's data.
+                    fixRDV[trialCount].append(RDV)
+                    fixItem[trialCount].append(0)
+                    fixTime[trialCount].append(latency - (latency % timeStep))
+                    trialTime += latency - (latency % timeStep)
+                    break
+
             # Sample the first fixation for this trial.
             probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
             currFixItem = np.random.choice([1, 2], p=probLeftRight)
+            valueDiff = fixUnfixValueDiffs[currFixItem]
             currFixTime = (np.random.choice(distFixations[1][valueDiff]) -
                 visualDelay)
 
@@ -334,11 +373,8 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
             fixNumber = 2
             trialFinished = False
             trialAborted = False
-            RDV = 0
-            trialTime = 0
             while True:
                 # Iterate over the visual delay for the current fixation.
-                currRDV = RDV
                 for t in xrange(int(visualDelay // timeStep)):
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(0, std)
@@ -351,7 +387,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                             choice[trialCount] = 1
                         valueLeft[trialCount] = vLeft
                         valueRight[trialCount] = vRight
-                        fixRDV[trialCount].append(currRDV)
+                        fixRDV[trialCount].append(RDV)
                         fixItem[trialCount].append(currFixItem)
                         fixTime[trialCount].append(((t + 1) * timeStep) +
                             motorDelay)
@@ -386,7 +422,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                             choice[trialCount] = 1
                         valueLeft[trialCount] = vLeft
                         valueRight[trialCount] = vRight
-                        fixRDV[trialCount].append(currRDV)
+                        fixRDV[trialCount].append(RDV)
                         fixItem[trialCount].append(currFixItem)
                         fixTime[trialCount].append(((t + 1) * timeStep) +
                             visualDelay + motorDelay)
@@ -401,7 +437,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                     break
 
                 # Add previous fixation to this trial's data.
-                fixRDV[trialCount].append(currRDV)
+                fixRDV[trialCount].append(RDV)
                 fixItem[trialCount].append(currFixItem)
                 fixTime[trialCount].append((currFixTime -
                     (currFixTime % timeStep)) + visualDelay)
@@ -410,7 +446,6 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
 
                 # Sample and iterate over transition time.
                 transitionTime = np.random.choice(distTransitions)
-                currRDV = RDV
                 for t in xrange(int(transitionTime // timeStep)):
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(0, std)
@@ -426,7 +461,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                     break
 
                 # Add previous transition to this trial's data.
-                fixRDV[trialCount].append(currRDV)
+                fixRDV[trialCount].append(RDV)
                 fixItem[trialCount].append(0)
                 fixTime[trialCount].append(transitionTime -
                     (transitionTime % timeStep))
@@ -437,6 +472,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                     currFixItem = 2
                 elif currFixItem == 2:
                     currFixItem = 1
+                valueDiff = fixUnfixValueDiffs[currFixItem]
                 currFixTime = (np.random.choice(
                     distFixations[fixNumber][valueDiff]) - visualDelay)
                 if fixNumber < numFixDists:
@@ -454,8 +490,8 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
         uninterruptedLastFixTime)
 
 
-def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
-    distFixations, trialConditions, posteriors, numSamples=100,
+def generate_probabilistic_simulations(probLeftFixFirst, distLatencies, 
+    distTransitions, distFixations, trialConditions, posteriors, numSamples=100,
     numSimulationsPerSample=10):
     posteriorsList = list()
     models = dict()
@@ -485,9 +521,9 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
         std = model[2]
 
         # Generate simulations with the sampled model.
-        simul = run_simulations(probLeftFixFirst, distTransitions,
-            distFixations, numSimulationsPerSample, trialConditions, d, theta,
-            std=std)
+        simul = run_simulations(probLeftFixFirst, distLatencies,
+            distTransitions, distFixations, numSimulationsPerSample,
+            trialConditions, d, theta, std=std)
         for trial in simul.rt.keys():
             rt[trialCount] = simul.rt[trial]
             choice[trialCount] = simul.choice[trial]

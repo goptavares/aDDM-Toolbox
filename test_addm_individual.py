@@ -42,6 +42,7 @@ def main():
     dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
         fixItem, fixTime)
     probLeftFixFirst = dists.probLeftFixFirst
+    distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
     distFixations = dists.distFixations
 
@@ -62,8 +63,8 @@ def main():
 
     # Generate artificial data.
     print("Running simulations...")
-    simul = run_simulations(probLeftFixFirst, distTransitions, distFixations,
-        numTrials, trialConditions, d, theta, std=std)
+    simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
+        distFixations, numTrials, trialConditions, d, theta, std=std)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
