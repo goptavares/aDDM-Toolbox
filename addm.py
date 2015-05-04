@@ -14,10 +14,10 @@ from scipy.stats import norm
 import collections
 import matplotlib.pyplot as plt
 import numpy as np
-
+import warnings # debug
 
 def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
-    theta, std=0, mu=0, timeStep=10, stateStep=0.1, barrier=1, visualDelay=0,
+    theta, std=0, decay = 0, mu=0, timeStep=10, stateStep=0.1, barrier=1, visualDelay=0,
     motorDelay=0, plotResults=False):
     # Computes the likelihood of a set of aDDM parameters based on the data from
     # one single trial.
@@ -36,6 +36,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     #   theta: float from the interval [0,1], parameter of the model which
     #       controls the attentional bias.
     #   std: float, parameter of the model, standard deviation.
+    #   decay: float, controls decaying barrier. 0 means no decay
     #   mu: to be used as an alternative to std, in which case std = mu * d.
     #   timeStep: integer, value in miliseconds to be used when splitting the
     #       time axis into bins.
@@ -88,7 +89,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         return 0
 
     # The values of the barriers can change over time.
-    decay = 0  # decay = 0 means barriers are constant.
+    # decay = 0 means barriers are constant.
     barrierUp = barrier * np.ones(maxTime)
     barrierDown = -barrier * np.ones(maxTime)
     for t in xrange(0, int(maxTime)):
@@ -217,11 +218,11 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     fixTime, timeStep=10, maxFixTime=1500, numFixDists=3, useOddTrials=True,
     useEvenTrials=True, isCisTrial=None, isTransTrial=None, useCisTrials=True,
-    useTransTrials=True):
-    valueDiffs = range(-3,4,1)
+    useTransTrials=True, valueDiffs = range(-3,4,1)):
 
-    countLeftFirst = 0
-    countTotalTrials = 0
+    probLeftFixFirstList = dict()
+    for valueDiff in valueDiffs:
+        probLeftFixFirstList[valueDiff] = list()
     distTransitionsList = list()
     distFixationsList = dict()
     for fixNumber in xrange(1, numFixDists + 1):
@@ -244,9 +245,9 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                 not isCisTrial[subject][trial]):
                 continue
 
-            # Discard trial if it has 1 or less item fixations.
+            # Discard trial if it has 0 fixations.
             items = fixItem[subject][trial]
-            if items[(items==1) | (items==2)].shape[0] <= 1:
+            if items[(items==1) | (items==2)].shape[0] < 1:
                 continue
             fixUnfixValueDiffs = {1: valueLeft[subject][trial] - 
                 valueRight[subject][trial], 2: valueRight[subject][trial] -
@@ -258,7 +259,8 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                 if (fixItem[subject][trial][i] == 1 or
                     fixItem[subject][trial][i] == 2):
                     break
-            # Iterate over this trial's fixations (skip the last item fixation).
+            # Iterate over this trial's fixations to find the fixation and
+            # transition times.  Skip the last fixation.
             fixNumber = 1
             for i in xrange(fixItem[subject][trial].shape[0] - excludeCount):
                 item = fixItem[subject][trial][i]
@@ -267,10 +269,6 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                         fixTime[subject][trial][i] <= maxFixTime):
                         distTransitionsList.append(fixTime[subject][trial][i])
                 else:
-                    if fixNumber == 1:
-                        countTotalTrials +=1
-                        if item == 1:  # First fixation was left.
-                            countLeftFirst += 1
                     if (fixTime[subject][trial][i] >= timeStep and
                         fixTime[subject][trial][i] <= maxFixTime):
                         valueDiff = fixUnfixValueDiffs[item]
@@ -278,8 +276,30 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                             fixTime[subject][trial][i])
                     if fixNumber < numFixDists:
                         fixNumber += 1
+            # Iterate over fixations to find P(first is left | L-R value)
+            # Do NOT skip the last fixation, in case only one fixation was made
+            for i in xrange(fixItem[subject][trial].shape[0]):
+                item = fixItem[subject][trial][i]
+                if item !=1 and item != 2:
+                    continue
+                else:
+                    leftMinusRightVal = (valueLeft[subject][trial] - 
+                        valueRight[subject][trial])
+                    if item == 1:  # First fixation was left.
+                        probLeftFixFirstList[leftMinusRightVal].append(1)
+                        break
+                    elif item == 2:
+                        probLeftFixFirstList[leftMinusRightVal].append(0)
+                        break
+                    else: # should never happen.  Debugging for now
+                        probLeftFixFirstList[leftMinusRightVal].append(np.nan)
+                        warnings.warn('Did not find first fixated')
+                        break
 
-    probLeftFixFirst = float(countLeftFirst) / float(countTotalTrials)
+    probLeftFixFirst = dict()
+    for valueDiff in valueDiffs:
+        probLeftFixFirst[valueDiff] = np.mean(probLeftFixFirstList[valueDiff])
+        
     distTransitions = np.array(distTransitionsList)
     distFixations = dict()
     for fixNumber in xrange(1, numFixDists + 1):
@@ -317,7 +337,8 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
     for trialCondition in trialConditions:
         vLeft = trialCondition[0]
         vRight = trialCondition[1]
-        valueDiff = np.absolute(vLeft - vRight)
+        fixUnfixValueDiffs = {1: vLeft - vRight, 2: vRight - vLeft} 
+        leftMinusRightVal = vLeft - vRight # used with probLeftFixFirst
         trial = 0
         while trial < numTrials:
             fixItem[trialCount] = list()
@@ -325,8 +346,10 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
             fixRDV[trialCount] = list()
 
             # Sample the first fixation for this trial.
-            probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
+            currProbLeftFirst = probLeftFixFirst[leftMinusRightVal]
+            probLeftRight = np.array([currProbLeftFirst, 1-currProbLeftFirst])
             currFixItem = np.random.choice([1, 2], p=probLeftRight)
+            valueDiff = fixUnfixValueDiffs[currFixItem]            
             currFixTime = (np.random.choice(distFixations[1][valueDiff]) -
                 visualDelay)
 
@@ -437,6 +460,7 @@ def run_simulations(probLeftFixFirst, distTransitions, distFixations, numTrials,
                     currFixItem = 2
                 elif currFixItem == 2:
                     currFixItem = 1
+                valueDiff = fixUnfixValueDiffs[currFixItem]            
                 currFixTime = (np.random.choice(
                     distFixations[fixNumber][valueDiff]) - visualDelay)
                 if fixNumber < numFixDists:
@@ -487,7 +511,7 @@ def generate_probabilistic_simulations(probLeftFixFirst, distTransitions,
         # Generate simulations with the sampled model.
         simul = run_simulations(probLeftFixFirst, distTransitions,
             distFixations, numSimulationsPerSample, trialConditions, d, theta,
-            std=std)
+            std=std, numFixDists = 2)
         for trial in simul.rt.keys():
             rt[trialCount] = simul.rt[trial]
             choice[trialCount] = simul.choice[trial]
