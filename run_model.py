@@ -10,24 +10,24 @@ from addm import analysis_per_trial
 from util import load_data_from_csv
 
 
-def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    std, useOddTrials=True, useEvenTrials=True):
+def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
+    useOddTrials=True, useEvenTrials=True):
     trialsPerSubject = 1200
     logLikelihood = 0
-    subjects = rt.keys()
+    subjects = choice.keys()
     for subject in subjects:
         print("Running subject " + subject + "...")
-        trials = rt[subject].keys()
+        trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
             if not useOddTrials and trial % 2 != 0:
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            likelihood = analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std=std)
+            likelihood = analysis_per_trial(choice[subject][trial],
+                valueLeft[subject][trial], valueRight[subject][trial],
+                fixItem[subject][trial], fixTime[subject][trial], d, theta,
+                std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     return -logLikelihood
@@ -40,14 +40,13 @@ def main(argv):
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    NLL = run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
+    NLL = run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d,
         theta, std)
 
     print("d: " + str(d))

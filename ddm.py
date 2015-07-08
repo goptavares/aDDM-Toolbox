@@ -44,20 +44,19 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     decay = 0  # decay = 0 means barriers are constant.
     barrierUp = barrier * np.ones(maxTime)
     barrierDown = -barrier * np.ones(maxTime)
-    for t in xrange(maxTime):
-        barrierUp[t] = float(barrier) / float(1 + decay * (t + 1))
-        barrierDown[t] = float(-barrier) / float(1 + decay * (t + 1))
+    for t in xrange(1, maxTime):
+        barrierUp[t] = float(barrier) / float(1 + (decay * t))
+        barrierDown[t] = float(-barrier) / float(1 + (decay * t))
 
     # The vertical axis (RDV space) is divided into states.
     states = np.arange(-barrier, barrier + stateStep, stateStep)
-    idx = np.where(np.logical_and(states < 0.01, states > -0.01))[0]
-    states[idx] = 0
+    states[(states < 0.001) & (states > -0.001)] = 0
 
     # Initial probability for all states is zero, except for the zero state,
     # which has initial probability equal to one.
     prStates = np.zeros(states.size)
-    idx = np.where(states == 0)[0]
-    prStates[idx] = 1
+    prStates[states == 0] = 1
+    prStates[(states > barrierUp[0]) | (states < barrierDown[0])] = 0
 
     # The probability of crossing each barrier over the time of the trial.
     probUpCrossing = np.zeros(maxTime)
@@ -73,36 +72,32 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     # calculated from the model parameter d and from the item values.
     mean = d * (valueLeft - valueRight)
 
-    # Iterate over the time of this trial.
-    for time in xrange(maxTime):
-        prStatesNew = np.zeros(states.size)
+    changeMatrix = np.subtract(states.reshape(states.size, 1), states)
+    changeUp = np.subtract(barrierUp, states.reshape(states.size, 1))
+    changeDown = np.subtract(barrierDown, states.reshape(states.size, 1))
 
+    # Iterate over the time of this trial.
+    for time in xrange(1, maxTime):
         # Update the probability of the states that remain inside the
-        # barriers.
-        for s in xrange(0, states.size):
-            currState = states[s]
-            if currState > barrierDown[time] and currState < barrierUp[time]:
-                change = (currState * np.ones(states.size)) - states
-                # The probability of being in state B is the sum, over all
-                # states A, of the probability of being in A at the previous
-                # timestep times the probability of changing from A to B.
-                # We multiply the probability by the stateStep to ensure
-                # that the area under the curve for the probability
-                # distributions probUpCrossing and probDownCrossing each add
-                # up to 1.
-                prStatesNew[s] = (stateStep * np.sum(np.multiply(prStates,
-                    norm.pdf(change, mean, std))))
+        # barriers. The probability of being in state B is the sum, over all
+        # states A, of the probability of being in A at the previous timestep
+        # times the probability of changing from A to B. We multiply the
+        # probability by the stateStep to ensure that the area under the curve
+        # for the probability distributions probUpCrossing and probDownCrossing
+        # each add up to 1.
+        prStatesNew = (stateStep * np.dot(norm.pdf(changeMatrix, mean, std),
+            prStates))
+        prStatesNew[(states >= barrierUp[time]) | (states <=
+            barrierDown[time])] = 0
 
         # Calculate the probabilities of crossing the up barrier and the
         # down barrier. This is given by the sum, over all states A, of the
         # probability of being in A at the previous timestep times the
         # probability of crossing the barrier if A is the previous state.
-        changeUp = (barrierUp[time] * np.ones(states.size)) - states
-        tempUpCross = np.sum(np.multiply(prStates,
-            (1 - norm.cdf(changeUp, mean, std))))
-        changeDown = (barrierDown[time] * np.ones(states.size)) - states
-        tempDownCross = np.sum(np.multiply(prStates,
-            (norm.cdf(changeDown, mean, std))))
+        tempUpCross = np.dot(prStates,
+            (1 - norm.cdf(changeUp[:, time], mean, std)))
+        tempDownCross = np.dot(prStates,
+            norm.cdf(changeDown[:, time], mean, std))
 
         # Renormalize to cope with numerical approximations.
         sumIn = np.sum(prStates)

@@ -17,21 +17,21 @@ from addm import analysis_per_trial
 from util import load_data_from_csv
 
 
-def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    std, verbose=True):
+def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
+    verbose=True):
     trialsPerSubject = 100
     logLikelihood = 0
-    subjects = rt.keys()
+    subjects = choice.keys()
     for subject in subjects:
         if verbose:
             print("Running subject " + subject + "...")
-        trials = rt[subject].keys()
+        trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std=std)
+            likelihood = analysis_per_trial(choice[subject][trial],
+                valueLeft[subject][trial], valueRight[subject][trial],
+                fixItem[subject][trial], fixTime[subject][trial], d, theta,
+                std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
@@ -51,7 +51,6 @@ def main():
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -70,54 +69,54 @@ def main():
 
     # Coarse grid search for d.
     models = list()
-    list_params = list()
+    listParams = list()
     for d in fineRangeD:
         for theta in coarseRangeTheta:
             for std in coarseRangeStd:
                 if not (d, theta, std) in likelihoods:
                     models.append((d, theta, std))
-                    params = (rt, choice, valueLeft, valueRight, fixItem,
-                        fixTime, d, theta, std)
-                    list_params.append(params)
+                    params = (choice, valueLeft, valueRight, fixItem, fixTime,
+                        d, theta, std)
+                    listParams.append(params)
 
     print("Starting pool of workers for d search...")
-    results = pool.map(run_analysis_wrapper, list_params)
+    results = pool.map(run_analysis_wrapper, listParams)
 
     for i in xrange(0, len(results)):
         likelihoods[models[i]] = results[i]
 
     # Coarse grid search for theta.
     models = list()
-    list_params = list()
+    listParams = list()
     for d in coarseRangeD:
         for theta in fineRangeTheta:
             for std in coarseRangeStd:
                 if not (d, theta, std) in likelihoods:
                     models.append((d, theta, std))
-                    params = (rt, choice, valueLeft, valueRight, fixItem,
-                        fixTime, d, theta, std)
-                    list_params.append(params)
+                    params = (choice, valueLeft, valueRight, fixItem, fixTime,
+                        d, theta, std)
+                    listParams.append(params)
 
     print("Starting pool of workers for theta search...")
-    results = pool.map(run_analysis_wrapper, list_params)
+    results = pool.map(run_analysis_wrapper, listParams)
 
     for i in xrange(0, len(results)):
         likelihoods[models[i]] = results[i]
 
     # Coarse grid search for std.
     models = list()
-    list_params = list()
+    listParams = list()
     for d in coarseRangeD:
         for theta in coarseRangeTheta:
             for std in fineRangeStd:
                 if not (d, theta, std) in likelihoods:
                     models.append((d, theta, std))
-                    params = (rt, choice, valueLeft, valueRight, fixItem,
-                        fixTime, d, theta, std)
-                    list_params.append(params)
+                    params = (choice, valueLeft, valueRight, fixItem, fixTime,
+                        d, theta, std)
+                    listParams.append(params)
 
     print("Starting pool of workers for std search...")
-    results = pool.map(run_analysis_wrapper, list_params)
+    results = pool.map(run_analysis_wrapper, listParams)
 
     for i in xrange(0, len(results)):
         likelihoods[models[i]] = results[i]
@@ -137,11 +136,11 @@ def main():
     c = 0
     for theta in coarseRangeTheta:
         for std in coarseRangeStd:
-            d_likelihoods = list()
+            dLikelihoods = list()
             for d in fineRangeD:
-                d_likelihoods.append(likelihoods[(d, theta, std)])
-            ax.plot(fineRangeD, d_likelihoods,
-                color=colors[c], label=(str(theta) + ", " + str(std)))
+                dLikelihoods.append(likelihoods[(d, theta, std)])
+            ax.plot(fineRangeD, dLikelihoods, color=colors[c],
+                label=(str(theta) + ", " + str(std)))
             c += 1
     plt.xlabel("d")
     plt.ylabel("Negative log likelihood")
@@ -156,11 +155,11 @@ def main():
     c = 0
     for d in coarseRangeD:
         for std in coarseRangeStd:
-            theta_likelihoods = list()
+            thetaLikelihoods = list()
             for theta in fineRangeTheta:
-                theta_likelihoods.append(likelihoods[(d, theta, std)])
-            ax.plot(fineRangeTheta, theta_likelihoods,
-                color=colors[c], label=(str(d) + ", " + str(std)))
+                thetaLikelihoods.append(likelihoods[(d, theta, std)])
+            ax.plot(fineRangeTheta, thetaLikelihoods, color=colors[c],
+                label=(str(d) + ", " + str(std)))
             c += 1
     plt.xlabel("theta")
     plt.ylabel("Negative log likelihood")
@@ -175,10 +174,10 @@ def main():
     c = 0
     for d in coarseRangeD:
         for theta in coarseRangeTheta:
-            std_likelihoods = list()
+            stdLikelihoods = list()
             for std in fineRangeStd:
-                std_likelihoods.append(likelihoods[(d, theta, std)])
-            ax.plot(fineRangeStd, std_likelihoods,
+                stdLikelihoods.append(likelihoods[(d, theta, std)])
+            ax.plot(fineRangeStd, stdLikelihoods,
                 color=colors[c], label=(str(d) + ", " + str(theta)))
             c += 1
     plt.xlabel("std")
@@ -191,11 +190,11 @@ def main():
     # Generate zoomed-in d plots.
     for theta in coarseRangeTheta:
         for std in coarseRangeStd:
-            d_likelihoods = list()
+            dLikelihoods = list()
             for d in fineRangeD:
-                d_likelihoods.append(likelihoods[(d, theta, std)])
+                dLikelihoods.append(likelihoods[(d, theta, std)])
             fig = plt.figure()
-            plt.plot(fineRangeD, d_likelihoods)
+            plt.plot(fineRangeD, dLikelihoods)
             plt.title(str(theta) + ", " + str(std))
             plt.xlabel("d")
             plt.ylabel("Negative log likelihood")
@@ -204,11 +203,11 @@ def main():
     # Generate zoomed-in theta plots.
     for d in coarseRangeD:
         for std in coarseRangeStd:
-            theta_likelihoods = list()
+            thetaLikelihoods = list()
             for theta in fineRangeTheta:
-                theta_likelihoods.append(likelihoods[(d, theta, std)])
+                thetaLikelihoods.append(likelihoods[(d, theta, std)])
             fig = plt.figure()
-            plt.plot(fineRangeTheta, theta_likelihoods)
+            plt.plot(fineRangeTheta, thetaLikelihoods)
             plt.title(str(d) + ", " + str(std))
             plt.xlabel("theta")
             plt.ylabel("Negative log likelihood")
@@ -217,11 +216,11 @@ def main():
     # Generate zoomed-in std plots.
     for d in coarseRangeD:
         for theta in coarseRangeTheta:
-            std_likelihoods = list()
+            stdLikelihoods = list()
             for std in fineRangeStd:
-                std_likelihoods.append(likelihoods[(d, theta, std)])
+                stdLikelihoods.append(likelihoods[(d, theta, std)])
             fig = plt.figure()
-            plt.plot(fineRangeStd, std_likelihoods)
+            plt.plot(fineRangeStd, stdLikelihoods)
             plt.title(str(d) + ", " + str(theta))
             plt.xlabel("std")
             plt.ylabel("Negative log likelihood")

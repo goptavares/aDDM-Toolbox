@@ -13,7 +13,7 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv
 
 
-def run_analysis_wrapper(params):
+def run_analysis(params):
     return analysis_per_trial(*params)
 
 
@@ -23,16 +23,13 @@ def main():
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt = data.rt
-    choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
     # Get empirical distributions.
-    dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
-        fixItem, fixTime)
+    dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime)
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -42,7 +39,7 @@ def main():
     numTrials = 800
     d = 0.006
     theta = 0.5
-    std = 0.07
+    std = 0.08
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -89,9 +86,9 @@ def main():
 
     # Grid search to recover the parameters.
     print("Starting grid search...")
-    rangeD = [0.0055, 0.006, 0.0065]
-    rangeTheta = [0.3, 0.5, 0.7]
-    rangeStd = [0.065, 0.07, 0.075]
+    rangeD = [0.005, 0.006, 0.007]
+    rangeTheta = [0.4, 0.5, 0.6]
+    rangeStd = [0.07, 0.08, 0.09]
     numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
 
     models = list()
@@ -103,15 +100,14 @@ def main():
                 models.append(model)
                 posteriors[model] = 1./ numModels
 
-    trials = simulRt.keys()
+    trials = simulChoice.keys()
     for trial in trials:
         listParams = list()
         for model in models:
-            listParams.append((simulRt[trial], simulChoice[trial],
-                simulValueLeft[trial], simulValueRight[trial],
-                simulFixItem[trial], simulFixTime[trial], model[0], model[1],
-                model[2]))
-        likelihoods = pool.map(run_analysis_wrapper, listParams)
+            listParams.append((simulChoice[trial], simulValueLeft[trial],
+                simulValueRight[trial], simulFixItem[trial],
+                simulFixTime[trial], model[0], model[1], model[2]))
+        likelihoods = pool.map(run_analysis, listParams)
 
         # Get the denominator for normalizing the posteriors.
         i = 0

@@ -13,7 +13,7 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv
 
 
-def run_analysis_wrapper(params):
+def run_analysis(params):
     return analysis_per_trial(*params)
 
 
@@ -22,8 +22,6 @@ def main():
     pool = Pool(numThreads)
 
     subject = 'lua'
-    rt = dict()
-    choice = dict()
     valueLeft = dict()
     valueRight = dict()
     fixItem = dict()
@@ -31,16 +29,13 @@ def main():
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt[subject] = data.rt[subject]
-    choice[subject] = data.choice[subject]
     valueLeft[subject] = data.valueLeft[subject]
     valueRight[subject] = data.valueRight[subject]
     fixItem[subject] = data.fixItem[subject]
     fixTime[subject] = data.fixTime[subject]
 
     # Get empirical distributions.
-    dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
-        fixItem, fixTime)
+    dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime)
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -111,15 +106,14 @@ def main():
                 models.append(model)
                 posteriors[model] = 1./ numModels
 
-    trials = simulRt.keys()
+    trials = simulChoice.keys()
     for trial in trials:
         listParams = list()
         for model in models:
-            listParams.append((simulRt[trial], simulChoice[trial],
-                simulValueLeft[trial], simulValueRight[trial],
-                simulFixItem[trial], simulFixTime[trial], model[0], model[1],
-                model[2]))
-        likelihoods = pool.map(run_analysis_wrapper, listParams)
+            listParams.append((simulChoice[trial], simulValueLeft[trial],
+                simulValueRight[trial], simulFixItem[trial],
+                simulFixTime[trial], model[0], model[1], model[2]))
+        likelihoods = pool.map(run_analysis, listParams)
 
         # Get the denominator for normalizing the posteriors.
         i = 0

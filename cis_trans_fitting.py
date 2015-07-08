@@ -13,15 +13,15 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv, save_simulations_to_csv
 
 
-def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    std, useOddTrials=True, useEvenTrials=True, isCisTrial=None,
-    isTransTrial=None, useCisTrials=True, useTransTrials=True, verbose=True):
+def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
+    useOddTrials=True, useEvenTrials=True, isCisTrial=None, isTransTrial=None,
+    useCisTrials=True, useTransTrials=True, verbose=True):
     logLikelihood = 0
-    subjects = rt.keys()
+    subjects = choice.keys()
     for subject in subjects:
         if verbose:
             print("Running subject " + subject + "...")
-        trials = rt[subject].keys()
+        trials = choice[subject].keys()
         for trial in trials:
             if not useOddTrials and trial % 2 != 0:
                 continue
@@ -33,10 +33,10 @@ def run_analysis(rt, choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             if (not useTransTrials and isTransTrial[subject][trial] and
                 not isCisTrial[subject][trial]):
                 continue
-            likelihood = analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std=std)
+            likelihood = analysis_per_trial(choice[subject][trial],
+                valueLeft[subject][trial], valueRight[subject][trial],
+                fixItem[subject][trial], fixTime[subject][trial], d, theta,
+                std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
@@ -59,7 +59,6 @@ def main(argv):
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -81,8 +80,8 @@ def main(argv):
         for theta in rangeTheta:
             for std in rangeStd:
                 models.append((d, theta, std))
-                params = (rt, choice, valueLeft, valueRight, fixItem, fixTime,
-                    d, theta, std, True, False, isCisTrial, isTransTrial,
+                params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
+                    theta, std, True, False, isCisTrial, isTransTrial,
                     useCisTrials, useTransTrials)
                 listParams.append(params)
 
@@ -101,10 +100,10 @@ def main(argv):
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials only.
-    evenDists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
-        fixItem, fixTime, useOddTrials=False, useEvenTrials=True,
-        isCisTrial=isCisTrial, isTransTrial=isTransTrial,
-        useCisTrials=useCisTrials, useTransTrials=useTransTrials)
+    evenDists = get_empirical_distributions(valueLeft, valueRight, fixItem,
+        fixTime, useOddTrials=False, useEvenTrials=True, isCisTrial=isCisTrial,
+        isTransTrial=isTransTrial, useCisTrials=useCisTrials,
+        useTransTrials=useTransTrials)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distLatencies = evenDists.distLatencies
     distTransitions = evenDists.distTransitions

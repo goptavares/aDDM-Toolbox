@@ -12,7 +12,7 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv, save_simulations_to_csv
 
 
-def run_analysis_wrapper(params):
+def run_analysis(params):
     return analysis_per_trial(*params)
 
 
@@ -21,7 +21,6 @@ def main():
     pool = Pool(numThreads)
 
     subject = "cai"
-    rt = dict()
     choice = dict()
     valueLeft = dict()
     valueRight = dict()
@@ -30,7 +29,6 @@ def main():
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt[subject] = data.rt[subject]
     choice[subject] = data.choice[subject]
     valueLeft[subject] = data.valueLeft[subject]
     valueRight[subject] = data.valueRight[subject]
@@ -53,17 +51,17 @@ def main():
                 models.append(model)
                 posteriors[model] = 1./ numModels
 
-    subjects = rt.keys()
+    subjects = choice.keys()
     for subject in subjects:
-        trials = rt[subject].keys()
+        trials = choice[subject].keys()
         for trial in trials:
             listParams = list()
             for model in models:
-                listParams.append((rt[subject][trial], choice[subject][trial],
+                listParams.append((choice[subject][trial],
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
                     model[1], model[2]))
-            likelihoods = pool.map(run_analysis_wrapper, listParams)
+            likelihoods = pool.map(run_analysis, listParams)
 
             # Get the denominator for normalizing the posteriors.
             i = 0
@@ -86,8 +84,8 @@ def main():
         print("Sum: " + str(sum(posteriors.values())))
 
     # Get empirical distributions for the data.
-    dists = get_empirical_distributions(rt, choice, valueLeft, valueRight,
-        fixItem, fixTime, useOddTrials=True, useEvenTrials=True)
+    dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
+        useOddTrials=True, useEvenTrials=True)
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions

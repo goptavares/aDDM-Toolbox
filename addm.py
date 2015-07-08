@@ -16,13 +16,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
+def analysis_per_trial(choice, valueLeft, valueRight, fixItem, fixTime, d,
     theta, std=0, mu=0, timeStep=10, stateStep=0.1, barrier=1, visualDelay=0,
     motorDelay=0, plotResults=False):
     # Computes the likelihood of a set of aDDM parameters based on the data from
     # one single trial.
     # Args:
-    #   rt: reaction time in miliseconds.
     #   choice: integer, either -1 (for left item) or +1 (for right item).
     #   valueLeft: integer, value of the left item.
     #   valueRight, integer, value of the right item.
@@ -86,25 +85,25 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         maxTime += int(fTime // timeStep)
     if maxTime == 0:
         return 0
+    maxTime += 1
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
     barrierUp = barrier * np.ones(maxTime)
     barrierDown = -barrier * np.ones(maxTime)
-    for t in xrange(0, int(maxTime)):
-        barrierUp[t] = float(barrier) / float(1 + decay * (t + 1))
-        barrierDown[t] = float(-barrier) / float(1 + decay * (t + 1))
+    for t in xrange(1, maxTime):
+        barrierUp[t] = float(barrier) / float(1 + (decay * t))
+        barrierDown[t] = float(-barrier) / float(1 + (decay * t))
 
     # The vertical axis (RDV space) is divided into states.
     states = np.arange(-barrier, barrier + stateStep, stateStep)
-    idx = np.where(np.logical_and(states < 0.01, states > -0.01))[0]
-    states[idx] = 0
+    states[(states < 0.001) & (states > -0.001)] = 0
 
     # Initial probability for all states is zero, except for the zero state,
     # which has initial probability equal to one.
     prStates = np.zeros(states.size)
-    idx = np.where(states==0)[0]
-    prStates[idx] = 1
+    prStates[states == 0] = 1
+    prStates[(states > barrierUp[0]) | (states < barrierDown[0])] = 0
 
     # The probability of crossing each barrier over the time of the trial.
     probUpCrossing = np.zeros(maxTime)
@@ -115,7 +114,11 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
         traces = np.zeros((states.size, maxTime))
         traces[:, 0] = prStates
 
-    time = 0
+    time = 1
+
+    changeMatrix = np.subtract(states.reshape(states.size, 1), states)
+    changeUp = np.subtract(barrierUp, states.reshape(states.size, 1))
+    changeDown = np.subtract(barrierDown, states.reshape(states.size, 1))
 
     # Iterate over all fixations in this trial.
     for fItem, fTime in zip(correctedFixItem, correctedFixTime):
@@ -131,35 +134,26 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
 
         # Iterate over the time interval of this fixation.
         for t in xrange(int(fTime // timeStep)):
-            prStatesNew = np.zeros(states.size)
-
             # Update the probability of the states that remain inside the
-            # barriers.
-            for s in xrange(0, states.size):
-                currState = states[s]
-                if (currState > barrierDown[time] and
-                    currState < barrierUp[time]):
-                    change = (currState * np.ones(states.size)) - states
-                    # The probability of being in state B is the sum, over all
-                    # states A, of the probability of being in A at the previous
-                    # timestep times the probability of changing from A to B.
-                    # We multiply the probability by the stateStep to ensure
-                    # that the area under the curve for the probability
-                    # distributions probUpCrossing and probDownCrossing each add
-                    # up to 1.
-                    prStatesNew[s] = (stateStep * np.sum(np.multiply(prStates,
-                        norm.pdf(change, mean, std))))
+            # barriers. The probability of being in state B is the sum, over all
+            # states A, of the probability of being in A at the previous
+            # timestep times the probability of changing from A to B. We
+            # multiply the probability by the stateStep to ensure that the area
+            # under the curve for the probability distributions probUpCrossing
+            # and probDownCrossing each add up to 1.
+            prStatesNew = (stateStep * np.dot(norm.pdf(changeMatrix, mean, std),
+                prStates))
+            prStatesNew[(states >= barrierUp[time]) | (states <=
+                barrierDown[time])] = 0
 
             # Calculate the probabilities of crossing the up barrier and the
             # down barrier. This is given by the sum, over all states A, of the
             # probability of being in A at the previous timestep times the
             # probability of crossing the barrier if A is the previous state.
-            changeUp = (barrierUp[time] * np.ones(states.size)) - states
-            tempUpCross = np.sum(np.multiply(prStates,
-                (1 - norm.cdf(changeUp, mean, std))))
-            changeDown = (barrierDown[time] * np.ones(states.size)) - states
-            tempDownCross = np.sum(np.multiply(prStates,
-                (norm.cdf(changeDown, mean, std))))
+            tempUpCross = np.dot(prStates,
+                (1 - norm.cdf(changeUp[:, time], mean, std)))
+            tempDownCross = np.dot(prStates,
+                norm.cdf(changeDown[:, time], mean, std))
 
             # Renormalize to cope with numerical approximations.
             sumIn = np.sum(prStates)
@@ -214,11 +208,14 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, fixItem, fixTime, d,
     return likelihood
 
 
-def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
-    fixTime, timeStep=10, maxFixTime=3000, numFixDists=3, useOddTrials=True,
-    useEvenTrials=True, isCisTrial=None, isTransTrial=None, useCisTrials=True,
-    useTransTrials=True):
-    valueDiffs = range(-3,4,1)
+def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
+    timeStep=10, maxFixTime=3000, numFixDists=3, fixDistType='fixation',
+    useOddTrials=True, useEvenTrials=True, isCisTrial=None, isTransTrial=None,
+    useCisTrials=True, useTransTrials=True):
+    if fixDistType == 'difficulty':
+        valueDiffs = range(0,4,1)
+    elif fixDistType == 'fixation':
+        valueDiffs = range(-3,4,1)
 
     countLeftFirst = 0
     countTotalTrials = 0
@@ -226,13 +223,16 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     distTransitionsList = list()
     distFixationsList = dict()
     for fixNumber in xrange(1, numFixDists + 1):
-        distFixationsList[fixNumber] = dict()
-        for valueDiff in valueDiffs:
-            distFixationsList[fixNumber][valueDiff] = list()
+        if fixDistType == 'simple':
+            distFixationsList[fixNumber] = list()
+        else:
+            distFixationsList[fixNumber] = dict()
+            for valueDiff in valueDiffs:
+                distFixationsList[fixNumber][valueDiff] = list()
 
-    subjects = rt.keys()
+    subjects = valueLeft.keys()
     for subject in subjects:
-        trials = rt[subject].keys()
+        trials = valueLeft[subject].keys()
         for trial in trials:
             if not useOddTrials and trial % 2 != 0:
                 continue
@@ -251,7 +251,7 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                 continue
             fixUnfixValueDiffs = {1: valueLeft[subject][trial] - 
                 valueRight[subject][trial], 2: valueRight[subject][trial] -
-                valueLeft[subject][trial]} 
+                valueLeft[subject][trial]}
             # Find the last item fixation in this trial.
             excludeCount = 0
             for i in xrange(fixItem[subject][trial].shape[0] - 1, -1, -1):
@@ -281,9 +281,18 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
                             countLeftFirst += 1
                     if (fixTime[subject][trial][i] >= timeStep and
                         fixTime[subject][trial][i] <= maxFixTime):
-                        valueDiff = fixUnfixValueDiffs[item]
-                        distFixationsList[fixNumber][valueDiff].append(
-                            fixTime[subject][trial][i])
+                        if fixDistType == 'simple':
+                            distFixationsList[fixNumber].append(
+                                fixTime[subject][trial][i])
+                        elif fixDistType == 'difficulty':
+                            valueDiff = np.absolute(valueLeft[subject][trial] -
+                                valueRight[subject][trial])
+                            distFixationsList[fixNumber][valueDiff].append(
+                                fixTime[subject][trial][i])
+                        elif fixDistType == 'fixation':
+                            valueDiff = fixUnfixValueDiffs[item]
+                            distFixationsList[fixNumber][valueDiff].append(
+                                fixTime[subject][trial][i])
                     if fixNumber < numFixDists:
                         fixNumber += 1
 
@@ -292,10 +301,13 @@ def get_empirical_distributions(rt, choice, valueLeft, valueRight, fixItem,
     distTransitions = np.array(distTransitionsList)
     distFixations = dict()
     for fixNumber in xrange(1, numFixDists + 1):
-        distFixations[fixNumber] = dict()
-        for valueDiff in valueDiffs:
-            distFixations[fixNumber][valueDiff] = np.array(
-                distFixationsList[fixNumber][valueDiff])
+        if fixDistType == 'simple':
+            distFixations[fixNumber] = np.array(distFixationsList[fixNumber])
+        else:
+            distFixations[fixNumber] = dict()
+            for valueDiff in valueDiffs:
+                distFixations[fixNumber][valueDiff] = np.array(
+                    distFixationsList[fixNumber][valueDiff])
 
     dists = collections.namedtuple('Dists', ['probLeftFixFirst',
         'distLatencies','distTransitions', 'distFixations'])

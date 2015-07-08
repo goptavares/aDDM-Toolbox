@@ -21,7 +21,7 @@ def main():
     std = 0.08
     numTrials = 20
     numValues = 4
-    values = range(0,numValues,1)
+    values = range(1, numValues + 1, 1)
     trialConditions = list()
     for vLeft in values:
         for vRight in values:

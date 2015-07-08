@@ -12,7 +12,6 @@ from util import load_data_from_csv
 
 
 # Global variables.
-rt = dict()
 choice = dict()
 valueLeft = dict()
 valueRight = dict()
@@ -27,15 +26,15 @@ def run_analysis(x):
     std = x[2]
 
     logLikelihood = 0
-    subjects = rt.keys()
+    subjects = choice.keys()
     for subject in subjects:
-        trials = rt[subject].keys()
+        trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = analysis_per_trial(rt[subject][trial],
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, std=std)
+            likelihood = analysis_per_trial(choice[subject][trial],
+                valueLeft[subject][trial], valueRight[subject][trial],
+                fixItem[subject][trial], fixTime[subject][trial], d, theta,
+                std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(x) + ": " + str(-logLikelihood))
@@ -43,7 +42,6 @@ def run_analysis(x):
 
 
 def main():
-    global rt
     global choice
     global valueLeft
     global valueRight
@@ -52,7 +50,6 @@ def main():
 
     # Load experimental data from CSV file and update global variables.
     data = load_data_from_csv("expdata.csv", "fixations.csv", True)
-    rt = data.rt
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
