@@ -61,29 +61,6 @@ def main():
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
 
-    # Write artificial data to CSV.
-    with open("expdata_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
-        str(numTrials) + ".csv", "wb") as csvFile:
-        csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
-            quoting=csv.QUOTE_MINIMAL)
-        csvWriter.writerow(["parcode", "trial", "rt", "choice", "value_left",
-            "value_right"])
-        for trial in xrange(totalTrials):
-            csvWriter.writerow(["dummy_subj", str(trial), str(simulRt[trial]),
-                str(simulChoice[trial]), str(simulValueLeft[trial]),
-                str(simulValueRight[trial])])
-
-    with open("fixations_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
-        str(numTrials) + ".csv", "wb") as csvFile:
-        csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
-            quoting=csv.QUOTE_MINIMAL)
-        csvWriter.writerow(["parcode", "trial", "fix_item", "fix_time"])
-        for trial in xrange(totalTrials):
-            for fix in xrange(len(simulFixItem[trial])):
-                csvWriter.writerow(["dummy_subj", str(trial),
-                    str(simulFixItem[trial][fix]),
-                    str(simulFixTime[trial][fix])])
-
     # Grid search to recover the parameters.
     print("Starting grid search...")
     rangeD = [0.005, 0.006, 0.007]
