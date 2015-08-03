@@ -3,6 +3,14 @@
 # old_addm.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Old implementation of the attentional drift-diffusion model (aDDM). This
+# algorithm uses reaction time histograms conditioned on choice from both
+# data and simulations to estimate each model's likelihood. Here we perforrm a
+# test to check the validity of this algorithm. Artificil data is generated
+# using specific parameters for the model. These parameters are then recovered
+# through a maximum likelihood estimation procedure, using a grid search over
+# the 3 free parameters of the model.
+
 from multiprocessing import Pool
 
 import collections
@@ -12,8 +20,36 @@ from addm import get_empirical_distributions
 from util import load_data_from_csv
 
 
-def addm(L, d, sigma, theta, valueLeft, valueRight, timeStep, probLeftFixFirst,
-    distLatencies, distTransitions, distFixations, numFixDists=3):
+def addm(probLeftFixFirst, distLatencies, distTransitions, distFixations, d,
+    sigma, theta, valueLeft, valueRight, timeStep=10, barrier=1, numFixDists=3):
+    # DDM algorithm. Given the parameters of the model and the trial conditions,
+    # returns the choice and reaction time as predicted by the model.
+    # Args:
+    #   probLeftFixFirst: float between 0 and 1, empirical probability that the
+    #       left item will be fixated first.
+    #   distLatencies: numpy array corresponding to the empirical distribution
+    #       of trial latencies (delay before first fixation) in miliseconds.
+    #   distTransitions: numpy array corresponding to the empirical distribution
+    #       of transitions (delays between item fixations) in miliseconds.
+    #   distFixations: dict whose indexing is controlled by argument
+    #       fixDistType. Its entries are numpy arrays corresponding to the
+    #       empirical distributions of item fixation durations in miliseconds.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   sigma: float, parameter of the model, controls the Gaussian noise to be
+    #       added to the RDV signal.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   valueLeft: integer, value of the left item.
+    #   valueRight: integer, value of the right item.
+    #   timeStep: integer, value in miliseconds which determines how often the
+    #       RDV signal is updated.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    #   numFixDists: integer, number of fixation types to use in the fixation
+    #       distributions. For instance, if numFixDists equals 3, then 3
+    #       separate fixation types will be used, corresponding to the 1st, 2nd
+    #       and other (3rd and up) fixations in each trial.
+
     RDV = 0
     latency = (np.random.choice(distLatencies) // timeStep) * timeStep
     for t in xrange(int(latency // timeStep)):
@@ -32,10 +68,10 @@ def addm(L, d, sigma, theta, valueLeft, valueRight, timeStep, probLeftFixFirst,
     fixNumber = 2
     while True:
         for t in xrange(int(currFixTime // timeStep)):
-            if RDV >= L or RDV <= -L:
-                if RDV >= L:
+            if RDV >= barrier or RDV <= -barrier:
+                if RDV >= barrier:
                     choice = -1
-                elif RDV <= -L:
+                elif RDV <= -barrier:
                     choice = 1
                 decisionReached = True
                 break
@@ -68,18 +104,53 @@ def addm(L, d, sigma, theta, valueLeft, valueRight, timeStep, probLeftFixFirst,
     return results(rt, choice)
 
 
-def get_model_likelihood(L, d, sigma, theta, timeStep, trialConditions,
+def get_model_likelihood(d, sigma, theta, trialConditions,
     numSimulations, histBins, dataHistLeft, dataHistRight, probLeftFixFirst,
     distLatencies, distTransitions, distFixations):
+    # Computes the likelihood of a data set given the parameters of the aDDM.
+    # Data set is provided in the form of reaction time histograms conditioned
+    # on choice.
+    # Args:
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   sigma: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   trialConditions: list of pairs corresponding to the different trial
+    #       conditions. Each pair contains the values of left and right items.
+    #   numSimulations: integer, number of simulations per trial condition to be
+    #       generated when creating reaction time histograms.
+    #   histBins: list of numbers corresponding to the time bins used to create
+    #       the reaction time histograms.
+    #   dataHistLeft: dict indexed by trial condition (where each trial
+    #       condition is a pair (valueLeft, valueRight)). Each entry is a numpy
+    #       array corresponding to the reaction time histogram conditioned on
+    #       left choice for the data. It is assumed that this histogram was
+    #       created using the same time bins as argument histBins.
+    #   dataHistRight: same as dataHistLeft, except that the reaction time
+    #       histograms are conditioned on right choice.
+    #   probLeftFixFirst: float between 0 and 1, empirical probability that the
+    #       left item will be fixated first.
+    #   distLatencies: numpy array corresponding to the empirical distribution
+    #       of trial latencies (delay before first fixation) in miliseconds.
+    #   distTransitions: numpy array corresponding to the empirical distribution
+    #       of transitions (delays between item fixations) in miliseconds.
+    #   distFixations: dict whose indexing is controlled by argument
+    #       fixDistType. Its entries are numpy arrays corresponding to the
+    #       empirical distributions of item fixation durations in miliseconds.
+    #   Returns:
+    #       The likelihood for the given data and model.
+
     likelihood = 0
     for trialCondition in trialConditions:
         rtsLeft = list()
         rtsRight = list()
         sim = 0
         while sim < numSimulations:
-            results = addm(L, d, sigma, theta, trialCondition[0],
-                trialCondition[1], timeStep, probLeftFixFirst, distLatencies,
-                distTransitions, distFixations)
+            results = addm(probLeftFixFirst, distLatencies, distTransitions,
+                distFixations, d, sigma, theta, trialCondition[0],
+                trialCondition[1])
             if results.choice == -1:
                 rtsLeft.append(results.rt)
             elif results.choice == 1:
@@ -104,6 +175,14 @@ def get_model_likelihood(L, d, sigma, theta, timeStep, trialConditions,
 
 
 def get_model_likelihood_wrapper(params):
+    # Wrapper for get_model_likelihood() which takes a single argument. Intended
+    # for parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by
+    #       get_model_likelihood().
+    # Returns:
+    #   The output of get_model_likelihood().
+
     return get_model_likelihood(*params)
 
 
@@ -124,11 +203,10 @@ def main():
 
     print("Done getting empirical distributions!")
 
-    L = 1
+    # Parameters for artificial data.
     d = 0.006
     sigma = 0.08
     theta = 0.5
-    timeStep = 10
 
     maxRt = 8000
     histBins = range(0, maxRt + 100, 100)
@@ -154,9 +232,9 @@ def main():
         rtsRight = list()
         trial = 0
         while trial < numTrials:
-            results = addm(L, d, sigma, theta, trialCondition[0],
-                trialCondition[1], timeStep, probLeftFixFirst, distLatencies,
-                distTransitions, distFixations)
+            results = addm(probLeftFixFirst, distLatencies, distTransitions,
+                distFixations, d, sigma, theta, trialCondition[0],
+                trialCondition[1])
             if results.choice == -1:
                 rtsLeft.append(results.rt)
             elif results.choice == 1:
@@ -180,10 +258,9 @@ def main():
 
     listParams = list()
     for model in models:
-        listParams.append((L, model[0], model[1], model[2], timeStep,
-            trialConditions, numSimulations, histBins, dataHistLeft,
-            dataHistRight, probLeftFixFirst, distLatencies, distTransitions,
-            distFixations))
+        listParams.append((model[0], model[1], model[2], trialConditions,
+            numSimulations, histBins, dataHistLeft, dataHistRight,
+            probLeftFixFirst, distLatencies, distTransitions, distFixations))
     likelihoods = pool.map(get_model_likelihood_wrapper, listParams)
 
     for i in xrange(len(models)):

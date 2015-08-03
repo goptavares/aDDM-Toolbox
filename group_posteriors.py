@@ -3,6 +3,13 @@
 # group_posteriors.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Posterior distribution estimation for the attentional drift-diffusion model
+# (aDDM), using a grid search over the 3 free parameters of the model. Data from
+# all subjects is pooled. aDDM simulations are generated according to the
+# posterior distribution obtained (instead of generating simulations from a
+# single model, we sample models from the posterior distribution and simulate
+# them, then aggregate all simulations).
+
 from multiprocessing import Pool
 
 import numpy as np
@@ -12,12 +19,19 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv, save_simulations_to_csv
 
 
-def run_analysis(params):
+def analysis_per_trial_wrapper(params):
+    # Wrapper for addm.analysis_per_trial() which takes a single argument.
+    # Intended for parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by
+    #       addm.analysis_per_trial().
+    # Returns:
+    #   The output of addm.analysis_per_trial().
     return analysis_per_trial(*params)
 
 
 def main():
-    trialsPerSubject = 500
+    trialsPerSubject = 500  # Number of trials to be used from each subject.
     numThreads = 9
     pool = Pool(numThreads)
 
@@ -57,7 +71,7 @@ def main():
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
                     model[1], model[2]))
-            likelihoods = pool.map(run_analysis, listParams)
+            likelihoods = pool.map(analysis_per_trial_wrapper, listParams)
 
             # Get the denominator for normalizing the posteriors.
             i = 0

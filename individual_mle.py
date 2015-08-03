@@ -3,6 +3,10 @@
 # individual_mle.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Maximum likelihood estimation procedure for the attentional drift-diffusion
+# model (aDDM), using a grid search over the 3 free parameters of the model,
+# and using data from a single subject.
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -19,6 +23,33 @@ from util import (load_data_from_csv, save_simulations_to_csv,
 
 def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
     useOddTrials=True, useEvenTrials=True, verbose=True):
+    # Computes the negative log likelihood of a subject's data given the
+    # parameters of the aDDM.
+    # Args:
+    #   choice: dict of dicts with same indexing as rt. Each entry is an integer
+    #       corresponding to the decision made in that trial.
+    #   valueLeft: dict of dicts with same indexing as rt. Each entry is an
+    #       integer corresponding to the value of the left item.
+    #   valueRight: dict of dicts with same indexing as rt. Each entry is an
+    #       integer corresponding to the value of the right item.
+    #   fixItem: dict of dicts with same indexing as rt. Each entry is an
+    #       ordered list of fixated items in the trial.
+    #   fixTime: dict of dicts with same indexing as rt. Each entry is an
+    #       ordered list of fixation durations in the trial.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   useOddTrials: boolean, whether or not to use odd trials when creating
+    #       the distributions.
+    #   useEvenTrials: boolean, whether or not to use even trials when creating
+    #       the distributions.
+    #   verbose: boolean, whether or not to print updates during computation.
+    # Returns:
+    #   The negative log likelihood for the given subject and model.
+
     NLL = 0
     subjects = choice.keys()
     for subject in subjects:
@@ -41,6 +72,13 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
 
 
 def run_analysis_wrapper(params):
+    # Wrapper for run_analysis() which takes a single argument. Intended for
+    # parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by run_analysis().
+    # Returns:
+    #   The output of run_analysis().
+
     return run_analysis(*params)
 
 

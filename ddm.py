@@ -24,18 +24,19 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     #   rt: reaction time in miliseconds.
     #   choice: integer, either -1 (for left item) or +1 (for right item).
     #   valueLeft: integer, value of the left item.
-    #   valueRight, integer, value of the right item.
+    #   valueRight: integer, value of the right item.
     #   d: float, parameter of the model which controls the speed of integration
     #       of the signal.
-    #   std: float, parameter of the model, standard deviation.
-    #   timeStep: integer, value in miliseconds to be used when splitting the
-    #       time axis into bins.
-    #   stateStep: float, to be used when splitting the RDV axis into bins.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   timeStep: integer, value in miliseconds to be used for binning the time
+    #       axis.
+    #   stateStep: float, to be used for binning the RDV axis.
     #   barrier: positive number, magnitude of the signal thresholds.
     #   plotResults: boolean, flag that determines whether the algorithm
     #       evolution for the trial should be plotted.
     # Returns:
-    #   likelihood: likelihood obtained for the given trial and model.
+    #   The ikelihood obtained for the given trial and model.
 
     # Get the total time for this trial.
     maxTime = int(rt // timeStep)
@@ -159,19 +160,21 @@ def run_simulations(numTrials, trialConditions, d, std, timeStep=10, barrier=1):
     #       valueRight), containing the values of the two items.
     #   d: float, parameter of the model which controls the speed of integration
     #       of the signal.
-    #   std: float, parameter of the model, standard deviation.
-    #   timeStep: integer, value in miliseconds to be used when splitting the
-    #       time axis into bins.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   timeStep: integer, value in miliseconds to be used for binning the time
+    #       axis.
     #   barrier: positive number, magnitude of the signal thresholds.
     # Returns:
-    #   rt: dict indexed by trial number, where each entry corresponds to the
-    #       reaction time in miliseconds.
-    #   choice: dict indexed by trial number, where each entry is either -1 (for
-    #       left item) or +1 (for right item).
-    #   valueLeft: dict indexed by trial number, where each entry corresponds to
-    #       the value of the left item.
-    #   valueRight: dict indexed by trial number, where each entry corresponds
-    #       to the value of the right item.
+    #   A named tuple containing the following fields:
+    #     rt: dict indexed by trial number, where each entry corresponds to the
+    #         reaction time in miliseconds.
+    #     choice: dict indexed by trial number, where each entry is either -1
+    #         (for left item) or +1 (for right item).
+    #     valueLeft: dict indexed by trial number, where each entry corresponds
+    #         to the value of the left item.
+    #     valueRight: dict indexed by trial number, where each entry corresponds
+    #         to the value of the right item.
 
     # Simulation data to be returned.
     rt = dict()

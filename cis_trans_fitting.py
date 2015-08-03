@@ -3,6 +3,15 @@
 # cis_trans_fitting.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Maximum likelihood estimation procedure for the attentional drift-diffusion
+# model (aDDM), specific for perceptual decisions, allowing for analysis of cis
+# trials or trans trials exclusively. Function main() takes two boolean
+# arguments which determine whether cis (1st argument) or trans (2nd argument)
+# trials should be used. A grid search is performed over the 3 free parameters
+# of the model. Data from all subjects is pooled such that a single set of
+# optimal parameters is estimated. aDDM simulations are generated for the model
+# estimated.
+
 from multiprocessing import Pool
 
 import numpy as np
@@ -16,6 +25,42 @@ from util import load_data_from_csv, save_simulations_to_csv
 def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
     useOddTrials=True, useEvenTrials=True, isCisTrial=None, isTransTrial=None,
     useCisTrials=True, useTransTrials=True, verbose=True):
+    # Computes the negative log likelihood of a data set given the parameters of
+    # the aDDM.
+    # Args:
+    #   choice: dict of dicts with same indexing as rt. Each entry is an integer
+    #       corresponding to the decision made in that trial.
+    #   valueLeft: dict of dicts with same indexing as rt. Each entry is an
+    #       integer corresponding to the value of the left item.
+    #   valueRight: dict of dicts with same indexing as rt. Each entry is an
+    #       integer corresponding to the value of the right item.
+    #   fixItem: dict of dicts with same indexing as rt. Each entry is an
+    #       ordered list of fixated items in the trial.
+    #   fixTime: dict of dicts with same indexing as rt. Each entry is an
+    #       ordered list of fixation durations in the trial.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   useOddTrials: boolean, whether or not to use odd trials in the analysis.
+    #   useEvenTrials: boolean, whether or not to use even trials in the
+    #       analysis.
+    #   isCisTrial: dict of dicts, indexed first by subject then by trial
+    #       number. Each entry is a boolean indicating if the trial is cis (both
+    #       bars on the same side of the target).
+    #   isTransTrial: dict of dicts with same indexing as isCisTrial. Each entry
+    #       is a boolean indicating if the trial is trans (bars on either side
+    #       of the target).
+    #   useCisTrials: boolean, whether or not to use cis trials  in the
+    #       analysis.
+    #   useTransTrials: boolean, whether or not to use trans trials in the
+    #       analysis.
+    #   verbose: boolean, whether or not to print updates during computation.
+    # Returns:
+    #   The negative log likelihood for the given data set and model.
+
     logLikelihood = 0
     subjects = choice.keys()
     for subject in subjects:
@@ -47,6 +92,13 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
 
 
 def run_analysis_wrapper(params):
+    # Wrapper for run_analysis() which takes a single argument. Intended for
+    # parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by run_analysis().
+    # Returns:
+    #   The output of run_analysis().
+
     return run_analysis(*params)
 
 

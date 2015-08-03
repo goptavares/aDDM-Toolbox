@@ -3,6 +3,9 @@
 # demo.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Demo script for the attentional drift-diffusion model (aDDM), as described by
+# Krajbich et al. (2010).
+
 from scipy.stats import norm
 
 import matplotlib.pyplot as plt
@@ -23,20 +26,18 @@ initialBarrierDown = -1
 decay = 0  # decay = 0 means barriers are constant.
 barrierUp = initialBarrierUp * np.ones(maxTime)
 barrierDown = initialBarrierDown * np.ones(maxTime)
-for t in xrange(1,maxTime):
+for t in xrange(1, maxTime):
     barrierUp[t] = initialBarrierUp / (1+decay*(t+1))
     barrierDown[t] = initialBarrierDown / (1+decay*(t+1))
 
 # The vertical axis is divided into states.
 states = np.arange(initialBarrierDown, initialBarrierUp + stateStep, stateStep)
-idx = np.where(np.logical_and(states<0.01, states>-0.01))[0]
-states[idx] = 0
+states[(states < 0.001) & (states > -0.001)] = 0
 
 # Initial probability for all states is zero, except the zero state, for
 # which the initial probability is one.
 prStates = np.zeros(states.size)
-idx = np.where(states==0)[0]
-prStates[idx] = 1
+prStates[states == 0] = 1
 
 probUpCrossing = np.zeros(maxTime)
 probDownCrossing = np.zeros(maxTime)
@@ -82,13 +83,20 @@ for t in xrange(1, maxTime):
     probUpCrossing[t] = tempUpCross
     probDownCrossing[t] = tempDownCross
 
-    # Probabilities at each time step DO NOT add up to 1.
-    print str(np.sum(prStates) + probUpCrossing[t] + probDownCrossing[t])
+    # Probabilities at each time step DO NOT add up to 1. These probabilities
+    # account only for the probability of the signal staying inside the barriers
+    # or crossing a barrier at this time step, but not the probability of
+    # already having crossed a barrier at an earlier time.
+    print("Sum of probabilities at time " + str(t) + ": " +
+        str(np.sum(prStates) + probUpCrossing[t] + probDownCrossing[t]))
 
 # Probabilities of crossing the two barriers over time add up to 1.
-print str(np.sum(probUpCrossing))
-print str(np.sum(probDownCrossing))
-print str(np.sum(probUpCrossing) + np.sum(probDownCrossing))
+print("Total probability over time of crossing up barrier: " +
+    str(np.sum(probUpCrossing)))
+print("Total probability over time of crossing down barrier: " +
+    str(np.sum(probDownCrossing)))
+print("Total probability over time of crossing either barrier: " +
+    str(np.sum(probUpCrossing) + np.sum(probDownCrossing)))
 
 plt.figure
 plt.plot(range(1,maxTime+1), probUpCrossing, label='Up')

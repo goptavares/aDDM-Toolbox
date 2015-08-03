@@ -24,7 +24,7 @@ def analysis_per_trial(choice, valueLeft, valueRight, fixItem, fixTime, d,
     # Args:
     #   choice: integer, either -1 (for left item) or +1 (for right item).
     #   valueLeft: integer, value of the left item.
-    #   valueRight, integer, value of the right item.
+    #   valueRight: integer, value of the right item.
     #   fixItem: list of items fixated during the trial in chronological order.
     #       1 correponds to left, 2 corresponds to right, and any other value is
     #       considered a transition/blank fixation.
@@ -32,13 +32,15 @@ def analysis_per_trial(choice, valueLeft, valueRight, fixItem, fixTime, d,
     #       order.
     #   d: float, parameter of the model which controls the speed of integration
     #       of the signal.
-    #   theta: float from the interval [0,1], parameter of the model which
-    #       controls the attentional bias.
-    #   std: float, parameter of the model, standard deviation.
-    #   mu: to be used as an alternative to std, in which case std = mu * d.
-    #   timeStep: integer, value in miliseconds to be used when splitting the
-    #       time axis into bins.
-    #   stateStep: float, to be used when splitting the RDV axis into bins.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   mu: integer, argument to be used as an alternative to std, in which case
+    #       std = mu * d.
+    #   timeStep: integer, value in miliseconds to be used for binning the time
+    #       axis.
+    #   stateStep: float, to be used for binning the RDV axis.
     #   barrier: positive number, magnitude of the signal thresholds.
     #   visualDelay: delay to be discounted from the beginning of all fixations,
     #       in miliseconds.
@@ -47,7 +49,7 @@ def analysis_per_trial(choice, valueLeft, valueRight, fixItem, fixTime, d,
     #   plotResults: boolean, flag that determines whether the algorithm
     #       evolution for the trial should be plotted.
     # Returns:
-    #   likelihood: likelihood obtained for the given trial and model.
+    #   The likelihood obtained for the given trial and model.
 
     if std == 0:
         if mu != 0:
@@ -212,6 +214,60 @@ def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
     timeStep=10, maxFixTime=3000, numFixDists=3, fixDistType='fixation',
     useOddTrials=True, useEvenTrials=True, isCisTrial=None, isTransTrial=None,
     useCisTrials=True, useTransTrials=True):
+    # Creates empirircal distributions from the data to be used when generating
+    # model simulations.
+    # Args:
+    #   valueLeft: dict of dicts, indexed first by subject then by trial number.
+    #       Each entry is an integer corresponding to the value of the left
+    #       item.
+    #   valueRight: dict of dicts with same indexing as valueLeft. Each entry is
+    #       an integer corresponding to the value of the right item.
+    #   fixItem: dict of dicts with same indexing as valueLeft. Each entry is an
+    #       ordered list of fixated items in the trial.
+    #   fixTime: dict of dicts with same indexing as valueLeft. Each entry is an
+    #       ordered list of fixation durations in the trial.
+    #   timeStep: integer, minimum duration of a fixation to be considered, in
+    #       miliseconds.
+    #   maxFixTime: integer, maximum duration of a fixation to be considered, in
+    #       miliseconds.
+    #   numFixDists: integer, number of fixation types to use in the fixation
+    #       distributions. For instance, if numFixDists equals 3, then 3
+    #       separate fixation types will be used, corresponding to the 1st, 2nd
+    #       and other (3rd and up) fixations in each trial.
+    #   fixDistType: string, one of {'simple', 'difficulty', 'fixation'}, used
+    #       to determine how the fixation distributions should be indexed. If
+    #       'simple', then fixation distributions will be indexed only by type
+    #       (1st, 2nd, etc). If 'difficulty', they will be indexed by type and
+    #       by trial difficulty. If 'fixation', they will be indexed by type and
+    #       by the value difference between the fixated and unfixated items.
+    #   useOddTrials: boolean, whether or not to use odd trials when creating
+    #       the distributions.
+    #   useEvenTrials: boolean, whether or not to use even trials when creating
+    #       the distributions.
+    #   isCisTrial: dict of dicts, indexed first by subject then by trial
+    #       number. Applies to perceptual decisions only. Each entry is a
+    #       boolean indicating if the trial is cis (both bars on the same side
+    #       of the target).
+    #   isTransTrial: dict of dicts with same indexing as isCisTrial. Applies to
+    #       perceptual decisions only. Each entry is a boolean indicating if the
+    #       trial is trans (bars on either side of the target).
+    #   useCisTrials: boolean, whether or not to use cis trials when creating
+    #       the distributions (for perceptual decisions only).
+    #   useTransTrials: boolean, whether or not to use trans trials when
+    #       creating the distributions (for perceptual decisions only).
+    # Returns:
+    #   A named tuple containing the following fields:
+    #     probLeftFixFirst: float between 0 and 1, empirical probability that
+    #         the left item will be fixated first.
+    #     distLatencies: numpy array corresponding to the empirical distribution
+    #         of trial latencies (delay before first fixation) in miliseconds.
+    #     distTransitions: numpy array corresponding to the empirical
+    #         distribution of transitions (delays between item fixations) in
+    #         miliseconds.
+    #     distFixations: dict whose indexing is controlled by argument
+    #         fixDistType. Its entries are numpy arrays corresponding to the
+    #         empirical distributions of item fixation durations in miliseconds.
+
     if fixDistType == 'difficulty':
         valueDiffs = range(0,4,1)
     elif fixDistType == 'fixation':
@@ -317,7 +373,72 @@ def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
 
 def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
     distFixations, numTrials, trialConditions, d, theta, std=0, mu=0,
-    timeStep=10, barrier=1, numFixDists=3, visualDelay=0, motorDelay=0):
+    timeStep=10, barrier=1, numFixDists=3, fixDistType='fixation',
+    visualDelay=0, motorDelay=0):
+    # Generates aDDM simulations given the model parameters and some empirical
+    # fixation data, which are used to generate the simulated fixations.
+    # Args:
+    #   probLeftFixFirst: float between 0 and 1, empirical probability that the
+    #       left item will be fixated first.
+    #   distLatencies: numpy array corresponding to the empirical distribution
+    #       of trial latencies (delay before first fixation) in miliseconds.
+    #   distTransitions: numpy array corresponding to the empirical distribution
+    #       of transitions (delays between item fixations) in miliseconds.
+    #   distFixations: dict whose indexing is controlled by argument
+    #       fixDistType. Its entries are numpy arrays corresponding to the
+    #       empirical distributions of item fixation durations in miliseconds.
+    #   numTrials: integer, number of simulations to be generated for each trial
+    #       condition.
+    #   trialConditions: list of tuples, where each entry is a pair (valueLeft,
+    #       valueRight), containing the values of the two items.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   mu: integer, argument to be used as an alternative to std, in which case
+    #       std = mu * d.
+    #   timeStep: integer, value in miliseconds to be used for binning the time
+    #       axis.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    #   numFixDists: integer, number of fixation types to use in the fixation
+    #       distributions. For instance, if numFixDists equals 3, then 3
+    #       separate fixation types will be used, corresponding to the 1st, 2nd
+    #       and other (3rd and up) fixations in each trial.
+    #   fixDistType: string, one of {'simple', 'difficulty', 'fixation'},
+    #       determines how the fixation distributions are indexed. If 'simple',
+    #       fixation distributions are indexed only by type (1st, 2nd, etc). If
+    #       'difficulty', they are indexed by type and by trial difficulty. If
+    #       'fixation', they are indexed by type and by the value difference
+    #       between the fixated and unfixated items.
+    #   visualDelay: delay to be discounted from the beginning of all fixations,
+    #       in miliseconds.
+    #   motorDelay: delay to be discounted from the last fixation only, in
+    #       miliseconds.
+    # Returns:
+    #   A named tuple containing the following fields:
+    #     rt: dict indexed by trial number, where each entry corresponds to the
+    #         reaction time in miliseconds.
+    #     choice: dict indexed by trial number, where each entry is either -1
+    #         (for left item) or +1 (for right item).
+    #     valueLeft: dict indexed by trial number, where each entry corresponds
+    #         to the value of the left item.
+    #     valueRight: dict indexed by trial number, where each entry corresponds
+    #         to the value of the right item.
+    #     fixItem: dict indexed by trial number, where each entry is an ordered
+    #         list of fixated items in the trial: 1 is used for left, 2 for
+    #         right and 0 for latencies/transitions.
+    #     fixTime: dict indexed by trial number, where each entry is an ordered
+    #         list of fixation durations in miliseconds.
+    #     fixRDV: dict indexed by trual number, where each entry is a list of
+    #         floats corresponding to the RDV values at the end of each fixation
+    #         in the trial.
+    #     uninterruptedLastFixTime: dict indexed by trial number, where each
+    #         entry is an integer corresponding to the duration, in miliseconds,
+    #         that the last fixation in the trial would have had it not been
+    #         interrupted when a decision was made.
+
     if std == 0:
         if mu != 0:
             std = mu * d
@@ -377,9 +498,16 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
             # Sample the first fixation for this trial.
             probLeftRight = np.array([probLeftFixFirst, 1-probLeftFixFirst])
             currFixItem = np.random.choice([1, 2], p=probLeftRight)
-            valueDiff = fixUnfixValueDiffs[currFixItem]
-            currFixTime = (np.random.choice(distFixations[1][valueDiff]) -
-                visualDelay)
+            if fixDistType == 'simple':
+                currFixTime = np.random.choice(distFixations[1]) - visualDelay
+            elif fixDistType == 'difficulty':
+                valueDiff = np.absolute(vLeft - vRight)
+                currFixTime = (np.random.choice(distFixations[1][valueDiff]) -
+                    visualDelay)
+            elif fixDistType == 'fixation':
+                valueDiff = fixUnfixValueDiffs[currFixItem]
+                currFixTime = (np.random.choice(distFixations[1][valueDiff]) -
+                    visualDelay
 
             # Iterate over all fixations in this trial.
             fixNumber = 2
@@ -484,9 +612,17 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     currFixItem = 2
                 elif currFixItem == 2:
                     currFixItem = 1
-                valueDiff = fixUnfixValueDiffs[currFixItem]
-                currFixTime = (np.random.choice(
-                    distFixations[fixNumber][valueDiff]) - visualDelay)
+                if fixDistType == 'simple':
+                    currFixTime = (np.random.choice(distFixations[fixNumber]) -
+                        visualDelay)
+                elif fixDistType == 'difficulty':
+                    valueDiff = np.absolute(vLeft - vRight)
+                    currFixTime = np.random.choice(
+                        distFixations[fixNumber][valueDiff]) - visualDelay
+                elif fixDistType == 'fixation':
+                    valueDiff = fixUnfixValueDiffs[currFixItem]
+                    currFixTime = np.random.choice(
+                        distFixations[fixNumber][valueDiff]) - visualDelay
                 if fixNumber < numFixDists:
                     fixNumber += 1
 
@@ -504,7 +640,71 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
 
 def generate_probabilistic_simulations(probLeftFixFirst, distLatencies, 
     distTransitions, distFixations, trialConditions, posteriors, numSamples=100,
-    numSimulationsPerSample=10):
+    numSimulationsPerSample=10, timeStep=10, barrier=1, numFixDists=3,
+    fixDistType='fixation', visualDelay=0, motorDelay=0):
+    # Generates aDDM simulations given a posterior distribution over a grid of
+    # model parameters and some empirical fixation data, which are used to
+    # generate the simulated fixations.
+    # Args:
+    #   probLeftFixFirst: float between 0 and 1, empirical probability that the
+    #       left item will be fixated first.
+    #   distLatencies: numpy array corresponding to the empirical distribution
+    #       of trial latencies (delay before first fixation) in miliseconds.
+    #   distTransitions: numpy array corresponding to the empirical distribution
+    #       of transitions (delays between item fixations) in miliseconds.
+    #   distFixations: dict whose indexing is controlled by argument
+    #       fixDistType. Its entries are numpy arrays corresponding to the
+    #       empirical distributions of item fixation durations in miliseconds.
+    #   numTrials: integer, number of simulations to be generated for each trial
+    #       condition.
+    #   trialConditions: list of tuples, where each entry is a pair (valueLeft,
+    #       valueRight), containing the values of the two items.
+    #   posteriors: dict indexed by model, where a model is a tuple containing
+    #       the 3 parameters of the model. Each entry is a float between 0 and 1
+    #       corresponding to the posterior probability of the model.
+    #   numSamples: integer, number of times a model should be sampled from the
+    #       posteriors distribution.
+    #   numSimulationsPerSample: integer, number of simulations to be generated
+    #       for each sampled model.
+    #   timeStep: integer, value in miliseconds to be used for binning the time
+    #       axis.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    #   numFixDists: integer, number of fixation types to use in the fixation
+    #       distributions. For instance, if numFixDists equals 3, then 3
+    #       separate fixation types will be used, corresponding to the 1st, 2nd
+    #       and other (3rd and up) fixations in each trial.
+    #   fixDistType: string, one of {'simple', 'difficulty', 'fixation'},
+    #       determines how the fixation distributions are indexed. If 'simple',
+    #       fixation distributions are indexed only by type (1st, 2nd, etc). If
+    #       'difficulty', they are indexed by type and by trial difficulty. If
+    #       'fixation', they are indexed by type and by the value difference
+    #       between the fixated and unfixated items.
+    #   visualDelay: delay to be discounted from the beginning of all fixations,
+    #       in miliseconds.
+    #   motorDelay: delay to be discounted from the last fixation only, in
+    #       miliseconds.
+    # Returns:
+    #   A named tuple containing the following fields:
+    #     rt: dict indexed by trial number, where each entry corresponds to the
+    #         reaction time in miliseconds.
+    #     choice: dict indexed by trial number, where each entry is either -1
+    #         (for left item) or +1 (for right item).
+    #     valueLeft: dict indexed by trial number, where each entry corresponds
+    #         to the value of the left item.
+    #     valueRight: dict indexed by trial number, where each entry corresponds
+    #         to the value of the right item.
+    #     fixItem: dict indexed by trial number, where each entry is an ordered
+    #         list of fixated items in the trial: 1 is used for left, 2 for
+    #         right and 0 for latencies/transitions.
+    #     fixTime: dict indexed by trial number, where each entry is an ordered
+    #         list of fixation durations in miliseconds.
+    #     fixRDV: dict indexed by trual number, where each entry is a list of
+    #         floats corresponding to the RDV values at the end of each fixation
+    #         in the trial.
+    #     uninterruptedLastFixTime: dict indexed by trial number, where each
+    #         entry is an integer corresponding to the duration, in miliseconds,
+    #         that the last fixation in the trial would have had it not been
+    #         interrupted when a decision was made.
     posteriorsList = list()
     models = dict()
     i = 0
@@ -520,6 +720,7 @@ def generate_probabilistic_simulations(probLeftFixFirst, distLatencies,
     fixItem = dict()
     fixTime = dict()
     fixRDV = dict()
+    uninterruptedLastFixTime = dict()
 
     numModels = len(models.keys())
     trialCount = 0
@@ -535,17 +736,23 @@ def generate_probabilistic_simulations(probLeftFixFirst, distLatencies,
         # Generate simulations with the sampled model.
         simul = run_simulations(probLeftFixFirst, distLatencies,
             distTransitions, distFixations, numSimulationsPerSample,
-            trialConditions, d, theta, std=std)
+            trialConditions, d, theta, std=std, mu=0, timeStep=10, barrier=1,
+            numFixDists=3, fixDistType='fixation', visualDelay=0, motorDelay=0)
         for trial in simul.rt.keys():
             rt[trialCount] = simul.rt[trial]
             choice[trialCount] = simul.choice[trial]
+            valueLeft[trialCount] = simul.valueLeft[trial]
+            valueRight[trialCount] = simul.valueRight[trial]
             fixTime[trialCount] = simul.fixTime[trial]
             fixItem[trialCount] = simul.fixItem[trial]
             fixRDV[trialCount] = simul.fixRDV[trial]
-            valueLeft[trialCount] = simul.valueLeft[trial]
-            valueRight[trialCount] = simul.valueRight[trial]
+            uninterruptedLastFixTime[trialCount] = (
+                simul.uninterruptedLastFixTime[trial])
+            
             trialCount += 1
 
     simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
-        'valueRight', 'fixItem', 'fixTime', 'fixRDV'])
-    return simul(rt, choice, valueLeft, valueRight, fixItem, fixTime, fixRDV)
+        'valueRight', 'fixItem', 'fixTime', 'fixRDV',
+        'uninterruptedLastFixTime'])
+    return simul(rt, choice, valueLeft, valueRight, fixItem, fixTime, fixRDV,
+        uninterruptedLastFixTime)

@@ -3,6 +3,11 @@
 # test_addm_individual.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Test to check the validity of the addm parameter estimation. Artificil data is
+# generated using specific parameters for the model. Fixations are sampled from
+# the data from a single subject. The parameters used for data generation are
+# then recovered through a posterior distribution estimation procedure.
+
 from multiprocessing import Pool
 
 import csv
@@ -13,7 +18,14 @@ from addm import (analysis_per_trial, get_empirical_distributions,
 from util import load_data_from_csv
 
 
-def run_analysis(params):
+def analysis_per_trial_wrapper(params):
+    # Wrapper for addm.analysis_per_trial() which takes a single argument.
+    # Intended for parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by
+    #       addm.analysis_per_trial().
+    # Returns:
+    #   The output of addm.analysis_per_trial().
     return analysis_per_trial(*params)
 
 
@@ -67,29 +79,6 @@ def main():
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
 
-    # Write artificial data to CSV.
-    with open("expdata_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
-        str(numTrials) + ".csv", "wb") as csvFile:
-        csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
-            quoting=csv.QUOTE_MINIMAL)
-        csvWriter.writerow(["parcode", "trial", "rt", "choice", "value_left",
-            "value_right"])
-        for trial in xrange(totalTrials):
-            csvWriter.writerow(["dummy_subj", str(trial), str(simulRt[trial]),
-                str(simulChoice[trial]), str(simulValueLeft[trial]),
-                str(simulValueRight[trial])])
-
-    with open("fixations_" + str(d) + "_" + str(theta) + "_" + str(std) + "_" +
-        str(numTrials) + ".csv", "wb") as csvFile:
-        csvWriter = csv.writer(csvFile, delimiter=',', quotechar='|',
-            quoting=csv.QUOTE_MINIMAL)
-        csvWriter.writerow(["parcode", "trial", "fix_item", "fix_time"])
-        for trial in xrange(totalTrials):
-            for fix in xrange(len(simulFixItem[trial])):
-                csvWriter.writerow(["dummy_subj", str(trial),
-                    str(simulFixItem[trial][fix]),
-                    str(simulFixTime[trial][fix])])
-
     # Grid search to recover the parameters.
     print("Starting grid search...")
     rangeD = [0.0055, 0.006, 0.0065]
@@ -113,7 +102,7 @@ def main():
             listParams.append((simulChoice[trial], simulValueLeft[trial],
                 simulValueRight[trial], simulFixItem[trial],
                 simulFixTime[trial], model[0], model[1], model[2]))
-        likelihoods = pool.map(run_analysis, listParams)
+        likelihoods = pool.map(analysis_per_trial_wrapper, listParams)
 
         # Get the denominator for normalizing the posteriors.
         i = 0

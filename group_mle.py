@@ -3,6 +3,11 @@
 # group_mle.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Maximum likelihood estimation procedure for the attentional drift-diffusion
+# model (aDDM), using a grid search over the 3 free parameters of the model.
+# Data from all subjects is pooled such that a single set of optimal parameters
+# is estimated.
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -18,8 +23,35 @@ from util import (load_data_from_csv, save_simulations_to_csv,
 
 
 def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
-    useOddTrials=True, useEvenTrials=True, verbose=True):
-    trialsPerSubject = 200
+    trialsPerSubject=200, useOddTrials=True, useEvenTrials=True, verbose=True):
+    # Computes the negative log likelihood of a data set given the parameters of
+    # the aDDM.
+    # Args:
+    #   choice: dict of dicts with same indexing as rt. Each entry is an integer
+    #       corresponding to the decision made in that trial.
+    #   valueLeft: dict of dicts with same indexing as rt. Each entry is an
+    #       integer corresponding to the value of the left item.
+    #   valueRight: dict of dicts with same indexing as rt. Each entry is an
+    #       integer corresponding to the value of the right item.
+    #   fixItem: dict of dicts with same indexing as rt. Each entry is an
+    #       ordered list of fixated items in the trial.
+    #   fixTime: dict of dicts with same indexing as rt. Each entry is an
+    #       ordered list of fixation durations in the trial.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   trialsPerSubject: integer, number of trials to be used from each
+    #       subject.
+    #   useOddTrials: boolean, whether or not to use odd trials in the analysis.
+    #   useEvenTrials: boolean, whether or not to use even trials in the
+    #       analysis.
+    #   verbose: boolean, whether or not to print updates during computation.
+    # Returns:
+    #   The negative log likelihood for the given data set and model.
+
     logLikelihood = 0
     subjects = choice.keys()
     for subject in subjects:
@@ -46,6 +78,13 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
 
 
 def run_analysis_wrapper(params):
+    # Wrapper for run_analysis() which takes a single argument. Intended for
+    # parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by run_analysis().
+    # Returns:
+    #   The output of run_analysis().
+
     return run_analysis(*params)
 
 
@@ -54,7 +93,8 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+        useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -75,7 +115,7 @@ def main():
             for std in rangeStd:
                 models.append((d, theta, std))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                    theta, std, True, False)
+                    theta, std, 200, True, False)
                 listParams.append(params)
 
     results = pool.map(run_analysis_wrapper, listParams)

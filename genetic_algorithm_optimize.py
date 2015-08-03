@@ -3,6 +3,11 @@
 # genetic_algorithm_optimize.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Maximum likelihood estimation procedure for the attentional drift-diffusion
+# model (aDDM), using a genetic algorithm to search the parameter space.
+# Data from all subjects is pooled such that a single set of optimal parameters
+# is estimated.
+
 from deap import base, creator, tools
 from multiprocessing import Pool
 
@@ -23,7 +28,16 @@ fixTime = dict()
 
 
 def evaluate(individual):
-    trialsPerSubject = 200
+    # Computes the negative log likelihood of the global data set given the
+    # parameters of the aDDM.
+    # Args:
+    #   individual: list containing the 3 model parameters, in the following
+    #       order: d, theta, std.
+    # Returns:
+    #   A list containing the negative log likelihood for the global data set
+    #       and the given model.
+
+    trialsPerSubject = 200  # Number of trials to be used from each subject.
     d = individual[0]
     theta = individual[1]
     std = individual[2]
@@ -146,8 +160,8 @@ def main():
                 bestFit = ind.fitness.values[0]
                 bestInd = ind
 
-    print bestFit
-    print bestInd
+    print("Best individual: " + str(bestInd))
+    print("Fitness of best individual: " + str(bestFit))
 
 
 if __name__ == '__main__':

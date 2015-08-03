@@ -3,6 +3,19 @@
 # simulate_addm_true_distributions.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Generates aDDM simulations with an approximation of the "true" fixation
+# distributions. When creating fixation distributions, we leave out the last
+# fixation from each trial, since these are interrupted when a decision is made
+# and therefore their duration should not be sampled. Since long fixations are
+# more likely to be interrupted, they end up not being included in the
+# distributions. THis means that the distributions we use to sample fixations
+# are biased towards shorter fixations than the "true" distributions. Here we
+# use the uninterrupted duration of last fixations to approximate the "true"
+# distributions of fixations. We do this by dividing each bin in the empirical
+# fixation distributions by the probability of a fixation in that bin being the
+# last fixation in the trial. The "true" distributions estimated are then used
+# to generate aDDM simulations.  
+
 from multiprocessing import Pool
 
 import collections
@@ -15,13 +28,46 @@ from util import load_data_from_csv, save_simulations_to_csv
 
 
 def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
-    distFixations, numTrials, trialConditions, bins, numFixDists, d, theta, 
-    std=0, mu=0, timeStep=10, barrier=1, visualDelay=0, motorDelay=0):
-    if std == 0:
-        if mu != 0:
-            std = mu * d
-        else:
-            return None
+    distFixations, numTrials, trialConditions, d, theta, std, bins,
+    numFixDists=3, timeStep=10, barrier=1, visualDelay=0, motorDelay=0):
+    # Generates aDDM simulations given the model parameters and some empirical
+    # fixation data, which are used to generate the simulated fixations.
+    # Args:
+    #   probLeftFixFirst: float between 0 and 1, empirical probability that the
+    #       left item will be fixated first.
+    #   distLatencies: numpy array corresponding to the empirical distribution
+    #       of trial latencies (delay before first fixation) in miliseconds.
+    #   distTransitions: numpy array corresponding to the empirical distribution
+    #       of transitions (delays between item fixations) in miliseconds.
+    #   distFixations: dict of dicts of dicts, corresponding to the probability
+    #       distributions of fixation durations. Indexed first by fixation type
+    #       (1st, 2nd, etc), then by the value difference between the fixated
+    #       and the unfixated items, then by time bin. Each entry is a number
+    #       between 0 and 1 corresponding to the probability assigned to the
+    #       particular time bin (i.e. given a particular fixation type and value
+    #       difference, probabilities for all bins should add up to 1).
+    #   numTrials: integer, number of simulations to be generated for each trial
+    #       condition.
+    #   trialConditions: list of tuples, where each entry is a pair (valueLeft,
+    #       valueRight), containing the values of the two items.
+    #   d: float, parameter of the model which controls the speed of integration
+    #       of the signal.
+    #   theta: float between 0 and 1, parameter of the model which controls the
+    #       attentional bias.
+    #   std: float, parameter of the model, standard deviation for the normal
+    #       distribution.
+    #   bins: list containing the time bins used in distFixations.
+    #   numFixDists: integer, number of fixation types to use in the fixation
+    #       distributions. For instance, if numFixDists equals 3, then 3
+    #       separate fixation types will be used, corresponding to the 1st, 2nd
+    #       and other (3rd and up) fixations in each trial.
+    #   timeStep: integer, value in miliseconds to be used for binning the time
+    #       axis.
+    #   barrier: positive number, magnitude of the signal thresholds.
+    #   visualDelay: delay to be discounted from the beginning of all fixations,
+    #       in miliseconds.
+    #   motorDelay: delay to be discounted from the last fixation only, in
+    #       miliseconds.
 
     # Simulation data to be returned.
     rt = dict()
@@ -267,8 +313,8 @@ def main():
         # Generate simulations using the current empirical distributions and the
         # model parameters.
         simul = run_simulations(probLeftFixFirst, distLatencies,
-            distTransitions, empiricalFixDist, numTrials, trialConditions, bins,
-            numFixDists, d, theta, std=std)
+            distTransitions, empiricalFixDist, numTrials, trialConditions, d,
+            theta, std, bins, numFixDists)
         simulRt = simul.rt
         simulChoice = simul.choice
         simulValueLeft = simul.valueLeft
@@ -346,8 +392,8 @@ def main():
 
     # Generate final simulations.
     simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
-        empiricalFixDist, numTrials, trialConditions, bins, numFixDists, d,
-        theta, std=std)
+        empiricalFixDist, numTrials, trialConditions, d, theta, std, bins,
+        numFixDists)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft

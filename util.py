@@ -17,9 +17,10 @@ import pandas as pd
 
 def load_data_from_csv(expdataFileName, fixationsFileName,
     useAngularDists=False):
-    # Loads experimental data from two CSV files, an experimental data file and
-    # a fixations file. If angular distances are used, they will be converted
-    # into values within [0,1,2,3]. Format expected for experimental data file:
+    # Loads experimental data from two CSV files: an experimental data file and
+    # a fixations file. If angular distances are used, they are expected to be
+    # from the set [-15, -10, -5, 0, 5, 10, 15] and will be converted into
+    # values in [0, 1, 2, 3]. Format expected for experimental data file:
     # parcode, trial, rt, choice, item_left, item_right. Format expected for
     # fixations file: parcode, trial, fix_item, fix_time.
     # Args:
@@ -28,25 +29,25 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
     #   useAngulerDists: boolean, must be set when the data is from a perceptual
     #       task and contains angular distances instead of item values.
     # Returns:
-    #   rt: dict of dicts, indexed first by subject name and then by trial
-    #       number. Each entry is a number corresponding to the reaction time in
-    #       the trial.
-    #   choice: dict of dicts with same indexing as rt. Each entry is an integer
-    #       corresponding to the decision made in that trial.
-    #   valueLeft: dict of dicts with same indexing as rt. Each entry is an
-    #       integer corresponding to the value of the left item.
-    #   valueRight: dict of dicts with same indexing as rt. Each entry is an
-    #       integer corresponding to the value of the right item.
-    #   fixItem: dict of dicts with same indexing as rt. Each entry is a list of
-    #       fixated items in the trial.
-    #   fixTime: dict of dicts with same indexing as rt. Each entry is a list of
-    #       fixation durations in the trial.
-    #   isCisTrial: dict of dicts with same indexing as rt. Applies to
-    #       perceptual decisions only. Each entry is a boolean indicating if the
-    #       trial is cis (both bars on the same side of the target).
-    #   isTransTrial: dict of dicts with same indexing as rt. Applies to
-    #       perceptual decisions only. Each entry is a boolean indicating if the
-    #       trial is trans (bars on either side of the target).
+    #   A named tuple containing the following fields:
+    #     rt: dict of dicts, indexed first by subject then by trial number. Each
+    #         entry is a number corresponding to the reaction time in the trial.
+    #     choice: dict of dicts with same indexing as rt. Each entry is an
+    #         integer corresponding to the decision made in that trial.
+    #     valueLeft: dict of dicts with same indexing as rt. Each entry is an
+    #         integer corresponding to the value of the left item.
+    #     valueRight: dict of dicts with same indexing as rt. Each entry is an
+    #         integer corresponding to the value of the right item.
+    #     fixItem: dict of dicts with same indexing as rt. Each entry is an
+    #         ordered list of fixated items in the trial.
+    #     fixTime: dict of dicts with same indexing as rt. Each entry is an
+    #         ordered list of fixation durations in the trial.
+    #     isCisTrial: dict of dicts with same indexing as rt. Applies to
+    #         perceptual decisions only. Each entry is a boolean indicating if
+    #         the trial is cis (both bars on the same side of the target).
+    #     isTransTrial: dict of dicts with same indexing as rt. Applies to
+    #         perceptual decisions only. Each entry is a boolean indicating if
+    #         the trial is trans (bars on either side of the target).
 
     # Load experimental data from CSV file.
     df = pd.DataFrame.from_csv(expdataFileName, header=0, sep=',',
@@ -124,13 +125,13 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     fixTime, fixRDV, numTrials):
     # Saves the simulations generated with the aDDM algorithm into 7 CSV files.
     # In the following files, each entry corresponds to a simulated trial:
-    # choice.csv contains the chosen item; rt.csv contains the reaction time;
-    # value_left.csv contains the value of the left item; and value_right.csv
-    # contains the value of the right item. In the following files, each column
+    # choice.csv contains the chosen items; rt.csv contains the reaction times;
+    # value_left.csv contains the value of the left items; and value_right.csv
+    # contains the value of the right items. In the following files, each column
     # corresponds to a simulated trial, and each column entry corresponds to a
-    # fixation within the trial: fix_item.csv contains the fixated item;
-    # fix_time.csv contains the fixation time; and fix_rdv.csv contains the
-    # value of the RDV at the beginning of the fixation.
+    # fixation within the trial: fix_item.csv contains the fixated items;
+    # fix_time.csv contains the fixation durations; and fix_rdv.csv contains the
+    # values of the RDV at the beginning of each fixation.
     # Args:
     #   choice: dict indexed by trial number, where each entry is an integer
     #       corresponding to the decision made in that trial.
@@ -140,13 +141,13 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     #       corresponding to the value of the left item.
     #   valueRight: dict indexed by trial number, where each entry is an integer
     #       corresponding to the value of the right item.
-    #   fixItem: dict indexed by trial number, where each entry is a list of
-    #       fixated items in the trial.
-    #   fixTime: dict indexed by trial number, where each entry is a list of
-    #       fixation durations in the trial.
-    #   fixRDV: dict indexed by trial number, where each entry is a list of
-    #       floats corresponding to the value of the RDV at the start of each
-    #       fixation in the trial.
+    #   fixItem: dict indexed by trial number, where each entry is an ordered
+    #       list of fixated items in the trial.
+    #   fixTime: dict indexed by trial number, where each entry is an ordered
+    #       list of fixation durations in the trial.
+    #   fixRDV: dict indexed by trial number, where each entry is an ordered
+    #       list of floats corresponding to the value of the RDV at the start of
+    #       each fixation in the trial.
     #   numTrials: integer, number of trials to be saved.
 
     df = pd.DataFrame(choice, index=range(1))
@@ -178,9 +179,9 @@ def generate_choice_curves(choicesData, valueLeftData, valueRightData,
     choicesSimul, valueLeftSimul, valueRightSimul, numTrials):
     # Plots the psychometric choice curves for data and simulations.
     # Args:
-    #   choicesData: dict of dicts, indexed first by subject name and then by
-    #       trial number. Each entry is either -1 (choice was left) or +1
-    #       (choice was right).
+    #   choicesData: dict of dicts, indexed first by subject then by trial
+    #       number. Each entry is either -1 (choice was left) or +1 (choice was
+    #       right).
     #   valueLeftData: dict of dicts with same indexing as choicesData. Each
     #       entry is an integer corresponding to the value of the left item.
     #   valueRightData: dict of dicts with same indexing as choicesData. Each
@@ -193,7 +194,7 @@ def generate_choice_curves(choicesData, valueLeftData, valueRightData,
     #       integer corresponding to the value of the right item.
     #   numTrials: integer, number of trials to be used from the simulations.
     # Returns:
-    #   fig: handle to a figure with the plotted choice curves.
+    #   A handle to a figure with the plotted choice curves.
 
     countTotal = np.zeros(7)
     countLeftChosen = np.zeros(7)
@@ -254,9 +255,9 @@ def generate_rt_curves(rtsData, valueLeftData, valueRightData, rtsSimul,
     valueLeftSimul, valueRightSimul, numTrials):
     # Plots the reaction times for data and simulations.
     # Args:
-    #   rtsData: dict of dicts, indexed first by subject name and then by
-    #       trial number. Each entry is a number corresponding to the reaction
-    #       time in the trial.
+    #   rtsData: dict of dicts, indexed first by subject then by trial number.
+    #       Each entry is a number corresponding to the reaction time in the
+    #       trial.
     #   valueLeftData: dict of dicts with same indexing as rtsData. Each entry
     #       is an integer corresponding to the value of the left item.
     #   valueRightData: dict of dicts with same indexing as rtsData. Each entry
@@ -269,7 +270,7 @@ def generate_rt_curves(rtsData, valueLeftData, valueRightData, rtsSimul,
     #       integer corresponding to the value of the right item.
     #   numTrials: integer, number of trials to be used from the simulations.
     # Returns:
-    #   fig: handle to a figure with the plotted reaction times.
+    #   A handle to a figure with the plotted reaction times.
 
     rtsPerValueDiff = dict()
     for valueDiff in xrange(-3,4,1):

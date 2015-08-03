@@ -3,12 +3,24 @@
 # test_ddm_group.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Test to check the validity of the ddm parameter estimation. Artificil data is
+# generated using specific parameters for the model. These parameters are then
+# recovered through a posterior distribution estimation procedure.
+
 from multiprocessing import Pool
 
 from ddm import analysis_per_trial, run_simulations
 
 
-def run_analysis_wrapper(params):
+def analysis_per_trial_wrapper(params):
+    # Wrapper for ddm.analysis_per_trial() which takes a single argument.
+    # Intended for parallel computation using a thread pool.
+    # Args:
+    #   params: tuple consisting of all arguments required by
+    #       ddm.analysis_per_trial().
+    # Returns:
+    #   The output of ddm.analysis_per_trial().
+
     return analysis_per_trial(*params)
 
 
@@ -19,7 +31,7 @@ def main():
     # Parameters for generating simulations.
     d = 0.006
     std = 0.08
-    numTrials = 20
+    numTrials = 32
     numValues = 4
     values = range(1, numValues + 1, 1)
     trialConditions = list()
@@ -34,8 +46,8 @@ def main():
     valueLeft = simul.valueLeft
     valueRight = simul.valueRight
 
-    rangeD = [0.004, 0.006, 0.008]
-    rangeStd = [0.07, 0.08, 0.09]
+    rangeD = [0.005, 0.006, 0.007]
+    rangeStd = [0.065, 0.08, 0.095]
     numModels = len(rangeD) * len(rangeStd)
 
     models = list()
@@ -52,7 +64,7 @@ def main():
         for model in models:
             listParams.append((rt[trial], choice[trial], valueLeft[trial],
                 valueRight[trial], model[0], model[1]))
-        likelihoods = pool.map(run_analysis_wrapper, listParams)
+        likelihoods = pool.map(analysis_per_trial_wrapper, listParams)
 
         # Get the denominator for normalizing the posteriors.
         i = 0

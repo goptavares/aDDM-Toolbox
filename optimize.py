@@ -3,6 +3,11 @@
 # optimize.py
 # Author: Gabriela Tavares, gtavares@caltech.edu
 
+# Maximum likelihood estimation procedure for the attentional drift-diffusion
+# model (aDDM), using a Basinhopping algorithm to search the parameter space.
+# Data from all subjects is pooled such that a single set of optimal parameters
+# is estimated.
+
 from scipy.optimize import basinhopping
 
 import numpy as np
@@ -19,11 +24,19 @@ fixItem = dict()
 fixTime = dict()
 
 
-def run_analysis(x):
-    trialsPerSubject = 200
-    d = x[0]
-    theta = x[1]
-    std = x[2]
+def run_analysis(params):
+    # Computes the negative log likelihood of the global data set given the
+    # parameters of the aDDM.
+    # Args:
+    #   params: list containing the 3 model parameters, in the following order:
+    #       d, theta, std.
+    # Returns:
+    #   The negative log likelihood for the global data set and the given model.
+
+    trialsPerSubject = 200  # Number of trials to be used from each subject.
+    d = params[0]
+    theta = params[1]
+    std = params[2]
 
     logLikelihood = 0
     subjects = choice.keys()
@@ -37,7 +50,7 @@ def run_analysis(x):
                 std=std)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
-    print("NLL for " + str(x) + ": " + str(-logLikelihood))
+    print("NLL for " + str(params) + ": " + str(-logLikelihood))
     return -logLikelihood
 
 
@@ -57,16 +70,17 @@ def main():
     fixTime = data.fixTime
 
     # Initial guess: d, theta, std.
-    x0 = [0.0002, 0.5, 0.08]
+    initialParams = [0.0002, 0.5, 0.08]
 
     # Search bounds.
-    xmin = [0.00005, 0., 0.05]
-    xmax = [0.01, 1., 0.1]
-    bounds = [(lower, upper) for lower, upper in zip(xmin, xmax)]
+    paramsMin = [0.00005, 0., 0.05]
+    paramsMax = [0.01, 1., 0.1]
+    bounds = [(lower, upper) for lower, upper in zip(paramsMin, paramsMax)]
 
     # Optimize using Basinhopping algorithm.
-    minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds)
-    res = basinhopping(run_analysis, x0, minimizer_kwargs=minimizer_kwargs)
+    minimizerKwargs = dict(method="L-BFGS-B", bounds=bounds)
+    res = basinhopping(run_analysis, initialParams,
+        minimizer_kwargs=minimizerKwargs)
     print res
 
 
