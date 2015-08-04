@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
-    stateStep=0.1, barrier=1, plotResults=False):
-    # Computes the likelihood of a set of DDM parameters based on the data from
-    # one single trial.
+def get_trial_likelihood(rt, choice, valueLeft, valueRight, d, sigma,
+    timeStep=10, stateStep=0.1, barrier=1, plotResults=False):
+    # Computes the likelihood of the data from a single trial given a set of DDM
+    # parameters.
     # Args:
     #   rt: reaction time in miliseconds.
     #   choice: integer, either -1 (for left item) or +1 (for right item).
@@ -27,7 +27,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     #   valueRight: integer, value of the right item.
     #   d: float, parameter of the model which controls the speed of integration
     #       of the signal.
-    #   std: float, parameter of the model, standard deviation for the normal
+    #   sigma: float, parameter of the model, standard deviation for the normal
     #       distribution.
     #   timeStep: integer, value in miliseconds to be used for binning the time
     #       axis.
@@ -36,7 +36,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     #   plotResults: boolean, flag that determines whether the algorithm
     #       evolution for the trial should be plotted.
     # Returns:
-    #   The ikelihood obtained for the given trial and model.
+    #   The likelihood obtained for the given trial and model.
 
     # Get the total time for this trial.
     maxTime = int(rt // timeStep)
@@ -86,7 +86,7 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
         # probability by the stateStep to ensure that the area under the curve
         # for the probability distributions probUpCrossing and probDownCrossing
         # each add up to 1.
-        prStatesNew = (stateStep * np.dot(norm.pdf(changeMatrix, mean, std),
+        prStatesNew = (stateStep * np.dot(norm.pdf(changeMatrix, mean, sigma),
             prStates))
         prStatesNew[(states >= barrierUp[time]) | (states <=
             barrierDown[time])] = 0
@@ -96,9 +96,9 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
         # probability of being in A at the previous timestep times the
         # probability of crossing the barrier if A is the previous state.
         tempUpCross = np.dot(prStates,
-            (1 - norm.cdf(changeUp[:, time], mean, std)))
+            (1 - norm.cdf(changeUp[:, time], mean, sigma)))
         tempDownCross = np.dot(prStates,
-            norm.cdf(changeDown[:, time], mean, std))
+            norm.cdf(changeDown[:, time], mean, sigma))
 
         # Renormalize to cope with numerical approximations.
         sumIn = np.sum(prStates)
@@ -151,7 +151,8 @@ def analysis_per_trial(rt, choice, valueLeft, valueRight, d, std, timeStep=10,
     return likelihood
 
 
-def run_simulations(numTrials, trialConditions, d, std, timeStep=10, barrier=1):
+def run_simulations(numTrials, trialConditions, d, sigma, timeStep=10,
+    barrier=1):
     # Generates DDM simulations given the model parameters.
     # Args:
     #   numTrials: integer, number of simulations to be generated for each trial
@@ -160,7 +161,7 @@ def run_simulations(numTrials, trialConditions, d, std, timeStep=10, barrier=1):
     #       valueRight), containing the values of the two items.
     #   d: float, parameter of the model which controls the speed of integration
     #       of the signal.
-    #   std: float, parameter of the model, standard deviation for the normal
+    #   sigma: float, parameter of the model, standard deviation for the normal
     #       distribution.
     #   timeStep: integer, value in miliseconds to be used for binning the time
     #       axis.
@@ -190,22 +191,22 @@ def run_simulations(numTrials, trialConditions, d, std, timeStep=10, barrier=1):
         mean = d * (vLeft - vRight)
 
         for trial in xrange(numTrials):
-            RDV = 0
+            rdv = 0
             time = 0
             while True:
                 # If the RDV hit one of the barriers, the trial is over.
-                if RDV >= barrier or RDV <= -barrier:
+                if rdv >= barrier or rdv <= -barrier:
                     rt[trialCount] = time * timeStep
                     valueLeft[trialCount] = vLeft
                     valueRight[trialCount] = vRight
-                    if RDV >= barrier:
+                    if rdv >= barrier:
                         choice[trialCount] = -1
-                    elif RDV <= -barrier:
+                    elif rdv <= -barrier:
                         choice[trialCount] = 1
                     break
 
                 # Sample the change in RDV from the distribution.
-                RDV += np.random.normal(mean, std)
+                rdv += np.random.normal(mean, sigma)
 
                 time += 1
 

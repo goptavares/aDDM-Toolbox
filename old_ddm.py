@@ -33,17 +33,17 @@ def ddm(d, sigma, valueLeft, valueRight, timeStep=10, barrier=1):
 
     rt = 0
     choice = 0
-    RDV = 0
+    rdv = 0
     valueDiff = valueLeft - valueRight
 
-    while RDV < barrier and RDV > -barrier:
+    while rdv < barrier and rdv > -barrier:
         rt = rt + timeStep
         epsilon = np.random.normal(0, sigma)
-        RDV = RDV + (d * valueDiff) + epsilon
+        rdv = rdv + (d * valueDiff) + epsilon
 
-    if RDV >= barrier:
+    if rdv >= barrier:
         choice = -1
-    elif RDV <= -barrier:
+    elif rdv <= -barrier:
         choice = 1
 
     results = collections.namedtuple('Results', ['rt', 'choice'])
@@ -169,11 +169,11 @@ def main():
 
     # Grid search on the parameters of the model.
     rangeD = [0.004, 0.006, 0.008]
-    rangeStd = [0.06, 0.08, 0.1]
+    rangeSigma = [0.06, 0.08, 0.1]
     models = list()
     for d in rangeD:
-        for std in rangeStd:
-            model = (d, std)
+        for sigma in rangeSigma:
+            model = (d, sigma)
             models.append(model)
 
     listParams = list()

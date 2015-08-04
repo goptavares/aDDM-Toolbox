@@ -15,7 +15,7 @@ import numpy as np
 import random
 import sys
 
-from addm import analysis_per_trial
+from addm import get_trial_likelihood
 from util import load_data_from_csv
 
 
@@ -32,7 +32,7 @@ def evaluate(individual):
     # parameters of the aDDM.
     # Args:
     #   individual: list containing the 3 model parameters, in the following
-    #       order: d, theta, std.
+    #       order: d, theta, sigma.
     # Returns:
     #   A list containing the negative log likelihood for the global data set
     #       and the given model.
@@ -40,7 +40,7 @@ def evaluate(individual):
     trialsPerSubject = 200  # Number of trials to be used from each subject.
     d = individual[0]
     theta = individual[1]
-    std = individual[2]
+    sigma = individual[2]
 
     logLikelihood = 0
     subjects = choice.keys()
@@ -48,10 +48,10 @@ def evaluate(individual):
         trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = analysis_per_trial(choice[subject][trial],
+            likelihood = get_trial_likelihood(choice[subject][trial],
                 valueLeft[subject][trial], valueRight[subject][trial],
                 fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                std=std, plotResults=False)
+                sigma=sigma, plotResults=False)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(individual) + ": " + str(-logLikelihood))
@@ -76,7 +76,7 @@ def main():
     # Constants.
     dMin, dMax = 0.0002, 0.08
     thetaMin, thetaMax = 0, 1
-    stdMin, stdMax = 0.05, 0.15
+    sigmaMin, sigmaMax = 0.05, 0.15
     crossoverRate = 0.5
     mutationRate = 0.3
     numGenerations = 30
@@ -94,9 +94,9 @@ def main():
     # Create individual.
     toolbox.register("attr_d", random.uniform, dMin, dMax)
     toolbox.register("attr_theta", random.uniform, thetaMin, thetaMax)
-    toolbox.register("attr_std", random.uniform, stdMin, stdMax)
+    toolbox.register("attr_sigma", random.uniform, sigmaMin, sigmaMax)
     toolbox.register("individual", tools.initCycle, creator.Individual,
-        (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_std), n=1)
+        (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_sigma), n=1)
 
     # Create population.
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -143,7 +143,7 @@ def main():
         invalidInd = list()
         for ind in offspring:
             if (ind[0] <= dMin or ind[0] >= dMax or ind[1] <= thetaMin or
-                ind[1] >= thetaMax or ind[2] <= stdMin or ind[2] >= stdMax):
+                ind[1] >= thetaMax or ind[2] <= sigmaMin or ind[2] >= sigmaMax):
                 ind.fitness.values = sys.float_info.max,
             elif not ind.fitness.valid:
                 invalidInd.append(ind)

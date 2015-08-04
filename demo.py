@@ -14,7 +14,7 @@ import numpy as np
 
 # Normal distribution parameters.
 mean = 0.05
-std = 0.25
+sigma = 0.25
 
 # Parameters of the grid.
 stateStep = 0.1
@@ -27,8 +27,8 @@ decay = 0  # decay = 0 means barriers are constant.
 barrierUp = initialBarrierUp * np.ones(maxTime)
 barrierDown = initialBarrierDown * np.ones(maxTime)
 for t in xrange(1, maxTime):
-    barrierUp[t] = initialBarrierUp / (1+decay*(t+1))
-    barrierDown[t] = initialBarrierDown / (1+decay*(t+1))
+    barrierUp[t] = initialBarrierUp / (1 + decay * (t + 1))
+    barrierDown[t] = initialBarrierDown / (1 + decay * (t + 1))
 
 # The vertical axis is divided into states.
 states = np.arange(initialBarrierDown, initialBarrierUp + stateStep, stateStep)
@@ -57,7 +57,7 @@ for t in xrange(1, maxTime):
             # curve for the probability distributions probUpCrossing and
             # probDownCrossing each add up to 1.
             prStatesNew[s] = (stateStep *
-            	np.sum(np.multiply(prStates, norm.pdf(change,mean,std))))
+                np.sum(np.multiply(prStates, norm.pdf(change, mean, sigma))))
 
     # Calculate the probabilities of crossing the up barrier and the down
     # barrier. This is given by the sum, over all states A, of the
@@ -65,17 +65,17 @@ for t in xrange(1, maxTime):
     # probability of crossing the barrier if A is the previous state.
     changeUp = (barrierUp[t] * np.ones(states.size)) - states
     tempUpCross = np.sum(np.multiply(prStates,
-    	(1 - norm.cdf(changeUp,mean,std))))
+        (1 - norm.cdf(changeUp, mean, sigma))))
     changeDown = (barrierDown[t] * np.ones(states.size)) - states
     tempDownCross = np.sum(np.multiply(prStates,
-    	(norm.cdf(changeDown,mean,std))))
+        (norm.cdf(changeDown, mean, sigma))))
 
     # Renormalize to cope with numerical approximation.
     sumIn = np.sum(prStates)
     sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
-    prStatesNew = prStatesNew * sumIn/sumCurrent
-    tempUpCross = tempUpCross * sumIn/sumCurrent
-    tempDownCross = tempDownCross * sumIn/sumCurrent
+    prStatesNew = prStatesNew * sumIn / sumCurrent
+    tempUpCross = tempUpCross * sumIn / sumCurrent
+    tempDownCross = tempDownCross * sumIn / sumCurrent
 
     # Update the probabilities of each state and the probabilities of
     # crossing each barrier at this timestep.
@@ -99,8 +99,8 @@ print("Total probability over time of crossing either barrier: " +
     str(np.sum(probUpCrossing) + np.sum(probDownCrossing)))
 
 plt.figure
-plt.plot(range(1,maxTime+1), probUpCrossing, label='Up')
-plt.plot(range(1,maxTime+1), probDownCrossing, label='Down')
+plt.plot(range(1, maxTime + 1), probUpCrossing, label='Up')
+plt.plot(range(1, maxTime + 1), probDownCrossing, label='Down')
 plt.xlabel('Time')
 plt.ylabel('P(crossing)')
 plt.legend()

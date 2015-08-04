@@ -17,14 +17,14 @@ from multiprocessing import Pool
 import numpy as np
 import sys
 
-from addm import (analysis_per_trial, get_empirical_distributions,
+from addm import (get_trial_likelihood, get_empirical_distributions,
     run_simulations)
 from util import load_data_from_csv, save_simulations_to_csv
 
 
-def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
-    useOddTrials=True, useEvenTrials=True, isCisTrial=None, isTransTrial=None,
-    useCisTrials=True, useTransTrials=True, verbose=True):
+def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
+    sigma, useOddTrials=True, useEvenTrials=True, isCisTrial=None,
+    isTransTrial=None, useCisTrials=True, useTransTrials=True, verbose=True):
     # Computes the negative log likelihood of a data set given the parameters of
     # the aDDM.
     # Args:
@@ -42,7 +42,7 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
     #       of the signal.
     #   theta: float between 0 and 1, parameter of the model which controls the
     #       attentional bias.
-    #   std: float, parameter of the model, standard deviation for the normal
+    #   sigma: float, parameter of the model, standard deviation for the normal
     #       distribution.
     #   useOddTrials: boolean, whether or not to use odd trials in the analysis.
     #   useEvenTrials: boolean, whether or not to use even trials in the
@@ -78,28 +78,28 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
             if (not useTransTrials and isTransTrial[subject][trial] and
                 not isCisTrial[subject][trial]):
                 continue
-            likelihood = analysis_per_trial(choice[subject][trial],
+            likelihood = get_trial_likelihood(choice[subject][trial],
                 valueLeft[subject][trial], valueRight[subject][trial],
                 fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                std=std)
+                sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
         print("NLL for " + str(d) + ", " + str(theta) + ", "
-            + str(std) + ": " + str(-logLikelihood))
+            + str(sigma) + ": " + str(-logLikelihood))
     return -logLikelihood
 
 
-def run_analysis_wrapper(params):
-    # Wrapper for run_analysis() which takes a single argument. Intended for
+def get_model_nll_wrapper(params):
+    # Wrapper for get_model_nll() which takes a single argument. Intended for
     # parallel computation using a thread pool.
     # Args:
-    #   params: tuple consisting of all arguments required by run_analysis().
+    #   params: tuple consisting of all arguments required by get_model_nll().
     # Returns:
-    #   The output of run_analysis().
+    #   The output of get_model_nll().
 
-    return run_analysis(*params)
+    return get_model_nll(*params)
 
 
 def main(argv):
@@ -124,31 +124,31 @@ def main(argv):
     print("Starting grid search...")
     rangeD = [0.004, 0.005, 0.006]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeStd = [0.04, 0.065, 0.09]
+    rangeSigma = [0.04, 0.065, 0.09]
 
     models = list()
     listParams = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                models.append((d, theta, std))
+            for sigma in rangeSigma:
+                models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                    theta, std, True, False, isCisTrial, isTransTrial,
+                    theta, sigma, True, False, isCisTrial, isTransTrial,
                     useCisTrials, useTransTrials)
                 listParams.append(params)
 
     print("Starting pool of workers...")
-    results = pool.map(run_analysis_wrapper, listParams)
+    results = pool.map(get_model_nll_wrapper, listParams)
 
     # Get optimal parameters.
     minNegLogLikeIdx = results.index(min(results))
     optimD = models[minNegLogLikeIdx][0]
     optimTheta = models[minNegLogLikeIdx][1]
-    optimStd = models[minNegLogLikeIdx][2]
+    optimSigma = models[minNegLogLikeIdx][2]
     print("Finished coarse grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
+    print("Optimal sigma: " + str(optimSigma))
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials only.
@@ -178,18 +178,18 @@ def main(argv):
     # estimated parameters.
     simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
         distFixations, numTrials, trialConditions, optimD, optimTheta,
-        std=optimStd)
+        sigma=optimSigma)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-    simulFixRDV = simul.fixRDV
+    simulFixRdv = simul.fixRdv
 
     totalTrials = numTrials * len(trialConditions)
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
+        simulValueRight, simulFixItem, simulFixTime, simulFixRdv, totalTrials)
 
 
 if __name__ == '__main__':

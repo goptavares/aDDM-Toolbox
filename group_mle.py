@@ -16,14 +16,15 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from addm import (analysis_per_trial, get_empirical_distributions,
+from addm import (get_trial_likelihood, get_empirical_distributions,
     run_simulations)
 from util import (load_data_from_csv, save_simulations_to_csv,
     generate_choice_curves, generate_rt_curves)
 
 
-def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
-    trialsPerSubject=200, useOddTrials=True, useEvenTrials=True, verbose=True):
+def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
+    sigma, trialsPerSubject=200, useOddTrials=True, useEvenTrials=True,
+    verbose=True):
     # Computes the negative log likelihood of a data set given the parameters of
     # the aDDM.
     # Args:
@@ -41,7 +42,7 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
     #       of the signal.
     #   theta: float between 0 and 1, parameter of the model which controls the
     #       attentional bias.
-    #   std: float, parameter of the model, standard deviation for the normal
+    #   sigma: float, parameter of the model, standard deviation for the normal
     #       distribution.
     #   trialsPerSubject: integer, number of trials to be used from each
     #       subject.
@@ -58,34 +59,44 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
         if verbose:
             print("Running subject " + subject + "...")
         trials = choice[subject].keys()
-        trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
+        if useEvenTrials and useOddTrials:
+            trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
+        if useEvenTrials and not useOddTrials:
+            trialSet = np.random.choice([trial for trial in trials if not
+                trial % 2], trialsPerSubject, replace=False)
+        elif not useEvenTrials and useOddTrials:
+            trialSet = np.random.choice([trial for trial in trials if
+                trial % 2], trialsPerSubject, replace=False)
+        else:
+            return 0
+
         for trial in trialSet:
             if not useOddTrials and trial % 2 != 0:
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            likelihood = analysis_per_trial(choice[subject][trial],
+            likelihood = get_trial_likelihood(choice[subject][trial],
                 valueLeft[subject][trial], valueRight[subject][trial],
                 fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                std=std)
+                sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
         print("NLL for " + str(d) + ", " + str(theta) + ", "
-            + str(std) + ": " + str(-logLikelihood))
+            + str(sigma) + ": " + str(-logLikelihood))
     return -logLikelihood
 
 
-def run_analysis_wrapper(params):
-    # Wrapper for run_analysis() which takes a single argument. Intended for
+def get_model_nll_wrapper(params):
+    # Wrapper for get_model_nll() which takes a single argument. Intended for
     # parallel computation using a thread pool.
     # Args:
-    #   params: tuple consisting of all arguments required by run_analysis().
+    #   params: tuple consisting of all arguments required by get_model_nll().
     # Returns:
-    #   The output of run_analysis().
+    #   The output of get_model_nll().
 
-    return run_analysis(*params)
+    return get_model_nll(*params)
 
 
 def main():
@@ -106,29 +117,29 @@ def main():
     print("Starting grid search...")
     rangeD = [0.0015, 0.0025, 0.0035]
     rangeTheta = [0.3, 0.5, 0.7]
-    rangeStd = [0.03, 0.06, 0.09]
+    rangeSigma = [0.03, 0.06, 0.09]
 
     models = list()
     listParams = list()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                models.append((d, theta, std))
+            for sigma in rangeSigma:
+                models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                    theta, std, 200, True, False)
+                    theta, sigma, 200, True, False)
                 listParams.append(params)
 
-    results = pool.map(run_analysis_wrapper, listParams)
+    results = pool.map(get_model_nll_wrapper, listParams)
 
     # Get optimal parameters.
     minNegLogLikeIdx = results.index(min(results))
     optimD = models[minNegLogLikeIdx][0]
     optimTheta = models[minNegLogLikeIdx][1]
-    optimStd = models[minNegLogLikeIdx][2]
+    optimSigma = models[minNegLogLikeIdx][2]
     print("Finished grid search!")
     print("Optimal d: " + str(optimD))
     print("Optimal theta: " + str(optimTheta))
-    print("Optimal std: " + str(optimStd))
+    print("Optimal sigma: " + str(optimSigma))
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials.
@@ -154,18 +165,18 @@ def main():
     # estimated parameters.
     simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
         distFixations, numTrials, trialConditions, optimD, optimTheta,
-        std=optimStd)
+        sigma=optimSigma)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-    simulFixRDV = simul.fixRDV
+    simulFixRdv = simul.fixRdv
 
     # Create pdf file to save figures.
     pp = PdfPages("figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
-        str(optimStd) + "_" + str(numTrials) + ".pdf")
+        str(optimSigma) + "_" + str(numTrials) + ".pdf")
 
     # Generate choice and rt curves for real data (odd trials) and
     # simulations (generated from even trials).
@@ -179,7 +190,7 @@ def main():
     pp.close()
 
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
+        simulValueRight, simulFixItem, simulFixTime, simulFixRdv, totalTrials)
 
 
 if __name__ == '__main__':

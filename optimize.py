@@ -12,7 +12,7 @@ from scipy.optimize import basinhopping
 
 import numpy as np
 
-from addm import analysis_per_trial
+from addm import get_trial_likelihood
 from util import load_data_from_csv
 
 
@@ -24,19 +24,19 @@ fixItem = dict()
 fixTime = dict()
 
 
-def run_analysis(params):
+def get_model_nll(params):
     # Computes the negative log likelihood of the global data set given the
     # parameters of the aDDM.
     # Args:
     #   params: list containing the 3 model parameters, in the following order:
-    #       d, theta, std.
+    #       d, theta, sigma.
     # Returns:
     #   The negative log likelihood for the global data set and the given model.
 
     trialsPerSubject = 200  # Number of trials to be used from each subject.
     d = params[0]
     theta = params[1]
-    std = params[2]
+    sigma = params[2]
 
     logLikelihood = 0
     subjects = choice.keys()
@@ -44,10 +44,10 @@ def run_analysis(params):
         trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = analysis_per_trial(choice[subject][trial],
+            likelihood = get_trial_likelihood(choice[subject][trial],
                 valueLeft[subject][trial], valueRight[subject][trial],
                 fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                std=std)
+                sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(params) + ": " + str(-logLikelihood))
@@ -69,7 +69,7 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    # Initial guess: d, theta, std.
+    # Initial guess: d, theta, sigma.
     initialParams = [0.0002, 0.5, 0.08]
 
     # Search bounds.
@@ -79,7 +79,7 @@ def main():
 
     # Optimize using Basinhopping algorithm.
     minimizerKwargs = dict(method="L-BFGS-B", bounds=bounds)
-    res = basinhopping(run_analysis, initialParams,
+    res = basinhopping(get_model_nll, initialParams,
         minimizer_kwargs=minimizerKwargs)
     print res
 

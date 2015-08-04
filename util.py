@@ -122,7 +122,7 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
 
 
 def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
-    fixTime, fixRDV, numTrials):
+    fixTime, fixRdv, numTrials):
     # Saves the simulations generated with the aDDM algorithm into 7 CSV files.
     # In the following files, each entry corresponds to a simulated trial:
     # choice.csv contains the chosen items; rt.csv contains the reaction times;
@@ -145,7 +145,7 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     #       list of fixated items in the trial.
     #   fixTime: dict indexed by trial number, where each entry is an ordered
     #       list of fixation durations in the trial.
-    #   fixRDV: dict indexed by trial number, where each entry is an ordered
+    #   fixRdv: dict indexed by trial number, where each entry is an ordered
     #       list of floats corresponding to the value of the RDV at the start of
     #       each fixation in the trial.
     #   numTrials: integer, number of trials to be saved.
@@ -158,11 +158,11 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
 
     dictItem = dict()
     dictTime = dict()
-    dictRDV = dict()
+    dictRdv = dict()
     for trial in xrange(0, numTrials):
         dictItem[trial] = pd.Series(fixItem[trial])
         dictTime[trial] = pd.Series(fixTime[trial])
-        dictRDV[trial] = pd.Series(fixRDV[trial])
+        dictRdv[trial] = pd.Series(fixRdv[trial])
     df = pd.DataFrame(valueLeft, index=range(1))
     df.to_csv('value_left.csv', header=0, sep=',', index_col=None)
     df = pd.DataFrame(valueRight, index=range(1))
@@ -171,7 +171,7 @@ def save_simulations_to_csv(choice, rt, valueLeft, valueRight, fixItem,
     df.to_csv('fix_item.csv', header=0, sep=',', index_col=None)
     df = pd.DataFrame(dictTime)
     df.to_csv('fix_time.csv', header=0, sep=',', index_col=None)
-    df = pd.DataFrame(dictRDV)
+    df = pd.DataFrame(dictRdv)
     df.to_csv('fix_rdv.csv', header=0, sep=',', index_col=None)
 
 

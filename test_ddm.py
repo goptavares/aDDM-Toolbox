@@ -9,19 +9,19 @@
 
 from multiprocessing import Pool
 
-from ddm import analysis_per_trial, run_simulations
+from ddm import get_trial_likelihood, run_simulations
 
 
-def analysis_per_trial_wrapper(params):
-    # Wrapper for ddm.analysis_per_trial() which takes a single argument.
+def get_trial_likelihood_wrapper(params):
+    # Wrapper for ddm.get_trial_likelihood() which takes a single argument.
     # Intended for parallel computation using a thread pool.
     # Args:
     #   params: tuple consisting of all arguments required by
-    #       ddm.analysis_per_trial().
+    #       ddm.get_trial_likelihood().
     # Returns:
-    #   The output of ddm.analysis_per_trial().
+    #   The output of ddm.get_trial_likelihood().
 
-    return analysis_per_trial(*params)
+    return get_trial_likelihood(*params)
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
 
     # Parameters for generating simulations.
     d = 0.006
-    std = 0.08
+    sigma = 0.08
     numTrials = 32
     numValues = 4
     values = range(1, numValues + 1, 1)
@@ -40,21 +40,21 @@ def main():
             trialConditions.append((vLeft, vRight))
 
     # Generate simulations.
-    simul = run_simulations(numTrials, trialConditions, d, std)
+    simul = run_simulations(numTrials, trialConditions, d, sigma)
     rt = simul.rt
     choice = simul.choice
     valueLeft = simul.valueLeft
     valueRight = simul.valueRight
 
     rangeD = [0.005, 0.006, 0.007]
-    rangeStd = [0.065, 0.08, 0.095]
-    numModels = len(rangeD) * len(rangeStd)
+    rangeSigma = [0.065, 0.08, 0.095]
+    numModels = len(rangeD) * len(rangeSigma)
 
     models = list()
     posteriors = dict()
     for d in rangeD:
-        for std in rangeStd:
-            model = (d, std)
+        for sigma in rangeSigma:
+            model = (d, sigma)
             models.append(model)
             posteriors[model] = 1./ numModels
 
@@ -64,7 +64,7 @@ def main():
         for model in models:
             listParams.append((rt[trial], choice[trial], valueLeft[trial],
                 valueRight[trial], model[0], model[1]))
-        likelihoods = pool.map(analysis_per_trial_wrapper, listParams)
+        likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
 
         # Get the denominator for normalizing the posteriors.
         i = 0

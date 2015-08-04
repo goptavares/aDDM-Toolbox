@@ -50,10 +50,10 @@ def addm(probLeftFixFirst, distLatencies, distTransitions, distFixations, d,
     #       separate fixation types will be used, corresponding to the 1st, 2nd
     #       and other (3rd and up) fixations in each trial.
 
-    RDV = 0
+    rdv = 0
     latency = (np.random.choice(distLatencies) // timeStep) * timeStep
     for t in xrange(int(latency // timeStep)):
-        RDV += np.random.normal(0, sigma)
+        rdv += np.random.normal(0, sigma)
 
     rt = latency
     choice = 0
@@ -68,10 +68,10 @@ def addm(probLeftFixFirst, distLatencies, distTransitions, distFixations, d,
     fixNumber = 2
     while True:
         for t in xrange(int(currFixTime // timeStep)):
-            if RDV >= barrier or RDV <= -barrier:
-                if RDV >= barrier:
+            if rdv >= barrier or rdv <= -barrier:
+                if rdv >= barrier:
                     choice = -1
-                elif RDV <= -barrier:
+                elif rdv <= -barrier:
                     choice = 1
                 decisionReached = True
                 break
@@ -79,9 +79,9 @@ def addm(probLeftFixFirst, distLatencies, distTransitions, distFixations, d,
             rt = rt + timeStep
             epsilon = np.random.normal(0, sigma)
             if currFixItem == 1:
-                RDV = RDV + (d * (valueLeft - (theta * valueRight))) + epsilon
+                rdv = rdv + (d * (valueLeft - (theta * valueRight))) + epsilon
             elif currFixItem == 2:
-                RDV = RDV + (d * (-valueRight + (theta * valueLeft))) + epsilon
+                rdv = rdv + (d * (-valueRight + (theta * valueLeft))) + epsilon
 
         if decisionReached:
             break
@@ -89,7 +89,7 @@ def addm(probLeftFixFirst, distLatencies, distTransitions, distFixations, d,
             transition = ((np.random.choice(distTransitions) // timeStep) *
                 timeStep)
             for t in xrange(int(transition // timeStep)):
-                RDV += np.random.normal(0, sigma)
+                rdv += np.random.normal(0, sigma)
             rt += transition
             if currFixItem == 1:
                 currFixItem = 2
@@ -247,13 +247,13 @@ def main():
     
     # Grid search on the parameters of the model.
     rangeD = [0.002, 0.006, 0.01]
-    rangeStd = [0.04, 0.08, 0.12]
+    rangeSigma = [0.04, 0.08, 0.12]
     rangeTheta = [0.1, 0.5, 0.9]
     models = list()
     for d in rangeD:
-        for std in rangeStd:
+        for sigma in rangeSigma:
             for theta in rangeTheta:
-                model = (d, std, theta)
+                model = (d, sigma, theta)
                 models.append(model)
 
     listParams = list()

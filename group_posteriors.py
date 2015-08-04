@@ -14,20 +14,21 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from addm import (analysis_per_trial, get_empirical_distributions,
+from addm import (get_trial_likelihood, get_empirical_distributions,
     generate_probabilistic_simulations)
 from util import load_data_from_csv, save_simulations_to_csv
 
 
-def analysis_per_trial_wrapper(params):
-    # Wrapper for addm.analysis_per_trial() which takes a single argument.
+def get_trial_likelihood_wrapper(params):
+    # Wrapper for addm.get_trial_likelihood() which takes a single argument.
     # Intended for parallel computation using a thread pool.
     # Args:
     #   params: tuple consisting of all arguments required by
-    #       addm.analysis_per_trial().
+    #       addm.get_trial_likelihood().
     # Returns:
-    #   The output of addm.analysis_per_trial().
-    return analysis_per_trial(*params)
+    #   The output of addm.get_trial_likelihood().
+
+    return get_trial_likelihood(*params)
 
 
 def main():
@@ -43,19 +44,19 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    # Posteriors estimation for the parameters of the model.
+    # Posteriors estimation for the parameters of the model, using odd trials.
     print("Starting grid search...")
     rangeD = [0.004, 0.0045, 0.005]
     rangeTheta = [0.25, 0.3, 0.35]
-    rangeStd = [0.07, 0.075, 0.08]
-    numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
+    rangeSigma = [0.07, 0.075, 0.08]
+    numModels = len(rangeD) * len(rangeTheta) * len(rangeSigma)
 
     models = list()
     posteriors = dict()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                model = (d, theta, std)
+            for sigma in rangeSigma:
+                model = (d, theta, sigma)
                 models.append(model)
                 posteriors[model] = 1./ numModels
 
@@ -63,7 +64,8 @@ def main():
     for subject in subjects:
         print("Running subject " + subject + "...")
         trials = choice[subject].keys()
-        trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
+        trialSet = np.random.choice([trial for trial in trials if
+            trial % 2], trialsPerSubject, replace=False)
         for trial in trialSet:
             listParams = list()
             for model in models:
@@ -71,7 +73,7 @@ def main():
                     valueLeft[subject][trial], valueRight[subject][trial],
                     fixItem[subject][trial], fixTime[subject][trial], model[0],
                     model[1], model[2]))
-            likelihoods = pool.map(analysis_per_trial_wrapper, listParams)
+            likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
 
             # Get the denominator for normalizing the posteriors.
             i = 0
@@ -93,9 +95,9 @@ def main():
             print("P" + str(model) + " = " + str(posteriors[model]))
         print("Sum: " + str(sum(posteriors.values())))
 
-    # Get empirical distributions for the data.
+    # Get empirical distributions from even trials.
     dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
-        useOddTrials=True, useEvenTrials=True)
+        useOddTrials=False, useEvenTrials=True)
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -120,11 +122,11 @@ def main():
     simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-    simulFixRDV = simul.fixRDV
+    simulFixRdv = simul.fixRdv
 
     totalTrials = len(simulRt.keys())
     save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, simulFixRDV, totalTrials)
+        simulValueRight, simulFixItem, simulFixTime, simulFixRdv, totalTrials)
 
 
 if __name__ == '__main__':

@@ -13,20 +13,21 @@ from multiprocessing import Pool
 import csv
 import numpy as np
 
-from addm import (analysis_per_trial, get_empirical_distributions,
+from addm import (get_trial_likelihood, get_empirical_distributions,
     run_simulations)
 from util import load_data_from_csv
 
 
-def analysis_per_trial_wrapper(params):
-    # Wrapper for addm.analysis_per_trial() which takes a single argument.
+def get_trial_likelihood_wrapper(params):
+    # Wrapper for addm.get_trial_likelihood() which takes a single argument.
     # Intended for parallel computation using a thread pool.
     # Args:
     #   params: tuple consisting of all arguments required by
-    #       addm.analysis_per_trial().
+    #       addm.get_trial_likelihood().
     # Returns:
-    #   The output of addm.analysis_per_trial().
-    return analysis_per_trial(*params)
+    #   The output of addm.get_trial_likelihood().
+
+    return get_trial_likelihood(*params)
 
 
 def main():
@@ -51,7 +52,7 @@ def main():
     numTrials = 800
     d = 0.006
     theta = 0.5
-    std = 0.08
+    sigma = 0.08
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -65,7 +66,7 @@ def main():
     # Generate artificial data.
     print("Running simulations...")
     simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
-        distFixations, numTrials, trialConditions, d, theta, std=std)
+        distFixations, numTrials, trialConditions, d, theta, sigma=sigma)
     simulRt = simul.rt
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -77,15 +78,15 @@ def main():
     print("Starting grid search...")
     rangeD = [0.005, 0.006, 0.007]
     rangeTheta = [0.4, 0.5, 0.6]
-    rangeStd = [0.07, 0.08, 0.09]
-    numModels = len(rangeD) * len(rangeTheta) * len(rangeStd)
+    rangeSigma = [0.07, 0.08, 0.09]
+    numModels = len(rangeD) * len(rangeTheta) * len(rangeSigma)
 
     models = list()
     posteriors = dict()
     for d in rangeD:
         for theta in rangeTheta:
-            for std in rangeStd:
-                model = (d, theta, std)
+            for sigma in rangeSigma:
+                model = (d, theta, sigma)
                 models.append(model)
                 posteriors[model] = 1./ numModels
 
@@ -96,7 +97,7 @@ def main():
             listParams.append((simulChoice[trial], simulValueLeft[trial],
                 simulValueRight[trial], simulFixItem[trial],
                 simulFixTime[trial], model[0], model[1], model[2]))
-        likelihoods = pool.map(analysis_per_trial_wrapper, listParams)
+        likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
 
         # Get the denominator for normalizing the posteriors.
         i = 0

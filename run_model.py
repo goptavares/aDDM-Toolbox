@@ -6,12 +6,12 @@
 import numpy as np
 import sys
 
-from addm import analysis_per_trial
+from addm import get_trial_likelihood
 from util import load_data_from_csv
 
 
-def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
-    useOddTrials=True, useEvenTrials=True):
+def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
+    sigma, useOddTrials=True, useEvenTrials=True):
     trialsPerSubject = 1200
     logLikelihood = 0
     subjects = choice.keys()
@@ -24,10 +24,10 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            likelihood = analysis_per_trial(choice[subject][trial],
+            likelihood = get_trial_likelihood(choice[subject][trial],
                 valueLeft[subject][trial], valueRight[subject][trial],
                 fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                std=std)
+                sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     return -logLikelihood
@@ -35,7 +35,7 @@ def run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d, theta, std,
 
 def main(argv):
     d = float(argv[0])
-    std = float(argv[1])
+    sigma = float(argv[1])
     theta = float(argv[2])
 
     # Load experimental data from CSV file.
@@ -46,13 +46,13 @@ def main(argv):
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    NLL = run_analysis(choice, valueLeft, valueRight, fixItem, fixTime, d,
-        theta, std)
+    nll = get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d,
+        theta, sigma)
 
     print("d: " + str(d))
     print("theta: " + str(theta))
-    print("std: " + str(std))
-    print("NLL: " + str(NLL))
+    print("sigma: " + str(sigma))
+    print("NLL: " + str(nll))
 
 
 if __name__ == '__main__':
