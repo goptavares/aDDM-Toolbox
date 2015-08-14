@@ -1,16 +1,17 @@
 #!/usr/bin/python
 
-# cis_trans_fitting.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+cis_trans_fitting.py
+Author: Gabriela Tavares, gtavares@caltech.edu
 
-# Maximum likelihood estimation procedure for the attentional drift-diffusion
-# model (aDDM), specific for perceptual decisions, allowing for analysis of cis
-# trials or trans trials exclusively. Function main() takes two boolean
-# arguments which determine whether cis (1st argument) or trans (2nd argument)
-# trials should be used. A grid search is performed over the 3 free parameters
-# of the model. Data from all subjects is pooled such that a single set of
-# optimal parameters is estimated. aDDM simulations are generated for the model
-# estimated.
+Maximum likelihood estimation procedure for the attentional drift-diffusion
+model (aDDM), specific for perceptual decisions, allowing for analysis of cis
+trials or trans trials exclusively. Function main() takes two boolean arguments
+which determine whether cis (1st argument) or trans (2nd argument) trials should
+be used. A grid search is performed over the 3 free parameters of the model.
+Data from all subjects is pooled such that a single set of optimal parameters is
+estimated. aDDM simulations are generated for the model estimated.
+"""
 
 from multiprocessing import Pool
 
@@ -18,48 +19,49 @@ import numpy as np
 import sys
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
-    run_simulations)
+                  run_simulations)
 from util import load_data_from_csv, save_simulations_to_csv
 
 
 def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    sigma, useOddTrials=True, useEvenTrials=True, isCisTrial=None,
-    isTransTrial=None, useCisTrials=True, useTransTrials=True, verbose=True):
-    # Computes the negative log likelihood of a data set given the parameters of
-    # the aDDM.
-    # Args:
-    #   choice: dict of dicts with same indexing as rt. Each entry is an integer
-    #       corresponding to the decision made in that trial.
-    #   valueLeft: dict of dicts with same indexing as rt. Each entry is an
-    #       integer corresponding to the value of the left item.
-    #   valueRight: dict of dicts with same indexing as rt. Each entry is an
-    #       integer corresponding to the value of the right item.
-    #   fixItem: dict of dicts with same indexing as rt. Each entry is an
-    #       ordered list of fixated items in the trial.
-    #   fixTime: dict of dicts with same indexing as rt. Each entry is an
-    #       ordered list of fixation durations in the trial.
-    #   d: float, parameter of the model which controls the speed of integration
-    #       of the signal.
-    #   theta: float between 0 and 1, parameter of the model which controls the
-    #       attentional bias.
-    #   sigma: float, parameter of the model, standard deviation for the normal
-    #       distribution.
-    #   useOddTrials: boolean, whether or not to use odd trials in the analysis.
-    #   useEvenTrials: boolean, whether or not to use even trials in the
-    #       analysis.
-    #   isCisTrial: dict of dicts, indexed first by subject then by trial
-    #       number. Each entry is a boolean indicating if the trial is cis (both
-    #       bars on the same side of the target).
-    #   isTransTrial: dict of dicts with same indexing as isCisTrial. Each entry
-    #       is a boolean indicating if the trial is trans (bars on either side
-    #       of the target).
-    #   useCisTrials: boolean, whether or not to use cis trials  in the
-    #       analysis.
-    #   useTransTrials: boolean, whether or not to use trans trials in the
-    #       analysis.
-    #   verbose: boolean, whether or not to print updates during computation.
-    # Returns:
-    #   The negative log likelihood for the given data set and model.
+                  sigma, useOddTrials=True, useEvenTrials=True, isCisTrial=None,
+                  isTransTrial=None, useCisTrials=True, useTransTrials=True,
+                  verbose=True):
+    """
+    Computes the negative log likelihood of a data set given the parameters of
+    the aDDM.
+    Args:
+      choice: dict of dicts, indexed first by subject then by trial number. Each
+          entry is an integer corresponding to the decision made in that trial.
+      valueLeft: dict of dicts with same indexing as choice. Each entry is an
+          integer corresponding to the value of the left item.
+      valueRight: dict of dicts with same indexing as choice. Each entry is an
+          integer corresponding to the value of the right item.
+      fixItem: dict of dicts with same indexing as choice. Each entry is an
+          ordered list of fixated items in the trial.
+      fixTime: dict of dicts with same indexing as choice. Each entry is an
+          ordered list of fixation durations in the trial.
+      d: float, parameter of the model which controls the speed of integration
+          of the signal.
+      theta: float between 0 and 1, parameter of the model which controls the
+          attentional bias.
+      sigma: float, parameter of the model, standard deviation for the normal
+          distribution.
+      useOddTrials: boolean, whether or not to use odd trials in the analysis.
+      useEvenTrials: boolean, whether or not to use even trials in the analysis.
+      isCisTrial: dict of dicts, indexed first by subject then by trial number.
+          Each entry is a boolean indicating if the trial is cis (both bars on
+          the same side of the target).
+      isTransTrial: dict of dicts with same indexing as isCisTrial. Each entry
+          is a boolean indicating if the trial is trans (bars on either side of
+          the target).
+      useCisTrials: boolean, whether or not to use cis trials  in the analysis.
+      useTransTrials: boolean, whether or not to use trans trials in the
+          analysis.
+      verbose: boolean, whether or not to print updates during computation.
+    Returns:
+      The negative log likelihood for the given data set and model.
+    """
 
     logLikelihood = 0
     subjects = choice.keys()
@@ -78,26 +80,28 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             if (not useTransTrials and isTransTrial[subject][trial] and
                 not isCisTrial[subject][trial]):
                 continue
-            likelihood = get_trial_likelihood(choice[subject][trial],
-                valueLeft[subject][trial], valueRight[subject][trial],
-                fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                sigma=sigma)
+            likelihood = get_trial_likelihood(
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
-        print("NLL for " + str(d) + ", " + str(theta) + ", "
-            + str(sigma) + ": " + str(-logLikelihood))
+        print("NLL for " + str(d) + ", " + str(theta) + ", " + str(sigma) +
+              ": " + str(-logLikelihood))
     return -logLikelihood
 
 
 def get_model_nll_wrapper(params):
-    # Wrapper for get_model_nll() which takes a single argument. Intended for
-    # parallel computation using a thread pool.
-    # Args:
-    #   params: tuple consisting of all arguments required by get_model_nll().
-    # Returns:
-    #   The output of get_model_nll().
+    """
+    Wrapper for get_model_nll() which takes a single argument. Intended for
+    parallel computation using a thread pool.
+    Args:
+      params: tuple consisting of all arguments required by get_model_nll().
+    Returns:
+      The output of get_model_nll().
+    """
 
     return get_model_nll(*params)
 
@@ -110,7 +114,8 @@ def main(argv):
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+                              useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -133,8 +138,8 @@ def main(argv):
             for sigma in rangeSigma:
                 models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                    theta, sigma, True, False, isCisTrial, isTransTrial,
-                    useCisTrials, useTransTrials)
+                          theta, sigma, True, False, isCisTrial, isTransTrial,
+                          useCisTrials, useTransTrials)
                 listParams.append(params)
 
     print("Starting pool of workers...")
@@ -152,10 +157,10 @@ def main(argv):
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials only.
-    evenDists = get_empirical_distributions(valueLeft, valueRight, fixItem,
-        fixTime, useOddTrials=False, useEvenTrials=True, isCisTrial=isCisTrial,
-        isTransTrial=isTransTrial, useCisTrials=useCisTrials,
-        useTransTrials=useTransTrials)
+    evenDists = get_empirical_distributions(
+        valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
+        useEvenTrials=True, isCisTrial=isCisTrial, isTransTrial=isTransTrial,
+        useCisTrials=useCisTrials, useTransTrials=useTransTrials)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distLatencies = evenDists.distLatencies
     distTransitions = evenDists.distTransitions
@@ -176,20 +181,21 @@ def main(argv):
 
     # Generate simulations using the empirical distributions and the
     # estimated parameters.
-    simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
-        distFixations, numTrials, trialConditions, optimD, optimTheta,
-        sigma=optimSigma)
-    simulRt = simul.rt
+    simul = run_simulations(
+        probLeftFixFirst, distLatencies, distTransitions, distFixations,
+        numTrials, trialConditions, optimD, optimTheta, sigma=optimSigma)
+    simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-    simulFixRdv = simul.fixRdv
+    simulFixRDV = simul.fixRDV
 
     totalTrials = numTrials * len(trialConditions)
-    save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, simulFixRdv, totalTrials)
+    save_simulations_to_csv(
+        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+        simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

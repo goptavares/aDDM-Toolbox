@@ -1,32 +1,36 @@
 #!/usr/bin/python
 
-# group_posteriors.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+group_posteriors.py
+Author: Gabriela Tavares, gtavares@caltech.edu
 
-# Posterior distribution estimation for the attentional drift-diffusion model
-# (aDDM), using a grid search over the 3 free parameters of the model. Data from
-# all subjects is pooled. aDDM simulations are generated according to the
-# posterior distribution obtained (instead of generating simulations from a
-# single model, we sample models from the posterior distribution and simulate
-# them, then aggregate all simulations).
+Posterior distribution estimation for the attentional drift-diffusion model
+(aDDM), using a grid search over the 3 free parameters of the model. Data from
+all subjects is pooled. aDDM simulations are generated according to the
+posterior distribution obtained (instead of generating simulations from a single
+model, we sample models from the posterior distribution and simulate them, then
+aggregate all simulations).
+"""
 
 from multiprocessing import Pool
 
 import numpy as np
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
-    generate_probabilistic_simulations)
+                  generate_probabilistic_simulations)
 from util import load_data_from_csv, save_simulations_to_csv
 
 
 def get_trial_likelihood_wrapper(params):
-    # Wrapper for addm.get_trial_likelihood() which takes a single argument.
-    # Intended for parallel computation using a thread pool.
-    # Args:
-    #   params: tuple consisting of all arguments required by
-    #       addm.get_trial_likelihood().
-    # Returns:
-    #   The output of addm.get_trial_likelihood().
+    """
+    Wrapper for addm.get_trial_likelihood() which takes a single argument.
+    Intended for parallel computation using a thread pool.
+    Args:
+      params: tuple consisting of all arguments required by
+          addm.get_trial_likelihood().
+    Returns:
+      The output of addm.get_trial_likelihood().
+    """
 
     return get_trial_likelihood(*params)
 
@@ -37,7 +41,8 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+                              useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -64,15 +69,16 @@ def main():
     for subject in subjects:
         print("Running subject " + subject + "...")
         trials = choice[subject].keys()
-        trialSet = np.random.choice([trial for trial in trials if
-            trial % 2], trialsPerSubject, replace=False)
+        trialSet = np.random.choice(
+            [trial for trial in trials if trial % 2],
+            trialsPerSubject, replace=False)
         for trial in trialSet:
             listParams = list()
             for model in models:
-                listParams.append((choice[subject][trial],
-                    valueLeft[subject][trial], valueRight[subject][trial],
-                    fixItem[subject][trial], fixTime[subject][trial], model[0],
-                    model[1], model[2]))
+                listParams.append(
+                    (choice[subject][trial], valueLeft[subject][trial],
+                    valueRight[subject][trial], fixItem[subject][trial],
+                    fixTime[subject][trial], model[0], model[1], model[2]))
             likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
 
             # Get the denominator for normalizing the posteriors.
@@ -96,8 +102,9 @@ def main():
         print("Sum: " + str(sum(posteriors.values())))
 
     # Get empirical distributions from even trials.
-    dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
-        useOddTrials=False, useEvenTrials=True)
+    dists = get_empirical_distributions(
+        valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
+        useEvenTrials=True)
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -114,19 +121,21 @@ def main():
                 trialConditions.append((vLeft, vRight))
 
     # Generate probabilistic simulations using the posteriors distribution.
-    simul = generate_probabilistic_simulations(probLeftFixFirst, distLatencies,
-        distTransitions, distFixations, trialConditions, posteriors)
-    simulRt = simul.rt
+    simul = generate_probabilistic_simulations(
+        probLeftFixFirst, distLatencies, distTransitions, distFixations,
+        trialConditions, posteriors)
+    simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-    simulFixRdv = simul.fixRdv
+    simulFixRDV = simul.fixRDV
 
-    totalTrials = len(simulRt.keys())
-    save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, simulFixRdv, totalTrials)
+    totalTrials = len(simulRT.keys())
+    save_simulations_to_csv(
+        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+        simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

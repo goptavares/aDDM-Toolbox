@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
-# run_model.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+run_model.py
+Author: Gabriela Tavares, gtavares@caltech.edu
+"""
 
 import numpy as np
 import sys
@@ -11,7 +13,7 @@ from util import load_data_from_csv
 
 
 def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    sigma, useOddTrials=True, useEvenTrials=True):
+                  sigma, useOddTrials=True, useEvenTrials=True):
     trialsPerSubject = 1200
     logLikelihood = 0
     subjects = choice.keys()
@@ -24,10 +26,10 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            likelihood = get_trial_likelihood(choice[subject][trial],
-                valueLeft[subject][trial], valueRight[subject][trial],
-                fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                sigma=sigma)
+            likelihood = get_trial_likelihood(
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     return -logLikelihood
@@ -39,20 +41,21 @@ def main(argv):
     theta = float(argv[2])
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+                              useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    nll = get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d,
-        theta, sigma)
+    NLL = get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d,
+                        theta, sigma)
 
     print("d: " + str(d))
     print("theta: " + str(theta))
     print("sigma: " + str(sigma))
-    print("NLL: " + str(nll))
+    print("NLL: " + str(NLL))
 
 
 if __name__ == '__main__':

@@ -1,12 +1,14 @@
 #!/usr/bin/python
 
-# genetic_algorithm_optimize.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+genetic_algorithm_optimize.py
+Author: Gabriela Tavares, gtavares@caltech.edu
 
-# Maximum likelihood estimation procedure for the attentional drift-diffusion
-# model (aDDM), using a genetic algorithm to search the parameter space.
-# Data from all subjects is pooled such that a single set of optimal parameters
-# is estimated.
+Maximum likelihood estimation procedure for the attentional drift-diffusion
+model (aDDM), using a genetic algorithm to search the parameter space. Data from
+all subjects is pooled such that a single set of optimal parameters is
+estimated.
+"""
 
 from deap import base, creator, tools
 from multiprocessing import Pool
@@ -28,14 +30,16 @@ fixTime = dict()
 
 
 def evaluate(individual):
-    # Computes the negative log likelihood of the global data set given the
-    # parameters of the aDDM.
-    # Args:
-    #   individual: list containing the 3 model parameters, in the following
-    #       order: d, theta, sigma.
-    # Returns:
-    #   A list containing the negative log likelihood for the global data set
-    #       and the given model.
+    """
+    Computes the negative log likelihood of the global data set given the
+    parameters of the aDDM.
+    Args:
+      individual: list containing the 3 model parameters, in the following
+          order: d, theta, sigma.
+    Returns:
+      A list containing the negative log likelihood for the global data set and
+          the given model.
+    """
 
     trialsPerSubject = 200  # Number of trials to be used from each subject.
     d = individual[0]
@@ -48,10 +52,11 @@ def evaluate(individual):
         trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = get_trial_likelihood(choice[subject][trial],
-                valueLeft[subject][trial], valueRight[subject][trial],
-                fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                sigma=sigma, plotResults=False)
+            likelihood = get_trial_likelihood(
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, sigma=sigma,
+                plotResults=False)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(individual) + ": " + str(-logLikelihood))
@@ -66,7 +71,8 @@ def main():
     global fixTime
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+                              useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -96,7 +102,8 @@ def main():
     toolbox.register("attr_theta", random.uniform, thetaMin, thetaMax)
     toolbox.register("attr_sigma", random.uniform, sigmaMin, sigmaMax)
     toolbox.register("individual", tools.initCycle, creator.Individual,
-        (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_sigma), n=1)
+                     (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_sigma),
+                     n=1)
 
     # Create population.
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -105,7 +112,7 @@ def main():
     # Create operators.
     toolbox.register("mate", tools.cxUniform, indpb=0.4)
     toolbox.register("mutate", tools.mutGaussian, mu=0,
-        sigma=[0.0005, 0.05, 0.005], indpb=0.4)
+                     sigma=[0.0005, 0.05, 0.005], indpb=0.4)
     toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("evaluate", evaluate)
 
@@ -119,7 +126,7 @@ def main():
         if fit < bestFit:
             bestInd = ind
 
-    for g in range(numGenerations):
+    for g in xrange(numGenerations):
         print("Generation " + str(g) + "...")
 
         # Select the next generation individuals.
@@ -142,8 +149,9 @@ def main():
         # Evaluate the individuals which are valid but have an invalid fitness.
         invalidInd = list()
         for ind in offspring:
-            if (ind[0] <= dMin or ind[0] >= dMax or ind[1] <= thetaMin or
-                ind[1] >= thetaMax or ind[2] <= sigmaMin or ind[2] >= sigmaMax):
+            if (ind[0] <= dMin or ind[0] >= dMax or
+                ind[1] <= thetaMin or ind[1] >= thetaMax or
+                ind[2] <= sigmaMin or ind[2] >= sigmaMax):
                 ind.fitness.values = sys.float_info.max,
             elif not ind.fitness.valid:
                 invalidInd.append(ind)

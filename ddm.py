@@ -1,10 +1,12 @@
 #!/usr/bin/python
 
-# ddm.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+ddm.py
+Author: Gabriela Tavares, gtavares@caltech.edu
 
-# Implementation of the traditional drift-diffusion model (DDM), as described by
-# Ratcliff et al. (1998).
+Implementation of the traditional drift-diffusion model (DDM), as described by
+Ratcliff et al. (1998).
+"""
 
 import matplotlib
 matplotlib.use('Agg')
@@ -16,30 +18,33 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def get_trial_likelihood(rt, choice, valueLeft, valueRight, d, sigma,
-    timeStep=10, stateStep=0.1, barrier=1, plotResults=False):
-    # Computes the likelihood of the data from a single trial given a set of DDM
-    # parameters.
-    # Args:
-    #   rt: reaction time in miliseconds.
-    #   choice: integer, either -1 (for left item) or +1 (for right item).
-    #   valueLeft: integer, value of the left item.
-    #   valueRight: integer, value of the right item.
-    #   d: float, parameter of the model which controls the speed of integration
-    #       of the signal.
-    #   sigma: float, parameter of the model, standard deviation for the normal
-    #       distribution.
-    #   timeStep: integer, value in miliseconds to be used for binning the time
-    #       axis.
-    #   stateStep: float, to be used for binning the RDV axis.
-    #   barrier: positive number, magnitude of the signal thresholds.
-    #   plotResults: boolean, flag that determines whether the algorithm
-    #       evolution for the trial should be plotted.
-    # Returns:
-    #   The likelihood obtained for the given trial and model.
+def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
+                         timeStep=10, stateStep=0.1, barrier=1,
+                         plotResults=False):
+    """
+    Computes the likelihood of the data from a single trial given a set of DDM
+    parameters.
+    Args:
+      RT: reaction time in miliseconds.
+      choice: integer, either -1 (for left item) or +1 (for right item).
+      valueLeft: integer, value of the left item.
+      valueRight: integer, value of the right item.
+      d: float, parameter of the model which controls the speed of integration
+          of the signal.
+      sigma: float, parameter of the model, standard deviation for the normal
+          distribution.
+      timeStep: integer, value in miliseconds to be used for binning the time
+          axis.
+      stateStep: float, to be used for binning the RDV axis.
+      barrier: positive number, magnitude of the signal thresholds.
+      plotResults: boolean, flag that determines whether the algorithm evolution
+          for the trial should be plotted.
+    Returns:
+      The likelihood obtained for the given trial and model.
+    """
 
     # Get the total time for this trial.
-    maxTime = int(rt // timeStep)
+    maxTime = int(RT // timeStep)
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
@@ -86,19 +91,19 @@ def get_trial_likelihood(rt, choice, valueLeft, valueRight, d, sigma,
         # probability by the stateStep to ensure that the area under the curve
         # for the probability distributions probUpCrossing and probDownCrossing
         # each add up to 1.
-        prStatesNew = (stateStep * np.dot(norm.pdf(changeMatrix, mean, sigma),
-            prStates))
-        prStatesNew[(states >= barrierUp[time]) | (states <=
-            barrierDown[time])] = 0
+        prStatesNew = (stateStep *
+                       np.dot(norm.pdf(changeMatrix, mean, sigma), prStates))
+        prStatesNew[(states >= barrierUp[time]) |
+                    (states <= barrierDown[time])] = 0
 
         # Calculate the probabilities of crossing the up barrier and the
         # down barrier. This is given by the sum, over all states A, of the
         # probability of being in A at the previous timestep times the
         # probability of crossing the barrier if A is the previous state.
-        tempUpCross = np.dot(prStates,
-            (1 - norm.cdf(changeUp[:, time], mean, sigma)))
-        tempDownCross = np.dot(prStates,
-            norm.cdf(changeDown[:, time], mean, sigma))
+        tempUpCross = np.dot(
+            prStates, (1 - norm.cdf(changeUp[:, time], mean, sigma)))
+        tempDownCross = np.dot(
+            prStates, norm.cdf(changeDown[:, time], mean, sigma))
 
         # Renormalize to cope with numerical approximations.
         sumIn = np.sum(prStates)
@@ -131,7 +136,7 @@ def get_trial_likelihood(rt, choice, valueLeft, valueRight, d, sigma,
         fig1 = plt.figure()
         xAxis = np.arange(0, maxTime * timeStep, timeStep)
         yAxis = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
-            stateStep)
+                          stateStep)
         heatmap = plt.pcolor(xAxis, yAxis, np.flipud(traces))
         plt.xlim(0, maxTime * timeStep - timeStep)
         plt.xlabel('Time')
@@ -140,9 +145,9 @@ def get_trial_likelihood(rt, choice, valueLeft, valueRight, d, sigma,
 
         fig2 = plt.figure()
         plt.plot(range(0, len(probUpCrossing) * timeStep, timeStep),
-            probUpCrossing, label='Up')
+                 probUpCrossing, label='Up')
         plt.plot(range(0, len(probDownCrossing) * timeStep, timeStep),
-            probDownCrossing, label='Down')
+                 probDownCrossing, label='Down')
         plt.xlabel('Time')
         plt.ylabel('P(crossing)')
         plt.legend()
@@ -152,33 +157,35 @@ def get_trial_likelihood(rt, choice, valueLeft, valueRight, d, sigma,
 
 
 def run_simulations(numTrials, trialConditions, d, sigma, timeStep=10,
-    barrier=1):
-    # Generates DDM simulations given the model parameters.
-    # Args:
-    #   numTrials: integer, number of simulations to be generated for each trial
-    #       condition.
-    #   trialConditions: list of tuples, where each entry is a pair (valueLeft,
-    #       valueRight), containing the values of the two items.
-    #   d: float, parameter of the model which controls the speed of integration
-    #       of the signal.
-    #   sigma: float, parameter of the model, standard deviation for the normal
-    #       distribution.
-    #   timeStep: integer, value in miliseconds to be used for binning the time
-    #       axis.
-    #   barrier: positive number, magnitude of the signal thresholds.
-    # Returns:
-    #   A named tuple containing the following fields:
-    #     rt: dict indexed by trial number, where each entry corresponds to the
-    #         reaction time in miliseconds.
-    #     choice: dict indexed by trial number, where each entry is either -1
-    #         (for left item) or +1 (for right item).
-    #     valueLeft: dict indexed by trial number, where each entry corresponds
-    #         to the value of the left item.
-    #     valueRight: dict indexed by trial number, where each entry corresponds
-    #         to the value of the right item.
+                    barrier=1):
+    """
+    Generates DDM simulations given the model parameters.
+    Args:
+      numTrials: integer, number of simulations to be generated for each trial
+          condition.
+      trialConditions: list of tuples, where each entry is a pair (valueLeft,
+          valueRight), containing the values of the two items.
+      d: float, parameter of the model which controls the speed of integration
+          of the signal.
+      sigma: float, parameter of the model, standard deviation for the normal
+          distribution.
+      timeStep: integer, value in miliseconds to be used for binning the time
+          axis.
+      barrier: positive number, magnitude of the signal thresholds.
+    Returns:
+      A named tuple containing the following fields:
+        RT: dict indexed by trial number, where each entry corresponds to the
+            reaction time in miliseconds.
+        choice: dict indexed by trial number, where each entry is either -1
+            (for left item) or +1 (for right item).
+        valueLeft: dict indexed by trial number, where each entry corresponds to
+            the value of the left item.
+        valueRight: dict indexed by trial number, where each entry corresponds
+            to the value of the right item.
+    """
 
     # Simulation data to be returned.
-    rt = dict()
+    RT = dict()
     choice = dict()
     valueLeft = dict()
     valueRight = dict()
@@ -191,28 +198,28 @@ def run_simulations(numTrials, trialConditions, d, sigma, timeStep=10,
         mean = d * (vLeft - vRight)
 
         for trial in xrange(numTrials):
-            rdv = 0
+            RDV = 0
             time = 0
             while True:
                 # If the RDV hit one of the barriers, the trial is over.
-                if rdv >= barrier or rdv <= -barrier:
-                    rt[trialCount] = time * timeStep
+                if RDV >= barrier or RDV <= -barrier:
+                    RT[trialCount] = time * timeStep
                     valueLeft[trialCount] = vLeft
                     valueRight[trialCount] = vRight
-                    if rdv >= barrier:
+                    if RDV >= barrier:
                         choice[trialCount] = -1
-                    elif rdv <= -barrier:
+                    elif RDV <= -barrier:
                         choice[trialCount] = 1
                     break
 
                 # Sample the change in RDV from the distribution.
-                rdv += np.random.normal(mean, sigma)
+                RDV += np.random.normal(mean, sigma)
 
                 time += 1
 
             # Move on to the next trial.
             trialCount += 1
 
-    simul = collections.namedtuple('Simul', ['rt', 'choice', 'valueLeft',
-        'valueRight'])
-    return simul(rt, choice, valueLeft, valueRight)
+    simul = collections.namedtuple('Simul', ['RT', 'choice', 'valueLeft',
+                                   'valueRight'])
+    return simul(RT, choice, valueLeft, valueRight)

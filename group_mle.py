@@ -1,12 +1,14 @@
 #!/usr/bin/python
 
-# group_mle.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+group_mle.py
+Author: Gabriela Tavares, gtavares@caltech.edu
 
-# Maximum likelihood estimation procedure for the attentional drift-diffusion
-# model (aDDM), using a grid search over the 3 free parameters of the model.
-# Data from all subjects is pooled such that a single set of optimal parameters
-# is estimated.
+Maximum likelihood estimation procedure for the attentional drift-diffusion
+model (aDDM), using a grid search over the 3 free parameters of the model. Data
+from all subjects is pooled such that a single set of optimal parameters is
+estimated.
+"""
 
 import matplotlib
 matplotlib.use('Agg')
@@ -17,41 +19,41 @@ from multiprocessing import Pool
 import numpy as np
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
-    run_simulations)
+                  run_simulations)
 from util import (load_data_from_csv, save_simulations_to_csv,
-    generate_choice_curves, generate_rt_curves)
+                  generate_choice_curves, generate_rt_curves)
 
 
 def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    sigma, trialsPerSubject=200, useOddTrials=True, useEvenTrials=True,
-    verbose=True):
-    # Computes the negative log likelihood of a data set given the parameters of
-    # the aDDM.
-    # Args:
-    #   choice: dict of dicts with same indexing as rt. Each entry is an integer
-    #       corresponding to the decision made in that trial.
-    #   valueLeft: dict of dicts with same indexing as rt. Each entry is an
-    #       integer corresponding to the value of the left item.
-    #   valueRight: dict of dicts with same indexing as rt. Each entry is an
-    #       integer corresponding to the value of the right item.
-    #   fixItem: dict of dicts with same indexing as rt. Each entry is an
-    #       ordered list of fixated items in the trial.
-    #   fixTime: dict of dicts with same indexing as rt. Each entry is an
-    #       ordered list of fixation durations in the trial.
-    #   d: float, parameter of the model which controls the speed of integration
-    #       of the signal.
-    #   theta: float between 0 and 1, parameter of the model which controls the
-    #       attentional bias.
-    #   sigma: float, parameter of the model, standard deviation for the normal
-    #       distribution.
-    #   trialsPerSubject: integer, number of trials to be used from each
-    #       subject.
-    #   useOddTrials: boolean, whether or not to use odd trials in the analysis.
-    #   useEvenTrials: boolean, whether or not to use even trials in the
-    #       analysis.
-    #   verbose: boolean, whether or not to print updates during computation.
-    # Returns:
-    #   The negative log likelihood for the given data set and model.
+                  sigma, trialsPerSubject=200, useOddTrials=True,
+                  useEvenTrials=True, verbose=True):
+    """
+    Computes the negative log likelihood of a data set given the parameters of
+    the aDDM.
+    Args:
+      choice: dict of dicts, indexed first by subject then by trial number. Each
+          entry is an integer corresponding to the decision made in that trial.
+      valueLeft: dict of dicts with same indexing as choice. Each entry is an
+          integer corresponding to the value of the left item.
+      valueRight: dict of dicts with same indexing as choice. Each entry is an
+          integer corresponding to the value of the right item.
+      fixItem: dict of dicts with same indexing as choice. Each entry is an
+          ordered list of fixated items in the trial.
+      fixTime: dict of dicts with same indexing as choice. Each entry is an
+          ordered list of fixation durations in the trial.
+      d: float, parameter of the model which controls the speed of integration
+          of the signal.
+      theta: float between 0 and 1, parameter of the model which controls the
+          attentional bias.
+      sigma: float, parameter of the model, standard deviation for the normal
+          distribution.
+      trialsPerSubject: integer, number of trials to be used from each subject.
+      useOddTrials: boolean, whether or not to use odd trials in the analysis.
+      useEvenTrials: boolean, whether or not to use even trials in the analysis.
+      verbose: boolean, whether or not to print updates during computation.
+    Returns:
+      The negative log likelihood for the given data set and model.
+    """
 
     logLikelihood = 0
     subjects = choice.keys()
@@ -62,11 +64,13 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
         if useEvenTrials and useOddTrials:
             trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         if useEvenTrials and not useOddTrials:
-            trialSet = np.random.choice([trial for trial in trials if not
-                trial % 2], trialsPerSubject, replace=False)
+            trialSet = np.random.choice(
+                [trial for trial in trials if not trial % 2],
+                trialsPerSubject, replace=False)
         elif not useEvenTrials and useOddTrials:
-            trialSet = np.random.choice([trial for trial in trials if
-                trial % 2], trialsPerSubject, replace=False)
+            trialSet = np.random.choice(
+                [trial for trial in trials if trial % 2],
+                trialsPerSubject, replace=False)
         else:
             return 0
 
@@ -75,26 +79,28 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
                 continue
             if not useEvenTrials and trial % 2 == 0:
                 continue
-            likelihood = get_trial_likelihood(choice[subject][trial],
-                valueLeft[subject][trial], valueRight[subject][trial],
-                fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                sigma=sigma)
+            likelihood = get_trial_likelihood(
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
-        print("NLL for " + str(d) + ", " + str(theta) + ", "
-            + str(sigma) + ": " + str(-logLikelihood))
+        print("NLL for " + str(d) + ", " + str(theta) + ", " + str(sigma) +
+              ": " + str(-logLikelihood))
     return -logLikelihood
 
 
 def get_model_nll_wrapper(params):
-    # Wrapper for get_model_nll() which takes a single argument. Intended for
-    # parallel computation using a thread pool.
-    # Args:
-    #   params: tuple consisting of all arguments required by get_model_nll().
-    # Returns:
-    #   The output of get_model_nll().
+    """
+    Wrapper for get_model_nll() which takes a single argument. Intended for
+    parallel computation using a thread pool.
+    Args:
+      params: tuple consisting of all arguments required by get_model_nll().
+    Returns:
+      The output of get_model_nll().
+    """
 
     return get_model_nll(*params)
 
@@ -105,7 +111,7 @@ def main():
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
-        useAngularDists=True)
+                              useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -126,7 +132,7 @@ def main():
             for sigma in rangeSigma:
                 models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                    theta, sigma, 200, True, False)
+                          theta, sigma, 200, True, False)
                 listParams.append(params)
 
     results = pool.map(get_model_nll_wrapper, listParams)
@@ -143,8 +149,9 @@ def main():
     print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials.
-    evenDists = get_empirical_distributions(valueLeft, valueRight, fixItem,
-        fixTime, useOddTrials=False, useEvenTrials=True)
+    evenDists = get_empirical_distributions(
+        valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
+        useEvenTrials=True)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distLatencies = evenDists.distLatencies
     distTransitions = evenDists.distTransitions
@@ -163,34 +170,37 @@ def main():
 
     # Generate simulations using the even trials distributions and the
     # estimated parameters.
-    simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
-        distFixations, numTrials, trialConditions, optimD, optimTheta,
-        sigma=optimSigma)
-    simulRt = simul.rt
+    simul = run_simulations(
+        probLeftFixFirst, distLatencies, distTransitions, distFixations,
+        numTrials, trialConditions, optimD, optimTheta, sigma=optimSigma)
+    simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
     simulFixItem = simul.fixItem
     simulFixTime = simul.fixTime
-    simulFixRdv = simul.fixRdv
+    simulFixRDV = simul.fixRDV
 
     # Create pdf file to save figures.
     pp = PdfPages("figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
-        str(optimSigma) + "_" + str(numTrials) + ".pdf")
+                  str(optimSigma) + "_" + str(numTrials) + ".pdf")
 
-    # Generate choice and rt curves for real data (odd trials) and
+    # Generate choice and RT curves for real data (odd trials) and
     # simulations (generated from even trials).
     totalTrials = numTrials * len(trialConditions)
-    fig1 = generate_choice_curves(choice, valueLeft, valueRight, simulChoice,
-        simulValueLeft, simulValueRight, totalTrials)
+    fig1 = generate_choice_curves(
+        choice, valueLeft, valueRight, simulChoice, simulValueLeft,
+        simulValueRight, totalTrials)
     pp.savefig(fig1)
-    fig2 = generate_rt_curves(rt, valueLeft, valueRight, simulRt,
-        simulValueLeft, simulValueRight, totalTrials)
+    fig2 = generate_rt_curves(
+        RT, valueLeft, valueRight, simulRT, simulValueLeft, simulValueRight,
+        totalTrials)
     pp.savefig(fig2)
     pp.close()
 
-    save_simulations_to_csv(simulChoice, simulRt, simulValueLeft,
-        simulValueRight, simulFixItem, simulFixTime, simulFixRdv, totalTrials)
+    save_simulations_to_csv(
+        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+        simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

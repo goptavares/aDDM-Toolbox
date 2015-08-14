@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
-# generate_parameter_plots.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+generate_parameter_plots.py
+Author: Gabriela Tavares, gtavares@caltech.edu
+"""
 
 import matplotlib
 matplotlib.use('Agg')
@@ -18,7 +20,7 @@ from util import load_data_from_csv
 
 
 def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-    sigma, verbose=True):
+                  sigma, verbose=True):
     trialsPerSubject = 100
     logLikelihood = 0
     subjects = choice.keys()
@@ -28,16 +30,16 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
         trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = get_trial_likelihood(choice[subject][trial],
-                valueLeft[subject][trial], valueRight[subject][trial],
-                fixItem[subject][trial], fixTime[subject][trial], d, theta,
-                sigma=sigma)
+            likelihood = get_trial_likelihood(
+                choice[subject][trial], valueLeft[subject][trial],
+                valueRight[subject][trial], fixItem[subject][trial],
+                fixTime[subject][trial], d, theta, sigma=sigma)
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
     if verbose:
-        print("Negative log likelihood for " + str(d) + ", " + str(theta) + ", "
-            + str(sigma) + ": " + str(-logLikelihood))
+        print("Negative log likelihood for " + str(d) + ", " + str(theta) +
+              ", " + str(sigma) + ": " + str(-logLikelihood))
     return -logLikelihood
 
 
@@ -50,7 +52,8 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+                              useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -76,7 +79,7 @@ def main():
                 if not (d, theta, sigma) in likelihoods:
                     models.append((d, theta, sigma))
                     params = (choice, valueLeft, valueRight, fixItem, fixTime,
-                        d, theta, sigma)
+                              d, theta, sigma)
                     listParams.append(params)
 
     print("Starting pool of workers for d search...")
@@ -94,7 +97,7 @@ def main():
                 if not (d, theta, sigma) in likelihoods:
                     models.append((d, theta, sigma))
                     params = (choice, valueLeft, valueRight, fixItem, fixTime,
-                        d, theta, sigma)
+                              d, theta, sigma)
                     listParams.append(params)
 
     print("Starting pool of workers for theta search...")
@@ -112,7 +115,7 @@ def main():
                 if not (d, theta, sigma) in likelihoods:
                     models.append((d, theta, sigma))
                     params = (choice, valueLeft, valueRight, fixItem, fixTime,
-                        d, theta, sigma)
+                              d, theta, sigma)
                     listParams.append(params)
 
     print("Starting pool of workers for sigma search...")
@@ -140,7 +143,7 @@ def main():
             for d in fineRangeD:
                 dLikelihoods.append(likelihoods[(d, theta, sigma)])
             ax.plot(fineRangeD, dLikelihoods, color=colors[c],
-                label=(str(theta) + ", " + str(sigma)))
+                    label=(str(theta) + ", " + str(sigma)))
             c += 1
     plt.xlabel("d")
     plt.ylabel("Negative log likelihood")
@@ -159,7 +162,7 @@ def main():
             for theta in fineRangeTheta:
                 thetaLikelihoods.append(likelihoods[(d, theta, sigma)])
             ax.plot(fineRangeTheta, thetaLikelihoods, color=colors[c],
-                label=(str(d) + ", " + str(sigma)))
+                    label=(str(d) + ", " + str(sigma)))
             c += 1
     plt.xlabel("theta")
     plt.ylabel("Negative log likelihood")
@@ -178,7 +181,7 @@ def main():
             for sigma in fineRangeSigma:
                 sigmaLikelihoods.append(likelihoods[(d, theta, sigma)])
             ax.plot(fineRangeSigma, sigmaLikelihoods,
-                color=colors[c], label=(str(d) + ", " + str(theta)))
+                    color=colors[c], label=(str(d) + ", " + str(theta)))
             c += 1
     plt.xlabel("sigma")
     plt.ylabel("Negative log likelihood")

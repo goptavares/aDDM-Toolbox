@@ -1,12 +1,14 @@
 #!/usr/bin/python
 
-# test_addm_group.py
-# Author: Gabriela Tavares, gtavares@caltech.edu
+"""
+test_addm_group.py
+Author: Gabriela Tavares, gtavares@caltech.edu
 
-# Test to check the validity of the addm parameter estimation. Artificil data is
-# generated using specific parameters for the model. Fixations are sampled from
-# the data pooled from all subjects. The parameters used for data generation are
-# then recovered through a posterior distribution estimation procedure.
+Test to check the validity of the addm parameter estimation. Artificil data is
+generated using specific parameters for the model. Fixations are sampled from
+the data pooled from all subjects. The parameters used for data generation are
+then recovered through a posterior distribution estimation procedure.
+"""
 
 from multiprocessing import Pool
 
@@ -14,18 +16,20 @@ import csv
 import numpy as np
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
-    run_simulations)
+                  run_simulations)
 from util import load_data_from_csv
 
 
 def get_trial_likelihood_wrapper(params):
-    # Wrapper for addm.get_trial_likelihood() which takes a single argument.
-    # Intended for parallel computation using a thread pool.
-    # Args:
-    #   params: tuple consisting of all arguments required by
-    #       addm.get_trial_likelihood().
-    # Returns:
-    #   The output of addm.get_trial_likelihood().
+    """
+    Wrapper for addm.get_trial_likelihood() which takes a single argument.
+    Intended for parallel computation using a thread pool.
+    Args:
+      params: tuple consisting of all arguments required by
+          addm.get_trial_likelihood().
+    Returns:
+      The output of addm.get_trial_likelihood().
+    """
 
     return get_trial_likelihood(*params)
 
@@ -35,7 +39,8 @@ def main():
     pool = Pool(numThreads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv", True)
+    data = load_data_from_csv("expdata.csv", "fixations.csv",
+                              useAngularDists=True)
     valueLeft = data.valueLeft
     valueRight = data.valueRight
     fixItem = data.fixItem
@@ -65,9 +70,9 @@ def main():
 
     # Generate artificial data.
     print("Running simulations...")
-    simul = run_simulations(probLeftFixFirst, distLatencies, distTransitions,
-        distFixations, numTrials, trialConditions, d, theta, sigma=sigma)
-    simulRt = simul.rt
+    simul = run_simulations(
+        probLeftFixFirst, distLatencies, distTransitions, distFixations,
+        numTrials, trialConditions, d, theta, sigma=sigma)
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
@@ -94,7 +99,8 @@ def main():
     for trial in trials:
         listParams = list()
         for model in models:
-            listParams.append((simulChoice[trial], simulValueLeft[trial],
+            listParams.append(
+                (simulChoice[trial], simulValueLeft[trial],
                 simulValueRight[trial], simulFixItem[trial],
                 simulFixTime[trial], model[0], model[1], model[2]))
         likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
