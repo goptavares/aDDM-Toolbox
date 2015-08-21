@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-test_ddm.py
+ddm_test.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Test to check the validity of the ddm parameter estimation. Artificil data is

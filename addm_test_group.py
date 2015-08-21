@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-test_addm_group.py
+addm_test_group.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Test to check the validity of the addm parameter estimation. Artificil data is
