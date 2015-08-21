@@ -11,6 +11,8 @@ recovered through a posterior distribution estimation procedure.
 
 from multiprocessing import Pool
 
+import argparse
+
 from ddm import get_trial_likelihood, run_simulations
 
 
@@ -29,22 +31,32 @@ def get_trial_likelihood_wrapper(params):
 
 
 def main():
-    numThreads = 9
-    pool = Pool(numThreads)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--num-values", type=int, default=4,
+                        help="number of item values to use in the artificial "
+                        "data")
+    parser.add_argument("--num-trials", type=int, default=32,
+                        help="number of artificial data trials to be generated "
+                        "per trial condition")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    # Parameters for generating simulations.
+    pool = Pool(args.num_threads)
+
+    # Parameters for generating artificial data.
     d = 0.006
     sigma = 0.08
-    numTrials = 32
-    numValues = 4
-    values = range(1, numValues + 1, 1)
+    values = range(1, args.num_values + 1, 1)
     trialConditions = list()
     for vLeft in values:
         for vRight in values:
             trialConditions.append((vLeft, vRight))
 
-    # Generate simulations.
-    simul = run_simulations(numTrials, trialConditions, d, sigma)
+    # Generate artificial data.
+    simul = run_simulations(args.num_trials, trialConditions, d, sigma)
     RT = simul.RT
     choice = simul.choice
     valueLeft = simul.valueLeft
@@ -87,14 +99,15 @@ def main():
             posteriors[model] = likelihoods[i] * prior / denominator
             i += 1
 
-        if trial % 200 == 0:
+        if args.verbose and trial % 200 == 0:
             for model in posteriors:
                 print("P" + str(model) + " = " + str(posteriors[model]))
             print("Sum: " + str(sum(posteriors.values())))
 
-    for model in posteriors:
-        print("P" + str(model) + " = " + str(posteriors[model]))
-    print("Sum: " + str(sum(posteriors.values())))
+    if args.verbose:
+        for model in posteriors:
+            print("P" + str(model) + " = " + str(posteriors[model]))
+        print("Sum: " + str(sum(posteriors.values())))
 
 
 if __name__ == '__main__':

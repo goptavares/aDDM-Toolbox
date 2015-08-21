@@ -14,6 +14,7 @@ aggregate all simulations).
 
 from multiprocessing import Pool
 
+import argparse
 import numpy as np
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
@@ -36,10 +37,27 @@ def get_trial_likelihood_wrapper(params):
 
 
 def main():
-    numThreads = 9
-    pool = Pool(numThreads)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subject", type=str, help="subject name")
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--num-trials", type=int, default=100,
+                        help="number of trials to be used in the analysis; if "
+                        "smaller than 1, all trials are used")
+    parser.add_argument("--num-samples", type=int, default=32,
+                        help="number of samples to be drawn from the posterior "
+                        "distribution when generating simulations")
+    parser.add_argument("--num-simulations-per-sample", type=int, default=1,
+                        help="number of simulations to be genearated for each "
+                        "sample drawn from the posterior distribution")
+    parser.add_argument("--save-simulations", default=False,
+                        action="store_true", help="save simulations to CSV")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    subject = "cai"
+    pool = Pool(args.num_threads)
+
     choice = dict()
     valueLeft = dict()
     valueRight = dict()
@@ -49,14 +67,15 @@ def main():
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
                               useAngularDists=True)
-    choice[subject] = data.choice[subject]
-    valueLeft[subject] = data.valueLeft[subject]
-    valueRight[subject] = data.valueRight[subject]
-    fixItem[subject] = data.fixItem[subject]
-    fixTime[subject] = data.fixTime[subject]
+    choice[args.subject] = data.choice[args.subject]
+    valueLeft[args.subject] = data.valueLeft[args.subject]
+    valueRight[args.subject] = data.valueRight[args.subject]
+    fixItem[args.subject] = data.fixItem[args.subject]
+    fixTime[args.subject] = data.fixTime[args.subject]
 
     # Posteriors estimation for the parameters of the model, using odd trials.
-    print("Starting grid search for subject " + subject + "...")
+    if args.verbose:
+        print("Starting grid search for subject " + args.subject + "...")
     rangeD = [0.004, 0.0045, 0.005]
     rangeTheta = [0.3, 0.35, 0.4]
     rangeSigma = [0.08, 0.085, 0.09]
@@ -74,7 +93,12 @@ def main():
     subjects = choice.keys()
     for subject in subjects:
         trials = choice[subject].keys()
-        for trial in trials:
+        if args.num_trials < 1:
+            args.num_trials = len(trials)
+        trialSet = np.random.choice(
+            [trial for trial in trials if trial % 2],
+            args.num_trials, replace=False)
+        for trial in trialSet:
             if not trial % 2:
                 continue
             listParams = list()
@@ -100,10 +124,13 @@ def main():
                 prior = posteriors[model]
                 posteriors[model] = likelihoods[i] * prior / denominator
                 i += 1
+        if args.verbose:
+            for model in posteriors:
+                print("P" + str(model) + " = " + str(posteriors[model]))
+            print("Sum: " + str(sum(posteriors.values())))
 
-        for model in posteriors:
-            print("P" + str(model) + " = " + str(posteriors[model]))
-        print("Sum: " + str(sum(posteriors.values())))
+    if args.verbose:
+        print("Finished grid search!")
 
     # Get empirical distributions from even trials.
     dists = get_empirical_distributions(
@@ -127,7 +154,8 @@ def main():
     # Generate probabilistic simulations using the posteriors distribution.
     simul = generate_probabilistic_simulations(
         probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        trialConditions, posteriors, numSamples=32, numSimulationsPerSample=1)
+        trialConditions, posteriors, args.num_samples,
+        args.num_simulations_per_sample)
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -136,10 +164,11 @@ def main():
     simulFixTime = simul.fixTime
     simulFixRDV = simul.fixRDV
 
-    totalTrials = len(simulRT.keys())
-    save_simulations_to_csv(
-        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
-        simulFixTime, simulFixRDV, totalTrials)
+    if args.save_simulations:
+        totalTrials = len(simulRT.keys())
+        save_simulations_to_csv(
+            simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+            simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

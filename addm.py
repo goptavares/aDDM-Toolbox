@@ -146,8 +146,8 @@ def get_trial_likelihood(choice, valueLeft, valueRight, fixItem, fixTime, d,
             # states A, of the probability of being in A at the previous
             # timestep times the probability of changing from A to B. We
             # multiply the probability by the stateStep to ensure that the area
-            # under the curve for the probability distributions probUpCrossing
-            # and probDownCrossing each add up to 1.
+            # under the curves for the probability distributions probUpCrossing
+            # and probDownCrossing add up to 1.
             prStatesNew = (
                 stateStep *
                 np.dot(norm.pdf(changeMatrix, mean, sigma), prStates))

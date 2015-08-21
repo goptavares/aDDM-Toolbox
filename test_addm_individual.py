@@ -12,6 +12,7 @@ recovered through a posterior distribution estimation procedure.
 
 from multiprocessing import Pool
 
+import argparse
 import csv
 import numpy as np
 
@@ -35,10 +36,19 @@ def get_trial_likelihood_wrapper(params):
 
 
 def main():
-    numThreads = 9
-    pool = Pool(numThreads)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subject", type=str, help="subject name")
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--num-trials", type=int, default=200,
+                        help="number of artificial data trials to be generated "
+                        "per trial condition")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    subject = 'lua'
+    pool = Pool(args.num_threads)
+
     valueLeft = dict()
     valueRight = dict()
     fixItem = dict()
@@ -47,10 +57,10 @@ def main():
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
                               useAngularDists=True)
-    valueLeft[subject] = data.valueLeft[subject]
-    valueRight[subject] = data.valueRight[subject]
-    fixItem[subject] = data.fixItem[subject]
-    fixTime[subject] = data.fixTime[subject]
+    valueLeft[args.subject] = data.valueLeft[args.subject]
+    valueRight[args.subject] = data.valueRight[args.subject]
+    fixItem[args.subject] = data.fixItem[args.subject]
+    fixTime[args.subject] = data.fixTime[args.subject]
 
     # Get empirical distributions.
     dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime)
@@ -60,7 +70,6 @@ def main():
     distFixations = dists.distFixations
 
     # Parameters for artificial data generation.
-    numTrials = 200
     d = 0.006
     theta = 0.5
     sigma = 0.07
@@ -75,10 +84,11 @@ def main():
                 trialConditions.append((vLeft, vRight))
 
     # Generate artificial data.
-    print("Running simulations...")
+    if args.verbose:
+        print("Running simulations...")
     simul = run_simulations(
         probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        numTrials, trialConditions, d, theta, sigma=sigma)
+        args.num_trials, trialConditions, d, theta, sigma=sigma)
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
@@ -86,7 +96,8 @@ def main():
     simulFixTime = simul.fixTime
 
     # Grid search to recover the parameters.
-    print("Starting grid search...")
+    if args.verbose:
+        print("Starting grid search...")
     rangeD = [0.0055, 0.006, 0.0065]
     rangeTheta = [0.3, 0.5, 0.7]
     rangeSigma = [0.065, 0.07, 0.075]
@@ -127,14 +138,15 @@ def main():
             posteriors[model] = likelihoods[i] * prior / denominator
             i += 1
 
-        if trial % 200 == 0:
+        if args.verbose and trial % 200 == 0:
             for model in posteriors:
                 print("P" + str(model) + " = " + str(posteriors[model]))
             print("Sum: " + str(sum(posteriors.values())))
  
-    for model in posteriors:
-        print("P" + str(model) + " = " + str(posteriors[model]))
-    print("Sum: " + str(sum(posteriors.values())))
+    if args.verbose:
+        for model in posteriors:
+            print("P" + str(model) + " = " + str(posteriors[model]))
+        print("Sum: " + str(sum(posteriors.values())))
 
 
 if __name__ == '__main__':

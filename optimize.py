@@ -12,6 +12,7 @@ estimated.
 
 from scipy.optimize import basinhopping
 
+import argparse
 import numpy as np
 
 from addm import get_trial_likelihood
@@ -24,6 +25,7 @@ valueLeft = dict()
 valueRight = dict()
 fixItem = dict()
 fixTime = dict()
+trialsPerSubject = 0
 
 
 def get_model_nll(params):
@@ -37,7 +39,6 @@ def get_model_nll(params):
       The negative log likelihood for the global data set and the given model.
     """
 
-    trialsPerSubject = 200  # Number of trials to be used from each subject.
     d = params[0]
     theta = params[1]
     sigma = params[2]
@@ -59,11 +60,23 @@ def get_model_nll(params):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--trials-per-subject", type=int, default=100,
+                        help="number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used")
+    parser.add_argument("--num-iterations", type=int, default=100,
+                        help="number of basin hopping iterations")
+    parser.add_argument("--step-size", type=float, default=0.001,
+                        help="step size for use in the random displacement of "
+                        "the basin hopping algorithm")
+    args = parser.parse_args()
+
     global choice
     global valueLeft
     global valueRight
     global fixItem
     global fixTime
+    global trialsPerSubject
 
     # Load experimental data from CSV file and update global variables.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
@@ -73,6 +86,8 @@ def main():
     valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
+
+    trialsPerSubject = args.trials_per_subject
 
     # Initial guess: d, theta, sigma.
     initialParams = [0.0002, 0.5, 0.08]
@@ -85,8 +100,9 @@ def main():
     # Optimize using Basinhopping algorithm.
     minimizerKwargs = dict(method="L-BFGS-B", bounds=bounds)
     result = basinhopping(get_model_nll, initialParams,
-                          minimizer_kwargs=minimizerKwargs)
-    print("Optimization result: " + result)
+                          minimizer_kwargs=minimizerKwargs,
+                          niter=args.num_iterations, stepsize=args.step_size)
+    print("Optimization result: " + str(result))
 
 
 if __name__ == '__main__':

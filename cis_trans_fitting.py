@@ -6,15 +6,15 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood estimation procedure for the attentional drift-diffusion
 model (aDDM), specific for perceptual decisions, allowing for analysis of cis
-trials or trans trials exclusively. Function main() takes two boolean arguments
-which determine whether cis (1st argument) or trans (2nd argument) trials should
-be used. A grid search is performed over the 3 free parameters of the model.
-Data from all subjects is pooled such that a single set of optimal parameters is
-estimated. aDDM simulations are generated for the model estimated.
+trials or trans trials exclusively. A grid search is performed over the 3 free
+parameters of the model. Data from all subjects is pooled such that a single set
+of optimal parameters is estimated. aDDM simulations are generated for the model
+estimated.
 """
 
 from multiprocessing import Pool
 
+import argparse
 import numpy as np
 import sys
 
@@ -24,9 +24,9 @@ from util import load_data_from_csv, save_simulations_to_csv
 
 
 def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-                  sigma, useOddTrials=True, useEvenTrials=True, isCisTrial=None,
-                  isTransTrial=None, useCisTrials=True, useTransTrials=True,
-                  verbose=True):
+                  sigma, trialsPerSubject=100, useOddTrials=True,
+                  useEvenTrials=True, isCisTrial=None, isTransTrial=None,
+                  useCisTrials=True, useTransTrials=True, verbose=True):
     """
     Computes the negative log likelihood of a data set given the parameters of
     the aDDM.
@@ -47,6 +47,8 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
           attentional bias.
       sigma: float, parameter of the model, standard deviation for the normal
           distribution.
+      trialsPerSubject: integer, number of trials to be used from each subject.
+          If smaller than one, all trials will be used.
       useOddTrials: boolean, whether or not to use odd trials in the analysis.
       useEvenTrials: boolean, whether or not to use even trials in the analysis.
       isCisTrial: dict of dicts, indexed first by subject then by trial number.
@@ -66,20 +68,62 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     logLikelihood = 0
     subjects = choice.keys()
     for subject in subjects:
-        if verbose:
-            print("Running subject " + subject + "...")
         trials = choice[subject].keys()
-        for trial in trials:
-            if not useOddTrials and trial % 2 != 0:
-                continue
-            if not useEvenTrials and trial % 2 == 0:
-                continue
-            if (not useCisTrials and isCisTrial[subject][trial] and
-                not isTransTrial[subject][trial]):
-                continue
-            if (not useTransTrials and isTransTrial[subject][trial] and
-                not isCisTrial[subject][trial]):
-                continue
+        if trialsPerSubject < 1:
+            trialsPerSubject = len(trials)
+
+        if useEvenTrials and useOddTrials:
+            if useCisTrials and useTransTrials:
+                trialSet = np.random.choice(trials, trialsPerSubject,
+                                            replace=False)
+            elif useCisTrials and not useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if isCisTrial[subject][trial]],
+                    trialsPerSubject, replace=False)
+            elif not useCisTrials and useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if isTransTrial[subject][trial]],
+                    trialsPerSubject, replace=False)
+            else:
+                return 0
+        elif useEvenTrials and not useOddTrials:
+            if useCisTrials and useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if not trial % 2],
+                    trialsPerSubject, replace=False)
+            elif useCisTrials and not useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if not trial % 2 and
+                     isCisTrial[subject][trial]],
+                    trialsPerSubject, replace=False)
+            elif not useCisTrials and useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if not trial % 2 and
+                     isTransTrial[subject][trial]],
+                    trialsPerSubject, replace=False)
+            else:
+                return 0
+        elif not useEvenTrials and useOddTrials:
+            if useCisTrials and useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if trial % 2],
+                    trialsPerSubject, replace=False)
+            elif useCisTrials and not useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if trial % 2 and
+                     isCisTrial[subject][trial]],
+                    trialsPerSubject, replace=False)
+            elif not useCisTrials and useTransTrials:
+                trialSet = np.random.choice(
+                    [trial for trial in trials if trial % 2 and
+                     isTransTrial[subject][trial]],
+                    trialsPerSubject, replace=False)
+            else:
+                return 0
+        else:
+            return 0
+
+        for trial in trialSet:
             likelihood = get_trial_likelihood(
                 choice[subject][trial], valueLeft[subject][trial],
                 valueRight[subject][trial], fixItem[subject][trial],
@@ -106,12 +150,28 @@ def get_model_nll_wrapper(params):
     return get_model_nll(*params)
 
 
-def main(argv):
-    useCisTrials = argv[0]
-    useTransTrials = argv[1]
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--trials-per-subject", type=int, default=100,
+                        help="number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used")
+    parser.add_argument("--num-simulations", type=int, default=400,
+                        help="number of simulations to be generated per trial "
+                        "condition")
+    parser.add_argument("--use-cis-trials", default=False, action="store_true",
+                        help="use CIS trials in the analysis")
+    parser.add_argument("--use-trans-trials", default=False,
+                        action="store_true", help="use TRANS trials in the "
+                        "analysis")
+    parser.add_argument("--save-simulations", default=False,
+                        action="store_true", help="save simulations to CSV")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    numThreads = 9
-    pool = Pool(numThreads)
+    pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
@@ -126,7 +186,8 @@ def main(argv):
 
     # Maximum likelihood estimation.
     # Grid search on the parameters of the model using odd trials only.
-    print("Starting grid search...")
+    if args.verbose:
+        print("Starting grid search...")
     rangeD = [0.004, 0.005, 0.006]
     rangeTheta = [0.3, 0.5, 0.7]
     rangeSigma = [0.04, 0.065, 0.09]
@@ -138,11 +199,10 @@ def main(argv):
             for sigma in rangeSigma:
                 models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                          theta, sigma, True, False, isCisTrial, isTransTrial,
-                          useCisTrials, useTransTrials)
+                          theta, sigma, args.trials_per_subject, True, False,
+                          isCisTrial, isTransTrial, args.use_cis_trials,
+                          args.use_trans_trials, args.verbose)
                 listParams.append(params)
-
-    print("Starting pool of workers...")
     results = pool.map(get_model_nll_wrapper, listParams)
 
     # Get optimal parameters.
@@ -150,40 +210,42 @@ def main(argv):
     optimD = models[minNegLogLikeIdx][0]
     optimTheta = models[minNegLogLikeIdx][1]
     optimSigma = models[minNegLogLikeIdx][2]
-    print("Finished coarse grid search!")
-    print("Optimal d: " + str(optimD))
-    print("Optimal theta: " + str(optimTheta))
-    print("Optimal sigma: " + str(optimSigma))
-    print("Min NLL: " + str(min(results)))
+    if args.verbose:
+        print("Finished grid search!")
+        print("Optimal d: " + str(optimD))
+        print("Optimal theta: " + str(optimTheta))
+        print("Optimal sigma: " + str(optimSigma))
+        print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials only.
     evenDists = get_empirical_distributions(
         valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
         useEvenTrials=True, isCisTrial=isCisTrial, isTransTrial=isTransTrial,
-        useCisTrials=useCisTrials, useTransTrials=useTransTrials)
+        useCisTrials=args.use_cis_trials, useTransTrials=args.use_trans_trials)
     probLeftFixFirst = evenDists.probLeftFixFirst
     distLatencies = evenDists.distLatencies
     distTransitions = evenDists.distTransitions
     distFixations = evenDists.distFixations
 
     # Parameters for generating simulations.
-    numTrials = 400
     orientations = range(-15,20,5)
     trialConditions = list()
     for oLeft in orientations:
         for oRight in orientations:
             vLeft = np.absolute((np.absolute(oLeft) - 15) / 5)
             vRight = np.absolute((np.absolute(oRight) - 15) / 5)
-            if oLeft != oRight and useCisTrials and oLeft * oRight >= 0:
+            if oLeft != oRight and args.use_cis_trials and oLeft * oRight >= 0:
                 trialConditions.append((vLeft, vRight))
-            elif oLeft != oRight and useTransTrials and oLeft * oRight <= 0:
+            elif (oLeft != oRight and args.use_trans_trials and
+                  oLeft * oRight <= 0):
                 trialConditions.append((vLeft, vRight))
 
     # Generate simulations using the empirical distributions and the
     # estimated parameters.
     simul = run_simulations(
         probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        numTrials, trialConditions, optimD, optimTheta, sigma=optimSigma)
+        args.num_simulations, trialConditions, optimD, optimTheta,
+        sigma=optimSigma)
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -192,11 +254,12 @@ def main(argv):
     simulFixTime = simul.fixTime
     simulFixRDV = simul.fixRDV
 
-    totalTrials = numTrials * len(trialConditions)
-    save_simulations_to_csv(
-        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
-        simulFixTime, simulFixRDV, totalTrials)
+    if args.save_simulations:
+        totalTrials = args.num_simulations * len(trialConditions)
+        save_simulations_to_csv(
+            simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+            simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

@@ -15,6 +15,7 @@ of the model.
 
 from multiprocessing import Pool
 
+import argparse
 import collections
 import numpy as np
 
@@ -131,8 +132,23 @@ def get_model_likelihood_wrapper(params):
 
 
 def main():
-    numThreads = 9
-    pool = Pool(numThreads)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--num-values", type=int, default=4,
+                        help="number of item values to use in the artificial "
+                        "data")
+    parser.add_argument("--num-trials", type=int, default=10,
+                        help="number of artificial data trials to be generated "
+                        "per trial condition")
+    parser.add_argument("--num-simulations", type=int, default=10,
+                        help="number of simulations to be generated per trial "
+                        "condition, to be used in the RT histograms")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
+
+    pool = Pool(args.num_threads)
 
     # Parameters for artificial data.
     d = 0.006
@@ -142,11 +158,7 @@ def main():
     histBins = range(0, maxRT + 100, 100)
     histBins = histBins + [20000]
 
-    numTrials = 210
-    numSimulations = 210
-
-    numValues = 4
-    values = range(1, numValues + 1, 1)
+    values = range(1, args.num_values + 1, 1)
     trialConditions = list()
     for vLeft in values:
         for vRight in values:
@@ -160,7 +172,7 @@ def main():
         dataRTRight[trialCondition] = list()
     for trialCondition in trialConditions:
         trial = 0
-        while trial < numTrials:
+        while trial < args.num_trials:
             results = ddm(d, sigma, trialCondition[0], trialCondition[1])
             RT = results.RT
             choice = results.choice
@@ -191,14 +203,15 @@ def main():
     listParams = list()
     for model in models:
         listParams.append(
-            (model[0], model[1], trialConditions, numSimulations, histBins,
-            dataHistLeft, dataHistRight))
+            (model[0], model[1], trialConditions, args.num_simulations,
+            histBins, dataHistLeft, dataHistRight))
     likelihoods = pool.map(get_model_likelihood_wrapper, listParams)
 
-    for i in xrange(len(models)):
-        print("L" + str(models[i]) + " = " + str(likelihoods[i]))
-    bestIndex = likelihoods.index(max(likelihoods))
-    print("Best fit: " + str(models[bestIndex]))
+    if args.verbose:
+        for i in xrange(len(models)):
+            print("L" + str(models[i]) + " = " + str(likelihoods[i]))
+        bestIndex = likelihoods.index(max(likelihoods))
+        print("Best fit: " + str(models[bestIndex]))
 
 
 if __name__ == '__main__':

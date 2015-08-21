@@ -88,9 +88,9 @@ def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
         # barriers. The probability of being in state B is the sum, over all
         # states A, of the probability of being in A at the previous timestep
         # times the probability of changing from A to B. We multiply the
-        # probability by the stateStep to ensure that the area under the curve
+        # probability by the stateStep to ensure that the area under the curves
         # for the probability distributions probUpCrossing and probDownCrossing
-        # each add up to 1.
+        # add up to 1.
         prStatesNew = (stateStep *
                        np.dot(norm.pdf(changeMatrix, mean, sigma), prStates))
         prStatesNew[(states >= barrierUp[time]) |

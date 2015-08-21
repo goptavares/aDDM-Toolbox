@@ -15,6 +15,7 @@ of the model.
 
 from multiprocessing import Pool
 
+import argparse
 import collections
 import numpy as np
 
@@ -201,8 +202,20 @@ def get_model_likelihood_wrapper(params):
 
 
 def main():
-    numThreads = 9
-    pool = Pool(numThreads)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--num-trials", type=int, default=10,
+                        help="number of artificial data trials to be generated "
+                        "per trial condition")
+    parser.add_argument("--num-simulations", type=int, default=10,
+                        help="number of simulations to be generated per trial "
+                        "condition, to be used in the RT histograms")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
+
+    pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
@@ -216,7 +229,8 @@ def main():
     distTransitions = dists.distTransitions
     distFixations = dists.distFixations
 
-    print("Done getting empirical distributions!")
+    if args.verbose:
+        print("Done getting empirical distributions!")
 
     # Parameters for artificial data.
     d = 0.006
@@ -226,9 +240,6 @@ def main():
     maxRT = 8000
     histBins = range(0, maxRT + 100, 100)
     histBins = histBins + [20000]
-
-    numTrials = 1000
-    numSimulations = 10000
 
     orientations = range(-15,20,5)
     trialConditions = list()
@@ -246,7 +257,7 @@ def main():
         RTsLeft = list()
         RTsRight = list()
         trial = 0
-        while trial < numTrials:
+        while trial < args.num_trials:
             results = addm(probLeftFixFirst, distLatencies, distTransitions,
                            distFixations, d, sigma, theta, trialCondition[0],
                            trialCondition[1])
@@ -258,7 +269,8 @@ def main():
         dataHistLeft[trialCondition] = np.histogram(RTsLeft, bins=histBins)[0]
         dataHistRight[trialCondition] = np.histogram(RTsRight, bins=histBins)[0]
 
-    print("Done generating histograms of artificial data!")
+    if args.verbose:
+        print("Done generating histograms of artificial data!")
     
     # Grid search on the parameters of the model.
     rangeD = [0.002, 0.006, 0.01]
@@ -274,15 +286,16 @@ def main():
     listParams = list()
     for model in models:
         listParams.append(
-            (model[0], model[1], model[2], trialConditions, numSimulations,
-            histBins, dataHistLeft, dataHistRight, probLeftFixFirst,
-            distLatencies, distTransitions, distFixations))
+            (model[0], model[1], model[2], trialConditions,
+            args.num_simulations, histBins, dataHistLeft, dataHistRight,
+            probLeftFixFirst, distLatencies, distTransitions, distFixations))
     likelihoods = pool.map(get_model_likelihood_wrapper, listParams)
 
-    for i in xrange(len(models)):
-        print("L" + str(models[i]) + " = " + str(likelihoods[i]))
-    bestIndex = likelihoods.index(max(likelihoods))
-    print("Best fit: " + str(models[bestIndex]))
+    if args.verbose:
+        for i in xrange(len(models)):
+            print("L" + str(models[i]) + " = " + str(likelihoods[i]))
+        bestIndex = likelihoods.index(max(likelihoods))
+        print("Best fit: " + str(models[bestIndex]))
 
 
 if __name__ == '__main__':

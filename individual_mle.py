@@ -15,6 +15,7 @@ matplotlib.use('Agg')
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 
+import argparse
 import numpy as np
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
@@ -24,7 +25,8 @@ from util import (load_data_from_csv, save_simulations_to_csv,
 
 
 def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
-                  sigma, useOddTrials=True, useEvenTrials=True, verbose=True):
+                  sigma, numTrials=100, useOddTrials=True, useEvenTrials=True,
+                  verbose=True):
     """
     Computes the negative log likelihood of a subject's data given the
     parameters of the aDDM.
@@ -45,6 +47,8 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
           attentional bias.
       sigma: float, parameter of the model, standard deviation for the normal
           distribution.
+      numTrials: integer, number of trials to be used from the subject's data.
+          If smaller than one, all trials will be used.
       useOddTrials: boolean, whether or not to use odd trials when creating the
           distributions.
       useEvenTrials: boolean, whether or not to use even trials when creating
@@ -57,10 +61,26 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
     logLikelihood = 0
     subjects = choice.keys()
     for subject in subjects:
-        for trial in choice[subject].keys():
-            if not useOddTrials and trial % 2:
+        trials = choice[subject].keys()
+        if numTrials < 1:
+            numTrials = len(trials)
+        if useEvenTrials and useOddTrials:
+            trialSet = np.random.choice(trials, numTrials, replace=False)
+        elif useEvenTrials and not useOddTrials:
+            trialSet = np.random.choice(
+                [trial for trial in trials if not trial % 2],
+                numTrials, replace=False)
+        elif not useEvenTrials and useOddTrials:
+            trialSet = np.random.choice(
+                [trial for trial in trials if trial % 2],
+                numTrials, replace=False)
+        else:
+            return 0
+
+        for trial in trialSet:
+            if not useOddTrials and trial % 2 != 0:
                 continue
-            if not useEvenTrials and not trial % 2:
+            if not useEvenTrials and trial % 2 == 0:
                 continue
             likelihood = get_trial_likelihood(
                 choice[subject][trial], valueLeft[subject][trial],
@@ -73,6 +93,7 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
         print("NLL for " + str(d) + ", " + str(theta) + ", " + str(sigma) +
               ": " + str(-logLikelihood))
     return -logLikelihood
+
 
 
 def get_model_nll_wrapper(params):
@@ -89,10 +110,27 @@ def get_model_nll_wrapper(params):
 
 
 def main():
-    numThreads = 9
-    pool = Pool(numThreads)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subject", type=str, help="subject name")
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--num-trials", type=int, default=100,
+                        help="number of trials to be used in the analysis; if "
+                        "smaller than 1, all trials are used")
+    parser.add_argument("--num-simulations", type=int, default=32,
+                        help="number of simulations to be generated per trial "
+                        "condition")
+    parser.add_argument("--save-simulations", default=False,
+                        action="store_true", help="save simulations to CSV")
+    parser.add_argument("--save-figures", default=False,
+                        action="store_true", help="save figures comparing "
+                        "choice and RT curves for data and simulations")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    subject = "cai"
+    pool = Pool(args.num_threads)
+
     choice = dict()
     valueLeft = dict()
     valueRight = dict()
@@ -102,15 +140,16 @@ def main():
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
                               useAngularDists=True)
-    choice[subject] = data.choice[subject]
-    valueLeft[subject] = data.valueLeft[subject]
-    valueRight[subject] = data.valueRight[subject]
-    fixItem[subject] = data.fixItem[subject]
-    fixTime[subject] = data.fixTime[subject]
+    choice[args.subject] = data.choice[args.subject]
+    valueLeft[args.subject] = data.valueLeft[args.subject]
+    valueRight[args.subject] = data.valueRight[args.subject]
+    fixItem[args.subject] = data.fixItem[args.subject]
+    fixTime[args.subject] = data.fixTime[args.subject]
 
     # Maximum likelihood estimation using odd trials only.
     # Grid search on the parameters of the model.
-    print("Starting grid search for subject " + subject + "...")
+    if args.verbose:
+        print("Starting grid search for subject " + args.subject + "...")
     rangeD = [0.003, 0.006, 0.009]
     rangeTheta = [0.2, 0.4, 0.6]
     rangeSigma = [0.06, 0.08, 0.1]
@@ -122,7 +161,8 @@ def main():
             for sigma in rangeSigma:
                 models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
-                          theta, sigma, True, False)
+                          theta, sigma, args.num_trials, True, False,
+                          args.verbose)
                 listParams.append(params)
 
     results = pool.map(get_model_nll_wrapper, listParams)
@@ -132,11 +172,12 @@ def main():
     optimD = models[minNegLogLikeIdx][0]
     optimTheta = models[minNegLogLikeIdx][1]
     optimSigma = models[minNegLogLikeIdx][2]
-    print("Finished coarse grid search!")
-    print("Optimal d: " + str(optimD))
-    print("Optimal theta: " + str(optimTheta))
-    print("Optimal sigma: " + str(optimSigma))
-    print("Min NLL: " + str(min(results)))
+    if args.verbose:
+        print("Finished grid search!")
+        print("Optimal d: " + str(optimD))
+        print("Optimal theta: " + str(optimTheta))
+        print("Optimal sigma: " + str(optimSigma))
+        print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials.
     evenDists = get_empirical_distributions(
@@ -147,8 +188,7 @@ def main():
     distTransitions = evenDists.distTransitions
     distFixations = evenDists.distFixations
 
-    # Parameters for generating simulations.
-    numTrials = 32
+    # Trial conditions for generating simulations.
     orientations = range(-15,20,5)
     trialConditions = list()
     for oLeft in orientations:
@@ -162,7 +202,8 @@ def main():
     # estimated parameters.
     simul = run_simulations(
         probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        numTrials, trialConditions, optimD, optimTheta, sigma=optimSigma)
+        args.num_simulations, trialConditions, optimD, optimTheta,
+        sigma=optimSigma)
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -171,26 +212,30 @@ def main():
     simulFixTime = simul.fixTime
     simulFixRDV = simul.fixRDV
 
-    # Create pdf file to save figures.
-    pp = PdfPages("figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
-                  str(optimSigma) + "_" + str(numTrials) + ".pdf")
+    totalTrials = args.num_simulations * len(trialConditions)
 
-    # Generate choice and RT curves for real data (odd trials) and simulations
-    # (generated from even trials).
-    totalTrials = numTrials * len(trialConditions)
-    fig1 = generate_choice_curves(
-        choice, valueLeft, valueRight, simulChoice, simulValueLeft,
-        simulValueRight, totalTrials)
-    pp.savefig(fig1)
-    fig2 = generate_rt_curves(
-        RT, valueLeft, valueRight, simulRT, simulValueLeft, simulValueRight,
-        totalTrials)
-    pp.savefig(fig2)
-    pp.close()
+    if args.save_simulations:
+        save_simulations_to_csv(
+            simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+            simulFixTime, simulFixRDV, totalTrials)
 
-    save_simulations_to_csv(
-        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
-        simulFixTime, simulFixRDV, totalTrials)
+    if args.save_figures:
+        # Create pdf file to save figures.
+        pp = PdfPages(
+            "figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
+            str(optimSigma) + "_" + str(args.num_simulations) + ".pdf")
+
+        # Generate choice and RT curves for real data (odd trials) and
+        # simulations (generated from even trials).
+        fig1 = generate_choice_curves(
+            choice, valueLeft, valueRight, simulChoice, simulValueLeft,
+            simulValueRight, totalTrials)
+        pp.savefig(fig1)
+        fig2 = generate_rt_curves(
+            RT, valueLeft, valueRight, simulRT, simulValueLeft, simulValueRight,
+            totalTrials)
+        pp.savefig(fig2)
+        pp.close()
 
 
 if __name__ == '__main__':

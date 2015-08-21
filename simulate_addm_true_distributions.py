@@ -20,6 +20,7 @@ generate aDDM simulations.
 
 from multiprocessing import Pool
 
+import argparse
 import collections
 import numpy as np
 import pandas as pd
@@ -254,12 +255,26 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
 
 
 def main():
-    # Time bins to be used in the fixation distributions.
-    binStep = 10
-    bins = range(binStep, 3000 + binStep, binStep)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--bin-step", type=int, default=10,
+                        help="size of the bin step to be used in the fixation "
+                        "distributions")
+    parser.add_argument("--num-fix-dists", type=int, default=3,
+                        help="number of fixation distributions")
+    parser.add_argument("--num-iterations", type=int, default=3,
+                        help="number of iterations used to approximate the"
+                        "true distributions")
+    parser.add_argument("--num-simulations", type=int, default=400,
+                        help="number of simulations to be generated per trial "
+                        "condition")
+    parser.add_argument("--save-simulations", default=False,
+                        action="store_true", help="save simulations to CSV")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    numFixDists = 3  # Number of fixation distributions.
-    N = 2  # Number of iterations to approximate true distributions.
+    # Time bins to be used in the fixation distributions.
+    bins = range(args.bin_step, 3000 + args.bin_step, args.bin_step)
 
     # Load experimental data from CSV file.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
@@ -284,7 +299,6 @@ def main():
     d = 0.004
     sigma = 0.07
     theta = 0.25
-    numTrials = 400
     orientations = range(-15,20,5)
     trialConditions = list()
     for oLeft in orientations:
@@ -296,18 +310,19 @@ def main():
 
     # Create original empirical distributions of fixations.
     empiricalFixDist = dict()
-    for numFix in xrange(1, numFixDists + 1):
+    for numFix in xrange(1, args.num_fix_dists + 1):
         empiricalFixDist[numFix] = dict()
         for valueDiff in xrange(-3,4):
             empiricalFixDist[numFix][valueDiff] = dict()
             for bin in bins:
                 empiricalFixDist[numFix][valueDiff][bin] = 0
             for fixTime in distFixations[numFix][valueDiff]:
-                bin = binStep * min((fixTime // binStep) + 1, len(bins))
+                bin = args.bin_step * min((fixTime // args.bin_step) + 1,
+                                          len(bins))
                 empiricalFixDist[numFix][valueDiff][bin] += 1
 
     # Normalize the distributions.
-    for numFix in xrange(1, numFixDists + 1):
+    for numFix in xrange(1, args.num_fix_dists + 1):
         for valueDiff in xrange(-3,4):
             sumBins = sum(empiricalFixDist[numFix][valueDiff].values())
             for bin in bins:
@@ -315,13 +330,15 @@ def main():
                     float(empiricalFixDist[numFix][valueDiff][bin]) /
                     float(sumBins))
 
-    # Repeat the process N times.
-    for i in xrange(N):
+    for i in xrange(args.num_iterations):
+        if args.verbose:
+            print("Iteration " + str(i) + "/" + str(args.num_iterations))
         # Generate simulations using the current empirical distributions and the
         # model parameters.
         simul = run_simulations(
             probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
-            numTrials, trialConditions, d, theta, sigma, bins, numFixDists)
+            args.num_simulations, trialConditions, d, theta, sigma, bins,
+            args.num_fix_dists)
         simulRT = simul.RT
         simulChoice = simul.choice
         simulValueLeft = simul.valueLeft
@@ -333,7 +350,7 @@ def main():
 
         countLastFix = dict()
         countTotal = dict()
-        for numFix in xrange(1, numFixDists + 1):
+        for numFix in xrange(1, args.num_fix_dists + 1):
             countLastFix[numFix] = dict()
             countTotal[numFix] = dict()
             for valueDiff in xrange(-3,4):
@@ -352,23 +369,24 @@ def main():
             for item, time in zip(simulFixItem[trial][:-1],
                 simulFixTime[trial][:-1]):
                 if item == 1 or item == 2:
-                    bin = binStep * min((time // binStep) + 1, len(bins))
+                    bin = args.bin_step * min((time // args.bin_step) + 1,
+                                              len(bins))
                     vDiff = fixUnfixValueDiffs[item]
                     countTotal[numFix][vDiff][bin] += 1
-                    if numFix < numFixDists:
+                    if numFix < args.num_fix_dists:
                         numFix += 1
             # Count last fixation.
             item = simulFixItem[trial][-1]
             vDiff = fixUnfixValueDiffs[item]
-            bin = binStep * min(
-                (simulUninterruptedLastFixTime[trial] // binStep) + 1,
+            bin = args.bin_step * min(
+                (simulUninterruptedLastFixTime[trial] // args.bin_step) + 1,
                 len(bins))
             countLastFix[numFix][vDiff][bin] += 1
             countTotal[numFix][vDiff][bin] += 1
 
         # Obtain true distributions of fixations.
         trueFixDist = dict()
-        for numFix in xrange(1, numFixDists + 1):
+        for numFix in xrange(1, args.num_fix_dists + 1):
             trueFixDist[numFix] = dict()
             for valueDiff in xrange(-3,4):
                 trueFixDist[numFix][valueDiff] = dict()
@@ -386,7 +404,7 @@ def main():
                             float(empiricalFixDist[numFix][valueDiff][bin]) /
                             float(probNotLastFix))
         # Normalize the distributions.
-        for numFix in xrange(1, numFixDists + 1):
+        for numFix in xrange(1, args.num_fix_dists + 1):
             for valueDiff in xrange(-3,4):
                 sumBins = sum(trueFixDist[numFix][valueDiff].values())
                 if sumBins > 0:
@@ -401,7 +419,8 @@ def main():
     # Generate final simulations.
     simul = run_simulations(
         probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
-        numTrials, trialConditions, d, theta, sigma, bins, numFixDists)
+        args.num_simulations, trialConditions, d, theta, sigma, bins,
+        args.num_fix_dists)
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
@@ -411,10 +430,11 @@ def main():
     simulFixRDV = simul.fixRDV
     simulUninterruptedLastFixTime = simul.uninterruptedLastFixTime
 
-    totalTrials = numTrials * len(trialConditions)
-    save_simulations_to_csv(
-        simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
-        simulFixTime, simulFixRDV, totalTrials)
+    if args.save_simulations:
+        totalTrials = args.num_simulations * len(trialConditions)
+        save_simulations_to_csv(
+            simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
+            simulFixTime, simulFixRDV, totalTrials)
 
 
 if __name__ == '__main__':

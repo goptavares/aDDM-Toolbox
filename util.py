@@ -131,15 +131,15 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
 def save_simulations_to_csv(choice, RT, valueLeft, valueRight, fixItem,
                             fixTime, fixRDV, numTrials):
     """
-    Saves the simulations generated with the aDDM algorithm into 7 CSV files. In
-    the following files, each entry corresponds to a simulated trial: choice.csv
-    contains the chosen items; rt.csv contains the reaction times;
-    value_left.csv contains the value of the left items; and value_right.csv
-    contains the value of the right items. In the following files, each column
-    corresponds to a simulated trial, and each column entry corresponds to a
-    fixation within the trial: fix_item.csv contains the fixated items;
-    fix_time.csv contains the fixation durations; and fix_rdv.csv contains the
-    values of the RDV at the beginning of each fixation.
+    Saves the simulations generated with the aDDM algorithm into 7 CSV files.
+    The following files contain a single row where each entry corresponds to a
+    simulated trial: choice.csv contains the chosen items; rt.csv contains the
+    reaction times; value_left.csv contains the value of the left items; and
+    value_right.csv contains the value of the right items. In the following
+    files, each column corresponds to a simulated trial, and each column entry
+    corresponds to a fixation within the trial: fix_item.csv contains the
+    fixated items; fix_time.csv contains the fixation durations; and fix_rdv.csv
+    contains the values of the RDV at the beginning of each fixation.
     Args:
       choice: dict indexed by trial number, where each entry is an integer
           corresponding to the decision made in that trial.

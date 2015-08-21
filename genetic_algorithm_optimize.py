@@ -13,6 +13,7 @@ estimated.
 from deap import base, creator, tools
 from multiprocessing import Pool
 
+import argparse
 import numpy as np
 import random
 import sys
@@ -27,6 +28,7 @@ valueLeft = dict()
 valueRight = dict()
 fixItem = dict()
 fixTime = dict()
+trialsPerSubject = 0
 
 
 def evaluate(individual):
@@ -41,7 +43,6 @@ def evaluate(individual):
           the given model.
     """
 
-    trialsPerSubject = 200  # Number of trials to be used from each subject.
     d = individual[0]
     theta = individual[1]
     sigma = individual[2]
@@ -64,11 +65,28 @@ def evaluate(individual):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="size of the thread pool")
+    parser.add_argument("--trials-per-subject", type=int, default=100,
+                        help="number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used")
+    parser.add_argument("--pop-size", type=int, default=18,
+                        help="number of individuals in each populations")
+    parser.add_argument("--num-generations", type=int, default=20,
+                        help="number of generations")
+    parser.add_argument("--crossover-rate", type=float, default=0.5,
+                        help="crossover rate")
+    parser.add_argument("--mutation-rate", type=float, default=0.3,
+                        help="mutation rate")
+    args = parser.parse_args()
+
     global choice
     global valueLeft
     global valueRight
     global fixItem
     global fixTime
+    global trialsPerSubject
 
     # Load experimental data from CSV file and update global variables.
     data = load_data_from_csv("expdata.csv", "fixations.csv",
@@ -79,13 +97,12 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
+    trialsPerSubject = args.trials_per_subject
+
     # Constants.
     dMin, dMax = 0.0002, 0.08
     thetaMin, thetaMax = 0, 1
     sigmaMin, sigmaMax = 0.05, 0.15
-    crossoverRate = 0.5
-    mutationRate = 0.3
-    numGenerations = 30
 
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -93,8 +110,7 @@ def main():
     toolbox = base.Toolbox()
 
     # Create thread pool.
-    numThreads = 8
-    pool = Pool(numThreads)
+    pool = Pool(args.num_threads)
     toolbox.register("map", pool.map)
 
     # Create individual.
@@ -107,7 +123,7 @@ def main():
 
     # Create population.
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    pop = toolbox.population(n=16)
+    pop = toolbox.population(n=args.pop_size)
 
     # Create operators.
     toolbox.register("mate", tools.cxUniform, indpb=0.4)
@@ -126,7 +142,7 @@ def main():
         if fit < bestFit:
             bestInd = ind
 
-    for g in xrange(numGenerations):
+    for g in xrange(args.num_generations):
         print("Generation " + str(g) + "...")
 
         # Select the next generation individuals.
@@ -136,13 +152,13 @@ def main():
 
         # Apply crossover and mutation on the offspring.
         for child1, child2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() < crossoverRate:
+            if random.random() < args.crossover_rate:
                 toolbox.mate(child1, child2)
                 del child1.fitness.values
                 del child2.fitness.values
 
         for mutant in offspring:
-            if random.random() < mutationRate:
+            if random.random() < args.mutation_rate:
                 toolbox.mutate(mutant)
                 del mutant.fitness.values
 

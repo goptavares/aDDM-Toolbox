@@ -10,32 +10,43 @@ set al. (2010).
 
 from scipy.stats import norm
 
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 def main():
-    # Normal distribution parameters.
-    mean = 0.05
-    sigma = 0.25
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mean", type=float, default=0.05,
+                        help="mean of the normal distribution")
+    parser.add_argument("--sigma", type=float, default=0.25,
+                        help="standard deviation of the normal distribution")
+    parser.add_argument("--state-step", type=float, default=0.1,
+                        help="step size for the RDV states")
+    parser.add_argument("--max-time", type=int, default=200,
+                        help="amount of time to run the algorithm, in "
+                        "miliseconds")
+    parser.add_argument("--display-figure", default=False, action="store_true",
+                        help="display a plot of the computed probabilities at "
+                        "the end of execution")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
 
-    # Parameters of the grid.
-    stateStep = 0.1
-    maxTime = 200
     initialBarrierUp = 1
     initialBarrierDown = -1
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
-    barrierUp = initialBarrierUp * np.ones(maxTime)
-    barrierDown = initialBarrierDown * np.ones(maxTime)
-    for t in xrange(1, maxTime):
+    barrierUp = initialBarrierUp * np.ones(args.max_time)
+    barrierDown = initialBarrierDown * np.ones(args.max_time)
+    for t in xrange(1, args.max_time):
         barrierUp[t] = initialBarrierUp / (1 + decay * (t + 1))
         barrierDown[t] = initialBarrierDown / (1 + decay * (t + 1))
 
     # The vertical axis is divided into states.
-    states = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
-                       stateStep)
+    states = np.arange(initialBarrierDown, initialBarrierUp + args.state_step,
+                       args.state_step)
     states[(states < 0.001) & (states > -0.001)] = 0
 
     # Initial probability for all states is zero, except the zero state, for
@@ -43,10 +54,10 @@ def main():
     prStates = np.zeros(states.size)
     prStates[states == 0] = 1
 
-    probUpCrossing = np.zeros(maxTime)
-    probDownCrossing = np.zeros(maxTime)
+    probUpCrossing = np.zeros(args.max_time)
+    probDownCrossing = np.zeros(args.max_time)
 
-    for t in xrange(1, maxTime):
+    for t in xrange(1, args.max_time):
         prStatesNew = np.zeros(states.size)
         
         # Update the probability of the states that remain inside the barriers.
@@ -57,11 +68,11 @@ def main():
                 # The probability of being in state B is the sum, over all
                 # states A, of the probability of being in A at the previous
                 # time step times the probability of changing from A to B. We
-                # multiply the probability by the stateStep to ensure that the
+                # multiply the probability by the state step to ensure that the
                 # area under the curve for the probability distributions
                 # probUpCrossing and probDownCrossing each add up to 1.
-                prStatesNew[s] = (stateStep * np.sum(np.multiply(prStates,
-                                  norm.pdf(change, mean, sigma))))
+                prStatesNew[s] = (args.state_step * np.sum(np.multiply(prStates,
+                                  norm.pdf(change, args.mean, args.sigma))))
 
         # Calculate the probabilities of crossing the up barrier and the down
         # barrier. This is given by the sum, over all states A, of the
@@ -69,10 +80,11 @@ def main():
         # probability of crossing the barrier if A is the previous state.
         changeUp = (barrierUp[t] * np.ones(states.size)) - states
         tempUpCross = np.sum(
-            np.multiply(prStates, 1 - norm.cdf(changeUp, mean, sigma)))
+            np.multiply(prStates,
+            1 - norm.cdf(changeUp, args.mean, args.sigma)))
         changeDown = (barrierDown[t] * np.ones(states.size)) - states
         tempDownCross = np.sum(
-            np.multiply(prStates, norm.cdf(changeDown, mean, sigma)))
+            np.multiply(prStates, norm.cdf(changeDown, args.mean, args.sigma)))
 
         # Renormalize to cope with numerical approximation.
         sumIn = np.sum(prStates)
@@ -92,24 +104,27 @@ def main():
         # inside the barriers or crossing a barrier at this time step, but not
         # the probability of already having crossed a barrier at an earlier
         # time.
-        print("Sum of probabilities at time " + str(t) + ": " +
-              str(np.sum(prStates) + probUpCrossing[t] + probDownCrossing[t]))
+        if args.verbose:
+            print("Sum of probabilities at time " + str(t) + ": " +
+                  str(np.sum(prStates) + probUpCrossing[t] +
+                  probDownCrossing[t]))
 
     # Probabilities of crossing the two barriers over time add up to 1.
-    print("Total probability over time of crossing up barrier: " +
-          str(np.sum(probUpCrossing)))
-    print("Total probability over time of crossing down barrier: " +
-          str(np.sum(probDownCrossing)))
-    print("Total probability over time of crossing either barrier: " +
-          str(np.sum(probUpCrossing) + np.sum(probDownCrossing)))
+    if args.verbose:
+        print("Total probability over time of crossing up barrier: " +
+              str(np.sum(probUpCrossing)))
+        print("Total probability over time of crossing down barrier: " +
+              str(np.sum(probDownCrossing)))
+        print("Total probability over time of crossing either barrier: " +
+              str(np.sum(probUpCrossing) + np.sum(probDownCrossing)))
 
     plt.figure
-    plt.plot(range(1, maxTime + 1), probUpCrossing, label='Up')
-    plt.plot(range(1, maxTime + 1), probDownCrossing, label='Down')
+    plt.plot(range(1, args.max_time + 1), probUpCrossing, label='Up')
+    plt.plot(range(1, args.max_time + 1), probDownCrossing, label='Down')
     plt.xlabel('Time')
     plt.ylabel('P(crossing)')
     plt.legend()
-    plt.show(block=False)
+    plt.show(block=args.display_figure)
 
 
 if __name__ == '__main__':
