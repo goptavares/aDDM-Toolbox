@@ -33,22 +33,30 @@ def get_trial_likelihood_wrapper(params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--num-values", type=int, default=4,
-                        help="number of item values to use in the artificial "
-                        "data")
+                        help="Number of item values to use in the artificial "
+                        "data.")
     parser.add_argument("--num-trials", type=int, default=32,
-                        help="number of artificial data trials to be generated "
-                        "per trial condition")
+                        help="Number of artificial data trials to be generated "
+                        "per trial condition.")
+    parser.add_argument("--d", type=float, default=0.006,
+                        help="DDM parameter for generating artificial data.")
+    parser.add_argument("--sigma", type=float, default=0.08,
+                        help="DDM parameter for generating artificial data.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.005, 0.006, 0.007],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.065, 0.08, 0.095],
+                        help="Search range for parameter sigma.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
 
-    # Parameters for generating artificial data.
-    d = 0.006
-    sigma = 0.08
+    # Trial conditions for generating artificial data.
     values = range(1, args.num_values + 1, 1)
     trialConditions = list()
     for vLeft in values:
@@ -56,20 +64,18 @@ def main():
             trialConditions.append((vLeft, vRight))
 
     # Generate artificial data.
-    simul = run_simulations(args.num_trials, trialConditions, d, sigma)
+    simul = run_simulations(args.num_trials, trialConditions, args.d,
+                            args.sigma)
     RT = simul.RT
     choice = simul.choice
     valueLeft = simul.valueLeft
     valueRight = simul.valueRight
 
-    rangeD = [0.005, 0.006, 0.007]
-    rangeSigma = [0.065, 0.08, 0.095]
-    numModels = len(rangeD) * len(rangeSigma)
-
+    numModels = len(args.range_d) * len(args.range_sigma)
     models = list()
     posteriors = dict()
-    for d in rangeD:
-        for sigma in rangeSigma:
+    for d in args.range_d:
+        for sigma in args.range_sigma:
             model = (d, sigma)
             models.append(model)
             posteriors[model] = 1./ numModels

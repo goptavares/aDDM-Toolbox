@@ -134,29 +134,38 @@ def get_model_likelihood_wrapper(params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--num-values", type=int, default=4,
-                        help="number of item values to use in the artificial "
-                        "data")
+                        help="Number of item values to use in the artificial "
+                        "data.")
     parser.add_argument("--num-trials", type=int, default=10,
-                        help="number of artificial data trials to be generated "
-                        "per trial condition")
+                        help="Number of artificial data trials to be generated "
+                        "per trial condition.")
     parser.add_argument("--num-simulations", type=int, default=10,
-                        help="number of simulations to be generated per trial "
-                        "condition, to be used in the RT histograms")
+                        help="Number of simulations to be generated per trial "
+                        "condition, to be used in the RT histograms.")
+    parser.add_argument("--bin-step", type=int, default=100,
+                        help="Size of the bin step to be used in the RT "
+                        "histograms.")
+    parser.add_argument("--max-rt", type=int, default=8000,
+                        help="Maximum RT to be used in the RT histograms.")
+    parser.add_argument("--d", type=float, default=0.006,
+                        help="DDM parameter for generating artificial data.")
+    parser.add_argument("--sigma", type=float, default=0.08,
+                        help="DDM parameter for generating artificial data.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.005, 0.006, 0.007],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.065, 0.08, 0.095],
+                        help="Search range for parameter sigma.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
 
-    # Parameters for artificial data.
-    d = 0.006
-    sigma = 0.08
-
-    maxRT = 8000
-    histBins = range(0, maxRT + 100, 100)
-    histBins = histBins + [20000]
+    histBins = range(0, args.max_rt + args.bin_step, args.bin_step)
 
     values = range(1, args.num_values + 1, 1)
     trialConditions = list()
@@ -173,7 +182,8 @@ def main():
     for trialCondition in trialConditions:
         trial = 0
         while trial < args.num_trials:
-            results = ddm(d, sigma, trialCondition[0], trialCondition[1])
+            results = ddm(args.d, args.sigma, trialCondition[0],
+                          trialCondition[1])
             RT = results.RT
             choice = results.choice
             if choice == -1:
@@ -192,11 +202,9 @@ def main():
             dataRTRight[trialCondition], bins=histBins)[0]
 
     # Grid search on the parameters of the model.
-    rangeD = [0.004, 0.006, 0.008]
-    rangeSigma = [0.06, 0.08, 0.1]
     models = list()
-    for d in rangeD:
-        for sigma in rangeSigma:
+    for d in args.range_d:
+        for sigma in args.range_sigma:
             model = (d, sigma)
             models.append(model)
 

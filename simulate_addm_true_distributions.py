@@ -136,7 +136,6 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
             # Iterate over all fixations in this trial.
             fixNumber = 2
             trialFinished = False
-            trialAborted = False
             while True:
                 # Iterate over the visual delay for the current fixation.
                 for t in xrange(int(visualDelay // timeStep)):
@@ -165,7 +164,7 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     break
 
                 # Iterate over the time interval of the current fixation.
-                for t in xrange(int(currFixTime // timeStep)):
+                for t in xrange(int((currFixTime - visualDelay) // timeStep)):
                     # We use a distribution to model changes in RDV
                     # stochastically. The mean of the distribution (the change
                     # most likely to occur) is calculated from the model
@@ -204,21 +203,32 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                 fixRDV[trialCount].append(RDV)
                 fixItem[trialCount].append(currFixItem)
                 fixTime[trialCount].append(
-                    (currFixTime - (currFixTime % timeStep)) + visualDelay)
-                trialTime += ((currFixTime - (currFixTime % timeStep)) + 
-                              visualDelay)
+                    currFixTime - (currFixTime % timeStep))
+                trialTime += currFixTime - (currFixTime % timeStep)
 
                 # Sample and iterate over transition.
-                transition = np.random.choice(distTransitions)
-                for t in xrange(int(transition // timeStep)):
+                transitionTime = np.random.choice(distTransitions)
+                for t in xrange(int(transitionTime // timeStep)):
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(0, sigma)
 
                     # If the RDV hit one of the barriers, we abort the trial,
                     # since a trial must end on an item fixation.
                     if RDV >= barrier or RDV <= -barrier:
+                        if RDV >= barrier:
+                            choice[trialCount] = -1
+                        elif RDV <= -barrier:
+                            choice[trialCount] = 1
+                        valueLeft[trialCount] = vLeft
+                        valueRight[trialCount] = vRight
+                        fixRDV[trialCount].append(RDV)
+                        fixItem[trialCount].append(0)
+                        fixTime[trialCount].append(
+                            ((t + 1) * timeStep) + motorDelay)
+                        trialTime += (((t + 1) * timeStep) + motorDelay)
+                        RT[trialCount] = trialTime
+                        uninterruptedLastFixTime[trialCount] = currFixTime
                         trialFinished = True
-                        trialAborted = True
                         break
 
                 if trialFinished:
@@ -227,8 +237,9 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                 # Add previous transition to this trial's data.
                 fixRDV[trialCount].append(RDV)
                 fixItem[trialCount].append(0)
-                fixTime[trialCount].append(transition - (transition % timeStep))
-                trialTime += transition - (transition % timeStep)
+                fixTime[trialCount].append(
+                    transitionTime - (transitionTime % timeStep))
+                trialTime += transitionTime - (transitionTime % timeStep)
 
                 # Sample the next fixation for this trial.
                 if currFixItem == 1:
@@ -243,9 +254,8 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     fixNumber += 1
 
             # Move on to the next trial.
-            if not trialAborted:
-                trial += 1
-                trialCount += 1
+            trial += 1
+            trialCount += 1
 
     simul = collections.namedtuple(
         'Simul', ['RT', 'choice', 'valueLeft', 'valueRight', 'fixItem',
@@ -257,27 +267,40 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--bin-step", type=int, default=10,
-                        help="size of the bin step to be used in the fixation "
-                        "distributions")
+                        help="Size of the bin step to be used in the fixation "
+                        "distributions.")
+    parser.add_argument("--max-fix-bin", type=int, default=3000,
+                        help="Maximum fixation length to be used in the "
+                        "fixation distributions.")
     parser.add_argument("--num-fix-dists", type=int, default=3,
-                        help="number of fixation distributions")
+                        help="Number of fixation distributions.")
     parser.add_argument("--num-iterations", type=int, default=3,
-                        help="number of iterations used to approximate the"
-                        "true distributions")
+                        help="Number of iterations used to approximate the"
+                        "true distributions.")
     parser.add_argument("--num-simulations", type=int, default=400,
-                        help="number of simulations to be generated per trial "
-                        "condition")
+                        help="Number of simulations to be generated per trial "
+                        "condition.")
+    parser.add_argument("--d", type=float, default=0.004,
+                        help="aDDM parameter for generating simulations.")
+    parser.add_argument("--sigma", type=float, default=0.07,
+                        help="aDDM parameter for generating simulations.")
+    parser.add_argument("--theta", type=float, default=0.25,
+                        help="aDDM parameter for generating simulations.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
-                        action="store_true", help="save simulations to CSV")
+                        action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     # Time bins to be used in the fixation distributions.
-    bins = range(args.bin_step, 3000 + args.bin_step, args.bin_step)
+    bins = range(args.bin_step, args.max_fix_bin + args.bin_step, args.bin_step)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     RT = data.RT
     choice = data.choice
@@ -286,7 +309,7 @@ def main():
     fixItem = data.fixItem
     fixTime = data.fixTime
 
-    # Get empirical distributions.
+    # Get empirical distributions from even trials.
     dists = get_empirical_distributions(
         valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
         useEvenTrials=True)
@@ -295,10 +318,7 @@ def main():
     distTransitions = dists.distTransitions
     distFixations = dists.distFixations
 
-    # Parameters for generating simulations.
-    d = 0.004
-    sigma = 0.07
-    theta = 0.25
+    # Trial conditions for generating simulations.
     orientations = range(-15,20,5)
     trialConditions = list()
     for oLeft in orientations:
@@ -330,15 +350,15 @@ def main():
                     float(empiricalFixDist[numFix][valueDiff][bin]) /
                     float(sumBins))
 
-    for i in xrange(args.num_iterations):
+    for it in xrange(args.num_iterations):
         if args.verbose:
-            print("Iteration " + str(i) + "/" + str(args.num_iterations))
+            print("Iteration " + str(it + 1) + "/" + str(args.num_iterations))
         # Generate simulations using the current empirical distributions and the
         # model parameters.
         simul = run_simulations(
             probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
-            args.num_simulations, trialConditions, d, theta, sigma, bins,
-            args.num_fix_dists)
+            args.num_simulations, trialConditions, args.d, args.theta,
+            args.sigma, bins, args.num_fix_dists)
         simulRT = simul.RT
         simulChoice = simul.choice
         simulValueLeft = simul.valueLeft
@@ -365,9 +385,15 @@ def main():
             fixUnfixValueDiffs = {
                 1: simulValueLeft[trial] - simulValueRight[trial],
                 2: simulValueRight[trial] - simulValueLeft[trial]}
+            lastItemFixSkipped = False
+            lastFixItem = -1
             numFix = 1
-            for item, time in zip(simulFixItem[trial][:-1],
-                simulFixTime[trial][:-1]):
+            for item, time in zip(
+                    simulFixItem[trial][::-1], simulFixTime[trial][::-1]):
+                if not lastItemFixSkipped and (item == 1 or item == 2):
+                    lastFixItem = item
+                    lastItemFixSkipped = True
+                    continue
                 if item == 1 or item == 2:
                     bin = args.bin_step * min((time // args.bin_step) + 1,
                                               len(bins))
@@ -376,8 +402,7 @@ def main():
                     if numFix < args.num_fix_dists:
                         numFix += 1
             # Count last fixation.
-            item = simulFixItem[trial][-1]
-            vDiff = fixUnfixValueDiffs[item]
+            vDiff = fixUnfixValueDiffs[lastFixItem]
             bin = args.bin_step * min(
                 (simulUninterruptedLastFixTime[trial] // args.bin_step) + 1,
                 len(bins))
@@ -419,8 +444,8 @@ def main():
     # Generate final simulations.
     simul = run_simulations(
         probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
-        args.num_simulations, trialConditions, d, theta, sigma, bins,
-        args.num_fix_dists)
+        args.num_simulations, trialConditions, args.d, args.theta, args.sigma,
+        bins, args.num_fix_dists)
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft

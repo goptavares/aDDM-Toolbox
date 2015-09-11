@@ -67,18 +67,34 @@ def evaluate(individual):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used")
+                        help="Number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used.")
     parser.add_argument("--pop-size", type=int, default=18,
-                        help="number of individuals in each populations")
+                        help="Number of individuals in each population.")
     parser.add_argument("--num-generations", type=int, default=20,
-                        help="number of generations")
+                        help="Number of generations.")
     parser.add_argument("--crossover-rate", type=float, default=0.5,
-                        help="crossover rate")
+                        help="Crossover rate.")
     parser.add_argument("--mutation-rate", type=float, default=0.3,
-                        help="mutation rate")
+                        help="Mutation rate.")
+    parser.add_argument("--lower-bound-d", type=float, default=0.0001,
+                        help="Lower search bound for parameter d.")
+    parser.add_argument("--upper-bound-d", type=float, default=0.01,
+                        help="Upper search bound for parameter d.")
+    parser.add_argument("--lower-bound-theta", type=float, default=0,
+                        help="Lower search bound for parameter theta.")
+    parser.add_argument("--upper-bound-theta", type=float, default=1,
+                        help="Upper search bound for parameter theta.")
+    parser.add_argument("--lower-bound-sigma", type=float, default=0.001,
+                        help="Lower search bound for parameter sigma.")
+    parser.add_argument("--upper-bound-sigma", type=float, default=0.1,
+                        help="Upper search bound for parameter sigma.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     args = parser.parse_args()
 
     global choice
@@ -89,7 +105,7 @@ def main():
     global trialsPerSubject
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
@@ -98,11 +114,6 @@ def main():
     fixTime = data.fixTime
 
     trialsPerSubject = args.trials_per_subject
-
-    # Constants.
-    dMin, dMax = 0.0002, 0.08
-    thetaMin, thetaMax = 0, 1
-    sigmaMin, sigmaMax = 0.05, 0.15
 
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -114,9 +125,12 @@ def main():
     toolbox.register("map", pool.map)
 
     # Create individual.
-    toolbox.register("attr_d", random.uniform, dMin, dMax)
-    toolbox.register("attr_theta", random.uniform, thetaMin, thetaMax)
-    toolbox.register("attr_sigma", random.uniform, sigmaMin, sigmaMax)
+    toolbox.register("attr_d", random.uniform, args.lower_bound_d,
+                     args.upper_bound_d)
+    toolbox.register("attr_theta", random.uniform, args.lower_bound_theta,
+                     args.upper_bound_theta)
+    toolbox.register("attr_sigma", random.uniform, args.lower_bound_sigma,
+                     args.upper_bound_sigma)
     toolbox.register("individual", tools.initCycle, creator.Individual,
                      (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_sigma),
                      n=1)
@@ -165,9 +179,12 @@ def main():
         # Evaluate the individuals which are valid but have an invalid fitness.
         invalidInd = list()
         for ind in offspring:
-            if (ind[0] <= dMin or ind[0] >= dMax or
-                ind[1] <= thetaMin or ind[1] >= thetaMax or
-                ind[2] <= sigmaMin or ind[2] >= sigmaMax):
+            if (ind[0] < args.lower_bound_d or
+                ind[0] > args.upper_bound_d or
+                ind[1] < args.lower_bound_theta or
+                ind[1] > args.upper_bound_theta or
+                ind[2] < args.lower_bound_sigma or
+                ind[2] > args.upper_bound_sigma):
                 ind.fitness.values = sys.float_info.max,
             elif not ind.fitness.valid:
                 invalidInd.append(ind)

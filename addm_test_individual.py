@@ -37,14 +37,33 @@ def get_trial_likelihood_wrapper(params):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("subject", type=str, help="subject name")
+    parser.add_argument("subject", type=str, help="Subject name.")
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--num-trials", type=int, default=200,
-                        help="number of artificial data trials to be generated "
-                        "per trial condition")
+                        help="Number of artificial data trials to be generated "
+                        "per trial condition.")
+    parser.add_argument("--d", type=float, default=0.006,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--sigma", type=float, default=0.08,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--theta", type=float, default=0.5,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.005, 0.006, 0.007],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.065, 0.08, 0.095],
+                        help="Search range for parameter sigma.")
+    parser.add_argument("--range-theta", nargs="+", type=float,
+                        default=[0.4, 0.5, 0.6],
+                        help="Search range for parameter theta.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
@@ -55,7 +74,7 @@ def main():
     fixTime = dict()
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     valueLeft[args.subject] = data.valueLeft[args.subject]
     valueRight[args.subject] = data.valueRight[args.subject]
@@ -69,11 +88,7 @@ def main():
     distTransitions = dists.distTransitions
     distFixations = dists.distFixations
 
-    # Parameters for artificial data generation.
-    d = 0.006
-    theta = 0.5
-    sigma = 0.07
-
+    # Trial conditions for artificial data generation.
     orientations = range(-15,20,5)
     trialConditions = list()
     for oLeft in orientations:
@@ -88,7 +103,7 @@ def main():
         print("Running simulations...")
     simul = run_simulations(
         probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        args.num_trials, trialConditions, d, theta, sigma=sigma)
+        args.num_trials, trialConditions, args.d, args.theta, sigma=args.sigma)
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
@@ -98,16 +113,13 @@ def main():
     # Grid search to recover the parameters.
     if args.verbose:
         print("Starting grid search...")
-    rangeD = [0.0055, 0.006, 0.0065]
-    rangeTheta = [0.3, 0.5, 0.7]
-    rangeSigma = [0.065, 0.07, 0.075]
-    numModels = len(rangeD) * len(rangeTheta) * len(rangeSigma)
-
+    numModels = (len(args.range_d) * len(args.range_theta) *
+                 len(args.range_sigma))
     models = list()
     posteriors = dict()
-    for d in rangeD:
-        for theta in rangeTheta:
-            for sigma in rangeSigma:
+    for d in args.range_d:
+        for theta in args.range_theta:
+            for sigma in args.range_sigma:
                 model = (d, theta, sigma)
                 models.append(model)
                 posteriors[model] = 1./ numModels

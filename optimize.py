@@ -62,13 +62,35 @@ def get_model_nll(params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used")
+                        help="Number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used.")
     parser.add_argument("--num-iterations", type=int, default=100,
-                        help="number of basin hopping iterations")
+                        help="Number of basin hopping iterations.")
     parser.add_argument("--step-size", type=float, default=0.001,
-                        help="step size for use in the random displacement of "
-                        "the basin hopping algorithm")
+                        help="Step size for use in the random displacement of "
+                        "the basin hopping algorithm.")
+    parser.add_argument("--initial-d", type=float, default=0.005,
+                        help="Initial value for parameter d.")
+    parser.add_argument("--initial-theta", type=float, default=0.5,
+                        help="Initial value for parameter theta.")
+    parser.add_argument("--initial-sigma", type=float, default=0.05,
+                        help="Initial value for parameter sigma.")
+    parser.add_argument("--lower-bound-d", type=float, default=0.0001,
+                        help="Lower search bound for parameter d.")
+    parser.add_argument("--upper-bound-d", type=float, default=0.01,
+                        help="Upper search bound for parameter d.")
+    parser.add_argument("--lower-bound-theta", type=float, default=0,
+                        help="Lower search bound for parameter theta.")
+    parser.add_argument("--upper-bound-theta", type=float, default=1,
+                        help="Upper search bound for parameter theta.")
+    parser.add_argument("--lower-bound-sigma", type=float, default=0.001,
+                        help="Lower search bound for parameter sigma.")
+    parser.add_argument("--upper-bound-sigma", type=float, default=0.1,
+                        help="Upper search bound for parameter sigma.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     args = parser.parse_args()
 
     global choice
@@ -79,7 +101,7 @@ def main():
     global trialsPerSubject
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
@@ -89,13 +111,14 @@ def main():
 
     trialsPerSubject = args.trials_per_subject
 
-    # Initial guess: d, theta, sigma.
-    initialParams = [0.0002, 0.5, 0.08]
+    # Initial guess for the parameters: d, theta, sigma.
+    initialParams = [args.initial_d, args.initial_theta, args.initial_sigma]
 
     # Search bounds.
-    paramsMin = [0.00005, 0., 0.05]
-    paramsMax = [0.01, 1., 0.1]
-    bounds = [(lower, upper) for lower, upper in zip(paramsMin, paramsMax)]
+    bounds = [(args.lower_bound_d, args.upper_bound_d),
+              (args.lower_bound_theta, args.upper_bound_theta),
+              (args.lower_bound_sigma, args.upper_bound_sigma)
+             ]
 
     # Optimize using Basinhopping algorithm.
     minimizerKwargs = dict(method="L-BFGS-B", bounds=bounds)

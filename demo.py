@@ -18,31 +18,34 @@ import numpy as np
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mean", type=float, default=0.05,
-                        help="mean of the normal distribution")
+                        help="Mean of the normal distribution.")
     parser.add_argument("--sigma", type=float, default=0.25,
-                        help="standard deviation of the normal distribution")
+                        help="Standard deviation of the normal distribution.")
     parser.add_argument("--state-step", type=float, default=0.1,
-                        help="step size for the RDV states")
+                        help="Step size for the RDV states.")
     parser.add_argument("--max-time", type=int, default=200,
-                        help="amount of time to run the algorithm, in "
-                        "miliseconds")
+                        help="Amount of time to run the algorithm, in "
+                        "miliseconds.")
+    parser.add_argument("--barrier-decay", type=float, default=0,
+                        help="Parameter that controls the decay of the "
+                        "barriers over time. A decay of zero means the "
+                        "barriers are constant.")
     parser.add_argument("--display-figure", default=False, action="store_true",
-                        help="display a plot of the computed probabilities at "
-                        "the end of execution")
+                        help="Display a plot of the computed probabilities at "
+                        "the end of execution.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     initialBarrierUp = 1
     initialBarrierDown = -1
 
     # The values of the barriers can change over time.
-    decay = 0  # decay = 0 means barriers are constant.
     barrierUp = initialBarrierUp * np.ones(args.max_time)
     barrierDown = initialBarrierDown * np.ones(args.max_time)
     for t in xrange(1, args.max_time):
-        barrierUp[t] = initialBarrierUp / (1 + decay * (t + 1))
-        barrierDown[t] = initialBarrierDown / (1 + decay * (t + 1))
+        barrierUp[t] = initialBarrierUp / (1 + args.barrier_decay * (t + 1))
+        barrierDown[t] = initialBarrierDown / (1 + args.barrier_decay * (t + 1))
 
     # The vertical axis is divided into states.
     states = np.arange(initialBarrierDown, initialBarrierUp + args.state_step,

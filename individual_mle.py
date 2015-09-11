@@ -111,22 +111,35 @@ def get_model_nll_wrapper(params):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("subject", type=str, help="subject name")
+    parser.add_argument("subject", type=str, help="Subject name")
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--num-trials", type=int, default=100,
-                        help="number of trials to be used in the analysis; if "
-                        "smaller than 1, all trials are used")
+                        help="Number of trials to be used in the analysis; if "
+                        "smaller than 1, all trials are used.")
     parser.add_argument("--num-simulations", type=int, default=32,
-                        help="number of simulations to be generated per trial "
-                        "condition")
+                        help="Number of simulations to be generated per trial "
+                        "condition.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.003, 0.006, 0.009],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.03, 0.06, 0.09],
+                        help="Search range for parameter sigma.")
+    parser.add_argument("--range-theta", nargs="+", type=float,
+                        default=[0.3, 0.5, 0.7],
+                        help="Search range for parameter theta.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
-                        action="store_true", help="save simulations to CSV")
+                        action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--save-figures", default=False,
-                        action="store_true", help="save figures comparing "
-                        "choice and RT curves for data and simulations")
+                        action="store_true", help="Save figures comparing "
+                        "choice and RT curves for data and simulations.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
@@ -138,7 +151,7 @@ def main():
     fixTime = dict()
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     choice[args.subject] = data.choice[args.subject]
     valueLeft[args.subject] = data.valueLeft[args.subject]
@@ -150,15 +163,11 @@ def main():
     # Grid search on the parameters of the model.
     if args.verbose:
         print("Starting grid search for subject " + args.subject + "...")
-    rangeD = [0.003, 0.006, 0.009]
-    rangeTheta = [0.2, 0.4, 0.6]
-    rangeSigma = [0.06, 0.08, 0.1]
-
     models = list()
     listParams = list()
-    for d in rangeD:
-        for theta in rangeTheta:
-            for sigma in rangeSigma:
+    for d in args.range_d:
+        for theta in args.range_theta:
+            for sigma in args.range_sigma:
                 models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
                           theta, sigma, args.num_trials, True, False,

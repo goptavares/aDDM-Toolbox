@@ -39,26 +39,39 @@ def get_trial_likelihood_wrapper(params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used")
+                        help="Number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used.")
     parser.add_argument("--num-samples", type=int, default=100,
-                        help="number of samples to be drawn from the posterior "
-                        "distribution when generating simulations")
+                        help="Number of samples to be drawn from the posterior "
+                        "distribution when generating simulations.")
     parser.add_argument("--num-simulations-per-sample", type=int, default=10,
-                        help="number of simulations to be genearated for each "
-                        "sample drawn from the posterior distribution")
+                        help="Number of simulations to be genearated for each "
+                        "sample drawn from the posterior distribution.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.003, 0.006, 0.009],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.03, 0.06, 0.09],
+                        help="Search range for parameter sigma.")
+    parser.add_argument("--range-theta", nargs="+", type=float,
+                        default=[0.3, 0.5, 0.7],
+                        help="Search range for parameter theta.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
-                        action="store_true", help="save simulations to CSV")
+                        action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
@@ -69,16 +82,13 @@ def main():
     # Posteriors estimation for the parameters of the model, using odd trials.
     if args.verbose:
         print("Starting grid search...")
-    rangeD = [0.004, 0.0045, 0.005]
-    rangeTheta = [0.25, 0.3, 0.35]
-    rangeSigma = [0.07, 0.075, 0.08]
-    numModels = len(rangeD) * len(rangeTheta) * len(rangeSigma)
-
+    numModels = (len(args.range_d) * len(args.range_theta) *
+                 len(args.range_sigma))
     models = list()
     posteriors = dict()
-    for d in rangeD:
-        for theta in rangeTheta:
-            for sigma in rangeSigma:
+    for d in args.range_d:
+        for theta in args.range_theta:
+            for sigma in args.range_sigma:
                 model = (d, theta, sigma)
                 models.append(model)
                 posteriors[model] = 1./ numModels

@@ -524,7 +524,6 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
             # Iterate over all fixations in this trial.
             fixNumber = 2
             trialFinished = False
-            trialAborted = False
             while True:
                 # Iterate over the visual delay for the current fixation.
                 for t in xrange(int(visualDelay // timeStep)):
@@ -553,7 +552,7 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     break
 
                 # Iterate over the time interval of the current fixation.
-                for t in xrange(int(currFixTime // timeStep)):
+                for t in xrange(int((currFixTime - visualDelay) // timeStep)):
                     # We use a distribution to model changes in RDV
                     # stochastically. The mean of the distribution (the change
                     # most likely to occur) is calculated from the model
@@ -592,9 +591,8 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                 fixRDV[trialCount].append(RDV)
                 fixItem[trialCount].append(currFixItem)
                 fixTime[trialCount].append(
-                    (currFixTime - (currFixTime % timeStep)) + visualDelay)
-                trialTime += ((currFixTime - (currFixTime % timeStep)) +
-                              visualDelay)
+                    currFixTime - (currFixTime % timeStep))
+                trialTime += currFixTime - (currFixTime % timeStep)
 
                 # Sample and iterate over transition time.
                 transitionTime = np.random.choice(distTransitions)
@@ -602,11 +600,22 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(0, sigma)
 
-                    # If the RDV hit one of the barriers, we abort the trial,
-                    # since a trial must end on an item fixation.
+                    # If the RDV hit one of the barriers, the trial is over.
                     if RDV >= barrier or RDV <= -barrier:
+                        if RDV >= barrier:
+                            choice[trialCount] = -1
+                        elif RDV <= -barrier:
+                            choice[trialCount] = 1
+                        valueLeft[trialCount] = vLeft
+                        valueRight[trialCount] = vRight
+                        fixRDV[trialCount].append(RDV)
+                        fixItem[trialCount].append(0)
+                        fixTime[trialCount].append(
+                            ((t + 1) * timeStep) + motorDelay)
+                        trialTime += (((t + 1) * timeStep) + motorDelay)
+                        RT[trialCount] = trialTime
+                        uninterruptedLastFixTime[trialCount] = currFixTime
                         trialFinished = True
-                        trialAborted = True
                         break
 
                 if trialFinished:
@@ -639,9 +648,8 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     fixNumber += 1
 
             # Move on to the next trial.
-            if not trialAborted:
-                trial += 1
-                trialCount += 1
+            trial += 1
+            trialCount += 1
 
     simul = collections.namedtuple(
         'Simul', ['RT', 'choice', 'valueLeft', 'valueRight', 'fixItem',

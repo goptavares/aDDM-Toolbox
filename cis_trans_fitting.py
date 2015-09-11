@@ -153,28 +153,41 @@ def get_model_nll_wrapper(params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
-                        help="size of the thread pool")
+                        help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used")
+                        help="Number of trials from each subject to be used in "
+                        "the analysis; if smaller than 1, all trials are used.")
     parser.add_argument("--num-simulations", type=int, default=400,
-                        help="number of simulations to be generated per trial "
-                        "condition")
+                        help="Number of simulations to be generated per trial "
+                        "condition.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.003, 0.006, 0.009],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.03, 0.06, 0.09],
+                        help="Search range for parameter sigma.")
+    parser.add_argument("--range-theta", nargs="+", type=float,
+                        default=[0.3, 0.5, 0.7],
+                        help="Search range for parameter theta.")
+    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--use-cis-trials", default=False, action="store_true",
-                        help="use CIS trials in the analysis")
+                        help="Use CIS trials in the analysis.")
     parser.add_argument("--use-trans-trials", default=False,
-                        action="store_true", help="use TRANS trials in the "
-                        "analysis")
+                        action="store_true", help="Use TRANS trials in the "
+                        "analysis.")
     parser.add_argument("--save-simulations", default=False,
-                        action="store_true", help="save simulations to CSV")
+                        action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--verbose", default=False, action="store_true",
-                        help="increase output verbosity")
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv("expdata.csv", "fixations.csv",
+    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
                               useAngularDists=True)
     choice = data.choice
     valueLeft = data.valueLeft
@@ -188,15 +201,11 @@ def main():
     # Grid search on the parameters of the model using odd trials only.
     if args.verbose:
         print("Starting grid search...")
-    rangeD = [0.004, 0.005, 0.006]
-    rangeTheta = [0.3, 0.5, 0.7]
-    rangeSigma = [0.04, 0.065, 0.09]
-
     models = list()
     listParams = list()
-    for d in rangeD:
-        for theta in rangeTheta:
-            for sigma in rangeSigma:
+    for d in args.range_d:
+        for theta in args.range_theta:
+            for sigma in args.range_sigma:
                 models.append((d, theta, sigma))
                 params = (choice, valueLeft, valueRight, fixItem, fixTime, d,
                           theta, sigma, args.trials_per_subject, True, False,
