@@ -68,15 +68,26 @@ def main():
     pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
     valueLeft = data.valueLeft
     valueRight = data.valueRight
     fixItem = data.fixItem
     fixTime = data.fixTime
 
     # Get empirical distributions.
-    dists = get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime)
+    try:
+        dists = get_empirical_distributions(valueLeft, valueRight, fixItem,
+                                            fixTime)
+    except Exception as e:
+        print("An exception occurred while getting empirical distributions: " +
+              str(e))
+        return
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -95,9 +106,15 @@ def main():
     # Generate artificial data.
     if args.verbose:
         print("Running simulations...")
-    simul = run_simulations(
-        probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        args.num_trials, trialConditions, args.d, args.theta, sigma=args.sigma)
+    try:
+        simul = run_simulations(
+            probLeftFixFirst, distLatencies, distTransitions, distFixations,
+            args.num_trials, trialConditions, args.d, args.theta,
+            sigma=args.sigma)
+    except Exception as e:
+        print("An exception occurred while generating artificial data: " +
+              str(e))
+        return
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft
     simulValueRight = simul.valueRight
@@ -116,7 +133,7 @@ def main():
             for sigma in args.range_sigma:
                 model = (d, theta, sigma)
                 models.append(model)
-                posteriors[model] = 1./ numModels
+                posteriors[model] = 1. / numModels
 
     trials = simulChoice.keys()
     for trial in trials:
@@ -126,7 +143,12 @@ def main():
                 (simulChoice[trial], simulValueLeft[trial],
                 simulValueRight[trial], simulFixItem[trial],
                 simulFixTime[trial], model[0], model[1], model[2]))
-        likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
+        try:
+            likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
+        except Exception as e:
+            print("An exception occurred during the likelihood computation for "
+                  "trial " + str(trial) + ": " + str(e))
+            return
 
         # Get the denominator for normalizing the posteriors.
         i = 0

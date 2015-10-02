@@ -14,11 +14,59 @@ import unittest
 import util
 
 
+class TestLoadDataFromNonexistentDataFile(unittest.TestCase):
+    def runTest(self):
+        self.assertRaisesRegexp(
+            Exception, "File test_files/dummy_file.csv does not exist",
+            util.load_data_from_csv, "test_files/dummy_file.csv",
+            "test_files/sample_fixations.csv")
+
+
+class TestLoadDataFromNonexistentFixationsFile(unittest.TestCase):
+    def runTest(self):
+        self.assertRaisesRegexp(
+            Exception, "File test_files/dummy_file.csv does not exist",
+            util.load_data_from_csv, "test_files/sample_trial_data.csv",
+            "test_files/dummy_file.csv")
+
+
+class TestLoadDataFromEmptyDataFile(unittest.TestCase):
+    def runTest(self):
+        self.assertRaisesRegexp(
+            Exception, ".*only 0 lines in file.*", util.load_data_from_csv,
+            "test_files/empty_file.csv", "test_files/sample_fixations.csv")
+
+
+class TestLoadDataFromEmptyFixationsFile(unittest.TestCase):
+    def runTest(self):
+        self.assertRaisesRegexp(
+            Exception, ".*only 0 lines in file.*", util.load_data_from_csv,
+            "test_files/sample_trial_data.csv", "test_files/empty_file.csv")
+
+
+class TestLoadDataFromDataFileWithMissingField(unittest.TestCase):
+    def runTest(self):
+        self.assertRaisesRegexp(
+            RuntimeError, "Missing field in experimental data file.",
+            util.load_data_from_csv,
+            "test_files/sample_trial_data_incomplete.csv",
+            "test_files/sample_fixations.csv")
+
+
+class TestLoadDataFromFixationsFileWithMissingField(unittest.TestCase):
+    def runTest(self):
+        self.assertRaisesRegexp(
+            RuntimeError, "Missing field in fixations file.",
+            util.load_data_from_csv,
+            "test_files/sample_trial_data.csv",
+            "test_files/sample_fixations_incomplete.csv")
+
+
 class TestLoadDataFromCSVEconomicChoice(unittest.TestCase):
     def runTest(self):
         data = util.load_data_from_csv(
-            "sample_trial_data.csv", "sample_fixations.csv",
-            useAngularDists=False)
+            "test_files/sample_trial_data.csv",
+            "test_files/sample_fixations.csv", useAngularDists=False)
 
         expectedRT = {'abc': {1: 100}, 'xyz': {1: 200}}
         expectedChoice = {'abc': {1: 1}, 'xyz': {1: -1}}
@@ -44,8 +92,8 @@ class TestLoadDataFromCSVEconomicChoice(unittest.TestCase):
 class TestLoadDataFromCSVPerceptualChoice(unittest.TestCase):
     def runTest(self):
         data = util.load_data_from_csv(
-            "sample_trial_data.csv", "sample_fixations.csv",
-            useAngularDists=True)
+            "test_files/sample_trial_data.csv",
+            "test_files/sample_fixations.csv", useAngularDists=True)
 
         expectedRT = {'abc': {1: 100}, 'xyz': {1: 200}}
         expectedChoice = {'abc': {1: 1}, 'xyz': {1: -1}}

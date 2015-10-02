@@ -53,11 +53,16 @@ def evaluate(individual):
         trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = get_trial_likelihood(
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, sigma=sigma,
-                plotResults=False)
+            try:
+                likelihood = get_trial_likelihood(
+                    choice[subject][trial], valueLeft[subject][trial],
+                    valueRight[subject][trial], fixItem[subject][trial],
+                    fixTime[subject][trial], d, theta, sigma=sigma,
+                    plotResults=False)
+            except:
+                print("An exception occurred during the likelihood computation "
+                      "for subject " + subject + ", trial " + str(trial) + ".")
+                raise
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(individual) + ": " + str(-logLikelihood))
@@ -105,8 +110,13 @@ def main():
     global trialsPerSubject
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -147,7 +157,12 @@ def main():
     toolbox.register("evaluate", evaluate)
 
     # Evaluate the entire population.
-    fitnesses = toolbox.map(toolbox.evaluate, pop)
+    try:
+        fitnesses = toolbox.map(toolbox.evaluate, pop)
+    except:
+        print("An exception occurred during the first population evaluation: " +
+              str(e))
+        return
     bestFit = sys.float_info.max
     bestInd = None
     for ind, fit in zip(pop, fitnesses):
@@ -188,7 +203,12 @@ def main():
                 ind.fitness.values = sys.float_info.max,
             elif not ind.fitness.valid:
                 invalidInd.append(ind)
-        fitnesses = map(toolbox.evaluate, invalidInd)
+        try:
+            fitnesses = map(toolbox.evaluate, invalidInd)
+        except:
+            print("An exception occurred during the population evaluation " +
+                  "for generation " + str(g) + ": " + str(e))
+            return
         for ind, fit in zip(invalidInd, fitnesses):
             ind.fitness.values = fit
 

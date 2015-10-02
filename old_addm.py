@@ -161,9 +161,14 @@ def get_model_likelihood(d, sigma, theta, trialConditions,
         RTsRight = list()
         sim = 0
         while sim < numSimulations:
-            results = addm(probLeftFixFirst, distLatencies, distTransitions,
-                           distFixations, d, sigma, theta, trialCondition[0],
-                           trialCondition[1])
+            try:
+                results = addm(probLeftFixFirst, distLatencies, distTransitions,
+                               distFixations, d, sigma, theta, trialCondition[0],
+                               trialCondition[1])
+            except:
+                print("An exception occurred while running the model for "
+                      "likelihood computation, at simulation " + str(sim) + ".")
+                raise
             if results.choice == -1:
                 RTsLeft.append(results.RT)
             elif results.choice == 1:
@@ -242,12 +247,22 @@ def main():
     pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
 
     # Get empirical distributions.
-    dists = get_empirical_distributions(
-        data.valueLeft, data.valueRight, data.fixItem, data.fixTime)
+    try:
+        dists = get_empirical_distributions(
+            data.valueLeft, data.valueRight, data.fixItem, data.fixTime)
+    except Exception as e:
+        print("An exception occurred while getting empirical distributions: " +
+              str(e))
+        return
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -275,9 +290,15 @@ def main():
         RTsRight = list()
         trial = 0
         while trial < args.num_trials:
-            results = addm(probLeftFixFirst, distLatencies, distTransitions,
-                           distFixations, args.d, args.sigma, args.theta,
-                           trialCondition[0], trialCondition[1])
+            try:
+                results = addm(probLeftFixFirst, distLatencies, distTransitions,
+                               distFixations, args.d, args.sigma, args.theta,
+                               trialCondition[0], trialCondition[1])
+            except Exception as e:
+                print("An exception occurred while running the model for "
+                      "artificial data generation, at trial " + str(trial) +
+                      ": " + str(e))
+                return
             if results.choice == -1:
                 RTsLeft.append(results.RT)
             elif results.choice == 1:

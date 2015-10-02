@@ -49,10 +49,15 @@ def get_model_nll(params):
         trials = choice[subject].keys()
         trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
         for trial in trialSet:
-            likelihood = get_trial_likelihood(
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, sigma=sigma)
+            try:
+                likelihood = get_trial_likelihood(
+                    choice[subject][trial], valueLeft[subject][trial],
+                    valueRight[subject][trial], fixItem[subject][trial],
+                    fixTime[subject][trial], d, theta, sigma=sigma)
+            except:
+                print("An exception occurred during the likelihood computation "
+                      "for subject " + subject + ", trial " + str(trial) + ".")
+                raise
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
     print("NLL for " + str(params) + ": " + str(-logLikelihood))
@@ -101,8 +106,13 @@ def main():
     global trialsPerSubject
 
     # Load experimental data from CSV file and update global variables.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -122,9 +132,14 @@ def main():
 
     # Optimize using Basinhopping algorithm.
     minimizerKwargs = dict(method="L-BFGS-B", bounds=bounds)
-    result = basinhopping(get_model_nll, initialParams,
-                          minimizer_kwargs=minimizerKwargs,
-                          niter=args.num_iterations, stepsize=args.step_size)
+    try:
+        result = basinhopping(
+            get_model_nll, initialParams, minimizer_kwargs=minimizerKwargs,
+            niter=args.num_iterations,stepsize=args.step_size)
+    except Exception as e:
+        print("An exception occurred during the basinhopping optimization: " +
+              str(e))
+        return
     print("Optimization result: " + str(result))
 
 

@@ -300,8 +300,13 @@ def main():
     bins = range(args.bin_step, args.max_fix_bin + args.bin_step, args.bin_step)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
     RT = data.RT
     choice = data.choice
     valueLeft = data.valueLeft
@@ -310,9 +315,14 @@ def main():
     fixTime = data.fixTime
 
     # Get empirical distributions from even trials.
-    dists = get_empirical_distributions(
-        valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
-        useEvenTrials=True)
+    try:
+        dists = get_empirical_distributions(
+            valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
+            useEvenTrials=True)
+    except Exception as e:
+        print("An exception occurred while getting empirical distributions: " +
+              str(e))
+        return
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -355,10 +365,15 @@ def main():
             print("Iteration " + str(it + 1) + "/" + str(args.num_iterations))
         # Generate simulations using the current empirical distributions and the
         # model parameters.
-        simul = run_simulations(
-            probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
-            args.num_simulations, trialConditions, args.d, args.theta,
-            args.sigma, bins, args.num_fix_dists)
+        try:
+            simul = run_simulations(
+                probLeftFixFirst, distLatencies, distTransitions,
+                empiricalFixDist, args.num_simulations, trialConditions, args.d,
+                args.theta, args.sigma, bins, args.num_fix_dists)
+        except Exception as e:
+            print("An exception occurred while running simulations in " +
+                  "iteration " + str(it) + ": " + str(e))
+            return
         simulRT = simul.RT
         simulChoice = simul.choice
         simulValueLeft = simul.valueLeft
@@ -442,10 +457,15 @@ def main():
         empiricalFixDist = trueFixDist
 
     # Generate final simulations.
-    simul = run_simulations(
-        probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
-        args.num_simulations, trialConditions, args.d, args.theta, args.sigma,
-        bins, args.num_fix_dists)
+    try:
+        simul = run_simulations(
+            probLeftFixFirst, distLatencies, distTransitions, empiricalFixDist,
+            args.num_simulations, trialConditions, args.d, args.theta,
+            args.sigma, bins, args.num_fix_dists)
+    except Exception as e:
+            print("An exception occurred while running the final " +
+                  "simulations: " + str(e))
+            return
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft

@@ -93,7 +93,12 @@ def get_model_likelihood(d, sigma, trialConditions, numSimulations, histBins,
         RTsRight = list()
         sim = 0
         while sim < numSimulations:
-            results = ddm(d, sigma, trialCondition[0], trialCondition[1])
+            try:
+                results = ddm(d, sigma, trialCondition[0], trialCondition[1])
+            except:
+                print("An exception occurred while running the model for "
+                      "likelihood computation, at simulation " + str(sim) + ".")
+                raise
             if results.choice == -1:
                 RTsLeft.append(results.RT)
             elif results.choice == 1:
@@ -182,8 +187,14 @@ def main():
     for trialCondition in trialConditions:
         trial = 0
         while trial < args.num_trials:
-            results = ddm(args.d, args.sigma, trialCondition[0],
-                          trialCondition[1])
+            try:
+                results = ddm(args.d, args.sigma, trialCondition[0],
+                              trialCondition[1])
+            except Exception as e:
+                print("An exception occurred while running the model for "
+                      "artificial data generation, at trial " + str(trial) +
+                      ": " + str(e))
+                return
             RT = results.RT
             choice = results.choice
             if choice == -1:

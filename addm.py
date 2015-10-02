@@ -56,11 +56,10 @@ def get_trial_likelihood(choice, valueLeft, valueRight, fixItem, fixTime, d,
       The likelihood obtained for the given trial and model.
     """
 
-    if sigma == 0:
-        if mu != 0:
-            sigma = mu * d
-        else:
-            return 0
+    if sigma == 0 and mu != 0:
+        sigma = mu * d
+    elif sigma == 0 and mu == 0:
+        raise RuntimeError("Either sigma or mu must be different from zero.")
 
     # Iterate over the fixations and discount visual delay.
     if visualDelay > 0:
@@ -86,19 +85,20 @@ def get_trial_likelihood(choice, valueLeft, valueRight, fixItem, fixTime, d,
                 correctedFixTime[i] = max(correctedFixTime[i] - motorDelay, 0)
                 break
 
-    # Iterate over the fixations and get the total time for this trial.
-    maxTime = 0
+    # Iterate over the fixations and get the number of time steps for this
+    # trial.
+    numTimeSteps = 0
     for fTime in correctedFixTime:
-        maxTime += int(fTime // timeStep)
-    if maxTime == 0:
-        return 0
-    maxTime += 1
+        numTimeSteps += int(fTime // timeStep)
+    if numTimeSteps < 1:
+        raise RuntimeError("Trial reaction time is smaller than time step.")
+    numTimeSteps += 1
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
-    barrierUp = barrier * np.ones(maxTime)
-    barrierDown = -barrier * np.ones(maxTime)
-    for t in xrange(1, maxTime):
+    barrierUp = barrier * np.ones(numTimeSteps)
+    barrierDown = -barrier * np.ones(numTimeSteps)
+    for t in xrange(1, numTimeSteps):
         barrierUp[t] = float(barrier) / float(1 + (decay * t))
         barrierDown[t] = float(-barrier) / float(1 + (decay * t))
 
@@ -113,12 +113,12 @@ def get_trial_likelihood(choice, valueLeft, valueRight, fixItem, fixTime, d,
     prStates[(states > barrierUp[0]) | (states < barrierDown[0])] = 0
 
     # The probability of crossing each barrier over the time of the trial.
-    probUpCrossing = np.zeros(maxTime)
-    probDownCrossing = np.zeros(maxTime)
+    probUpCrossing = np.zeros(numTimeSteps)
+    probDownCrossing = np.zeros(numTimeSteps)
 
     # Create matrix of traces to keep track of the RDV position probabilities.
     if plotResults:
-        traces = np.zeros((states.size, maxTime))
+        traces = np.zeros((states.size, numTimeSteps))
         traces[:, 0] = prStates
 
     time = 1
@@ -194,11 +194,11 @@ def get_trial_likelihood(choice, valueLeft, valueRight, fixItem, fixTime, d,
 
     if plotResults:
         fig1 = plt.figure()
-        xAxis = np.arange(0, maxTime * timeStep, timeStep)
+        xAxis = np.arange(0, numTimeSteps * timeStep, timeStep)
         yAxis = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
                           stateStep)
         heatmap = plt.pcolor(xAxis, yAxis, np.flipud(traces))
-        plt.xlim(0, maxTime * timeStep - timeStep)
+        plt.xlim(0, numTimeSteps * timeStep - timeStep)
         plt.xlabel('Time')
         plt.ylabel('RDV')
         plt.colorbar(heatmap)
@@ -275,6 +275,11 @@ def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
             fixDistType. Its entries are numpy arrays corresponding to the
             empirical distributions of item fixation durations in miliseconds.
     """
+
+    if (fixDistType is not 'simple' and fixDistType is not 'difficulty' and
+        fixDistType is not 'fixation'):
+        raise RuntimeError("fixDistType must be one of {'simple', "
+                           "'difficulty', 'fixation'}")
 
     if fixDistType == 'difficulty':
         valueDiffs = range(0,4,1)
@@ -451,11 +456,15 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
             interrupted when a decision was made.
     """
 
-    if sigma == 0:
-        if mu != 0:
-            sigma = mu * d
-        else:
-            return None
+    if sigma == 0 and mu != 0:
+        sigma = mu * d
+    elif sigma == 0 and mu == 0:
+        raise RuntimeError("Either sigma or mu must be different from zero.")
+
+    if (fixDistType is not 'simple' and fixDistType is not 'difficulty' and
+        fixDistType is not 'fixation'):
+        raise RuntimeError("fixDistType must be one of {'simple', "
+                           "'difficulty', 'fixation'}")
 
     # Simulation data to be returned.
     RT = dict()
@@ -761,11 +770,15 @@ def generate_probabilistic_simulations(probLeftFixFirst, distLatencies,
         sigma = model[2]
 
         # Generate simulations with the sampled model.
-        simul = run_simulations(
-            probLeftFixFirst, distLatencies, distTransitions, distFixations,
-            numSimulationsPerSample, trialConditions, d, theta, sigma=sigma,
-            mu=0, timeStep=10, barrier=1, numFixDists=3, fixDistType='fixation',
-            visualDelay=0, motorDelay=0)
+        try:
+            simul = run_simulations(
+                probLeftFixFirst, distLatencies, distTransitions, distFixations,
+                numSimulationsPerSample, trialConditions, d, theta, sigma=sigma,
+                mu=0, timeStep=timeStep, barrier=barrier,
+                numFixDists=numFixDists, fixDistType=fixDistType,
+                visualDelay=visualDelay, motorDelay=motorDelay)
+        except:
+            raise
         for trial in simul.RT.keys():
             RT[trialCount] = simul.RT[trial]
             choice[trialCount] = simul.choice[trial]

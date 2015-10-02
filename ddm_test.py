@@ -64,8 +64,13 @@ def main():
             trialConditions.append((vLeft, vRight))
 
     # Generate artificial data.
-    simul = run_simulations(args.num_trials, trialConditions, args.d,
-                            args.sigma)
+    try:
+        simul = run_simulations(args.num_trials, trialConditions, args.d,
+                                args.sigma)
+    except Exception as e:
+        print("An exception occurred while generating artificial data: " +
+              str(e))
+        return
     RT = simul.RT
     choice = simul.choice
     valueLeft = simul.valueLeft
@@ -78,7 +83,7 @@ def main():
         for sigma in args.range_sigma:
             model = (d, sigma)
             models.append(model)
-            posteriors[model] = 1./ numModels
+            posteriors[model] = 1. / numModels
 
     trials = RT.keys()
     for trial in trials:
@@ -87,7 +92,12 @@ def main():
             listParams.append(
                 (RT[trial], choice[trial], valueLeft[trial], valueRight[trial],
                 model[0], model[1]))
-        likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
+        try:
+            likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
+        except Exception as e:
+            print("An exception occurred during the likelihood computation for "
+                  "trial " + str(trial) + ": " + str(e))
+            return
 
         # Get the denominator for normalizing the posteriors.
         i = 0

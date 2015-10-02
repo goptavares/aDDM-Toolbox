@@ -43,14 +43,16 @@ def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
       The likelihood obtained for the given trial and model.
     """
 
-    # Get the total time for this trial.
-    maxTime = int(RT // timeStep)
+    # Get the number of time steps for this trial.
+    numTimeSteps = int(RT // timeStep)
+    if numTimeSteps < 1:
+        raise RuntimeError("Trial reaction time is smaller than time step.")
 
     # The values of the barriers can change over time.
     decay = 0  # decay = 0 means barriers are constant.
-    barrierUp = barrier * np.ones(maxTime)
-    barrierDown = -barrier * np.ones(maxTime)
-    for t in xrange(1, maxTime):
+    barrierUp = barrier * np.ones(numTimeSteps)
+    barrierDown = -barrier * np.ones(numTimeSteps)
+    for t in xrange(1, numTimeSteps):
         barrierUp[t] = float(barrier) / float(1 + (decay * t))
         barrierDown[t] = float(-barrier) / float(1 + (decay * t))
 
@@ -65,12 +67,12 @@ def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
     prStates[(states > barrierUp[0]) | (states < barrierDown[0])] = 0
 
     # The probability of crossing each barrier over the time of the trial.
-    probUpCrossing = np.zeros(maxTime)
-    probDownCrossing = np.zeros(maxTime)
+    probUpCrossing = np.zeros(numTimeSteps)
+    probDownCrossing = np.zeros(numTimeSteps)
 
     # Create matrix of traces to keep track of the RDV position probabilities.
     if plotResults:
-        traces = np.zeros((states.size, maxTime))
+        traces = np.zeros((states.size, numTimeSteps))
         traces[:, 0] = prStates
 
     # We use a normal distribution to model changes in RDV stochastically.
@@ -83,7 +85,7 @@ def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
     changeDown = np.subtract(barrierDown, states.reshape(states.size, 1))
 
     # Iterate over the time of this trial.
-    for time in xrange(1, maxTime):
+    for time in xrange(1, numTimeSteps):
         # Update the probability of the states that remain inside the
         # barriers. The probability of being in state B is the sum, over all
         # states A, of the probability of being in A at the previous timestep
@@ -134,11 +136,11 @@ def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
 
     if plotResults:
         fig1 = plt.figure()
-        xAxis = np.arange(0, maxTime * timeStep, timeStep)
+        xAxis = np.arange(0, numTimeSteps * timeStep, timeStep)
         yAxis = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
                           stateStep)
         heatmap = plt.pcolor(xAxis, yAxis, np.flipud(traces))
-        plt.xlim(0, maxTime * timeStep - timeStep)
+        plt.xlim(0, numTimeSteps * timeStep - timeStep)
         plt.xlabel('Time')
         plt.ylabel('RDV')
         plt.colorbar(heatmap)

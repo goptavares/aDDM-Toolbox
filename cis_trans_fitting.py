@@ -124,10 +124,15 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
             return 0
 
         for trial in trialSet:
-            likelihood = get_trial_likelihood(
-                choice[subject][trial], valueLeft[subject][trial],
-                valueRight[subject][trial], fixItem[subject][trial],
-                fixTime[subject][trial], d, theta, sigma=sigma)
+            try:
+                likelihood = get_trial_likelihood(
+                    choice[subject][trial], valueLeft[subject][trial],
+                    valueRight[subject][trial], fixItem[subject][trial],
+                    fixTime[subject][trial], d, theta, sigma=sigma)
+            except:
+                print("An exception occurred during the likelihood computation "
+                      "for subject " + subject + ", trial " + str(trial) + ".")
+                raise
             if likelihood != 0:
                 logLikelihood += np.log(likelihood)
 
@@ -187,8 +192,13 @@ def main():
     pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -227,14 +237,20 @@ def main():
         print("Min NLL: " + str(min(results)))
 
     # Get empirical distributions from even trials only.
-    evenDists = get_empirical_distributions(
-        valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
-        useEvenTrials=True, isCisTrial=isCisTrial, isTransTrial=isTransTrial,
-        useCisTrials=args.use_cis_trials, useTransTrials=args.use_trans_trials)
-    probLeftFixFirst = evenDists.probLeftFixFirst
-    distLatencies = evenDists.distLatencies
-    distTransitions = evenDists.distTransitions
-    distFixations = evenDists.distFixations
+    try:
+        dists = get_empirical_distributions(
+            valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
+            useEvenTrials=True, isCisTrial=isCisTrial,
+            isTransTrial=isTransTrial, useCisTrials=args.use_cis_trials,
+            useTransTrials=args.use_trans_trials)
+    except Exception as e:
+        print("An exception occurred while getting empirical distributions: " +
+              str(e))
+        return
+    probLeftFixFirst = dists.probLeftFixFirst
+    distLatencies = dists.distLatencies
+    distTransitions = dists.distTransitions
+    distFixations = dists.distFixations
 
     # Parameters for generating simulations.
     orientations = range(-15,20,5)
@@ -251,10 +267,14 @@ def main():
 
     # Generate simulations using the empirical distributions and the
     # estimated parameters.
-    simul = run_simulations(
-        probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        args.num_simulations, trialConditions, optimD, optimTheta,
-        sigma=optimSigma)
+    try:
+        simul = run_simulations(
+            probLeftFixFirst, distLatencies, distTransitions, distFixations,
+            args.num_simulations, trialConditions, optimD, optimTheta,
+            sigma=optimSigma)
+    except Exception as e:
+        print("An exception occurred while running simulations: " + str(e))
+        return
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft

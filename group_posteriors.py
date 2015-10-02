@@ -71,8 +71,13 @@ def main():
     pool = Pool(args.num_threads)
 
     # Load experimental data from CSV file.
-    data = load_data_from_csv(args.expdata_file_name, args.fixations_file_name,
-                              useAngularDists=True)
+    try:
+        data = load_data_from_csv(
+            args.expdata_file_name, args.fixations_file_name,
+            useAngularDists=True)
+    except Exception as e:
+        print("An exception occurred while loading the data: " + str(e))
+        return
     choice = data.choice
     valueLeft = data.valueLeft
     valueRight = data.valueRight
@@ -91,7 +96,7 @@ def main():
             for sigma in args.range_sigma:
                 model = (d, theta, sigma)
                 models.append(model)
-                posteriors[model] = 1./ numModels
+                posteriors[model] = 1. / numModels
 
     subjects = choice.keys()
     for subject in subjects:
@@ -110,7 +115,13 @@ def main():
                     (choice[subject][trial], valueLeft[subject][trial],
                     valueRight[subject][trial], fixItem[subject][trial],
                     fixTime[subject][trial], model[0], model[1], model[2]))
-            likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
+            try:
+                likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
+            except Exception as e:
+                print("An exception occurred during the likelihood computation "
+                      "for subject " + subject + ", trial " + str(trial) +
+                      ": " + str(e))
+                return
 
             # Get the denominator for normalizing the posteriors.
             i = 0
@@ -137,9 +148,14 @@ def main():
         print("Finished grid search!")
 
     # Get empirical distributions from even trials.
-    dists = get_empirical_distributions(
-        valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
-        useEvenTrials=True)
+    try:
+        dists = get_empirical_distributions(
+            valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
+            useEvenTrials=True)
+    except Exception as e:
+        print("An exception occurred while getting empirical distributions: " +
+              str(e))
+        return
     probLeftFixFirst = dists.probLeftFixFirst
     distLatencies = dists.distLatencies
     distTransitions = dists.distTransitions
@@ -156,10 +172,14 @@ def main():
                 trialConditions.append((vLeft, vRight))
 
     # Generate probabilistic simulations using the posteriors distribution.
-    simul = generate_probabilistic_simulations(
-        probLeftFixFirst, distLatencies, distTransitions, distFixations,
-        trialConditions, posteriors, args.num_samples,
-        args.num_simulations_per_sample)
+    try:
+        simul = generate_probabilistic_simulations(
+            probLeftFixFirst, distLatencies, distTransitions, distFixations,
+            trialConditions, posteriors, args.num_samples,
+            args.num_simulations_per_sample)
+    except Exception as e:
+        print("An exception occurred while running simulations: " + str(e))
+        return
     simulRT = simul.RT
     simulChoice = simul.choice
     simulValueLeft = simul.valueLeft

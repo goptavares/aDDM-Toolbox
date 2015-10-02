@@ -54,10 +54,21 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
     """
 
     # Load experimental data from CSV file.
-    df = pd.DataFrame.from_csv(expdataFileName, header=0, sep=',',
-                               index_col=None)
-    subjects = df.parcode.unique()
+    try:
+        df = pd.DataFrame.from_csv(expdataFileName, header=0, sep=',',
+                                   index_col=None)
+    except:
+        print ("Error while reading file " + expdataFileName)
+        raise
 
+    if ("parcode" not in df.columns or "trial" not in df.columns or
+        "rt" not in df.columns or "choice" not in df.columns or
+        "item_left" not in df.columns or "item_right" not in df.columns):
+        raise RuntimeError("Missing field in experimental data file. Fields "
+                           "required: parcode, trial, rt, choice, item_left "
+                           "item_right")
+
+    subjects = df.parcode.unique()
     RT = dict()
     choice = dict()
     valueLeft = dict()
@@ -101,10 +112,19 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
                 valueRight[subject][trial] = itemRight
 
     # Load fixation data from CSV file.
-    df = pd.DataFrame.from_csv(
-        fixationsFileName, header=0, sep=',', index_col=None)
-    subjects = df.parcode.unique()
+    try:
+        df = pd.DataFrame.from_csv(
+            fixationsFileName, header=0, sep=',', index_col=None)
+    except:
+        print ("Error while reading file " + fixationsFileName)
+        raise
 
+    if ("parcode" not in df.columns or "trial" not in df.columns or
+        "fix_item" not in df.columns or "fix_time" not in df.columns):
+        raise RuntimeError("Missing field in fixations file. Fields required: "
+                           "parcode, trial, fix_item, fix_time")
+
+    subjects = df.parcode.unique()
     fixItem = dict()
     fixTime = dict()
 
@@ -139,7 +159,7 @@ def save_simulations_to_csv(choice, RT, valueLeft, valueRight, fixItem,
     files, each column corresponds to a simulated trial, and each column entry
     corresponds to a fixation within the trial: fix_item.csv contains the
     fixated items; fix_time.csv contains the fixation durations; and fix_rdv.csv
-    contains the values of the RDV at the beginning of each fixation.
+    contains the value of the RDV at the beginning of each fixation.
     Args:
       choice: dict indexed by trial number, where each entry is an integer
           corresponding to the decision made in that trial.
@@ -160,10 +180,17 @@ def save_simulations_to_csv(choice, RT, valueLeft, valueRight, fixItem,
     """
 
     df = pd.DataFrame(choice, index=range(1))
-    df.to_csv('choice.csv', header=0, sep=',', index_col=None)
-
+    try:
+        df.to_csv('choice.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save choices to CSV file.")
+        raise
     df = pd.DataFrame(RT, index=range(1))
-    df.to_csv('rt.csv', header=0, sep=',', index_col=None)
+    try:
+        df.to_csv('rt.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save RTs to CSV file.")
+        raise
 
     dictItem = dict()
     dictTime = dict()
@@ -172,16 +199,37 @@ def save_simulations_to_csv(choice, RT, valueLeft, valueRight, fixItem,
         dictItem[trial] = pd.Series(fixItem[trial])
         dictTime[trial] = pd.Series(fixTime[trial])
         dictRDV[trial] = pd.Series(fixRDV[trial])
+
     df = pd.DataFrame(valueLeft, index=range(1))
-    df.to_csv('value_left.csv', header=0, sep=',', index_col=None)
+    try:
+        df.to_csv('value_left.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save left item values to CSV file.")
+        raise
     df = pd.DataFrame(valueRight, index=range(1))
-    df.to_csv('value_right.csv', header=0, sep=',', index_col=None)
+    try:
+        df.to_csv('value_right.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save right item values to CSV file.")
+        raise
     df = pd.DataFrame(dictItem)
-    df.to_csv('fix_item.csv', header=0, sep=',', index_col=None)
+    try:
+        df.to_csv('fix_item.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save fixated items to CSV file.")
+        raise
     df = pd.DataFrame(dictTime)
-    df.to_csv('fix_time.csv', header=0, sep=',', index_col=None)
+    try:
+        df.to_csv('fix_time.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save fixation durations to CSV file.")
+        raise
     df = pd.DataFrame(dictRDV)
-    df.to_csv('fix_rdv.csv', header=0, sep=',', index_col=None)
+    try:
+        df.to_csv('fix_rdv.csv', header=0, sep=',', index_col=None)
+    except:
+        print("Failed to save RDV values to CSV file.")
+        raise
 
 
 def generate_choice_curves(choicesData, valueLeftData, valueRightData,
