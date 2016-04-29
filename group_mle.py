@@ -63,18 +63,22 @@ def get_model_nll(choice, valueLeft, valueRight, fixItem, fixTime, d, theta,
         if verbose:
             print("Running subject " + subject + "...")
         trials = choice[subject].keys()
-        if trialsPerSubject < 1:
-            trialsPerSubject = len(trials)
+        if trialsPerSubject < 1: # If <1, use all trials; request half of all trials when using even or odd
+            allTrialsPerSubject = len(trials)
+            halfTrialsPerSubject = int(np.floor(len(trials)/2))
+        else:
+            allTrialsPerSubject = trialsPerSubject
+            halfTrialsPerSubject = trialsPerSubject
         if useEvenTrials and useOddTrials:
-            trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
+            trialSet = np.random.choice(trials, allTrialsPerSubject, replace=False)
         elif useEvenTrials and not useOddTrials:
             trialSet = np.random.choice(
                 [trial for trial in trials if not trial % 2],
-                trialsPerSubject, replace=False)
+                halfTrialsPerSubject, replace=False)
         elif not useEvenTrials and useOddTrials:
             trialSet = np.random.choice(
                 [trial for trial in trials if trial % 2],
-                trialsPerSubject, replace=False)
+                halfTrialsPerSubject, replace=False)
         else:
             return 0
 
@@ -121,7 +125,7 @@ def main():
     parser.add_argument("--trials-per-subject", type=int, default=100,
                         help="Number of trials from each subject to be used in "
                         "the analysis; if smaller than 1, all trials are used.")
-    parser.add_argument("--num-simulations", type=int, default=800,
+    parser.add_argument("--num-simulations", type=int, default=100,
                         help="Number of simulations to be generated per trial "
                         "condition.")
     parser.add_argument("--range-d", nargs="+", type=float,
@@ -139,24 +143,45 @@ def main():
                         default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
-    parser.add_argument("--save-figures", default=False,
+    parser.add_argument("--save-figures", default=True,
                         action="store_true", help="Save figures comparing "
                         "choice and RT curves for data and simulations.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")
+    parser.add_argument("--argdump", default=False, action="store_true",
+                        help="Print arguments at start")
     args = parser.parse_args()
 
     pool = Pool(args.num_threads)
 
+    # Print arguments for logging purposes
+    if args.argdump:
+        print("Arguments: ")
+        print("num-threads: " + str(args.num_threads))
+        print("trials-per-subject: " + str(args.trials_per_subject))
+        print("num-simulations: " + str(args.num_simulations))
+        print("range-d: " + str(args.range_d))
+        print("range-sigma: " + str(args.range_sigma))
+        print("range-theta: " + str(args.range_theta))
+        print("expdata-file-name: " + args.expdata_file_name)
+        print("fixations-file-name: " + args.fixations_file_name)
+        print("save-simulations: " + str(args.save_simulations))
+        print("save-figures: " + str(args.save_figures))
+        print("verbose: " + str(args.verbose))
+        print("argdump: " + str(args.argdump))
+
     # Load experimental data from CSV file.
+    if args.verbose:
+        print("Loading data from CSV")
     try:
         data = load_data_from_csv(
             args.expdata_file_name, args.fixations_file_name,
-            useAngularDists=True)
+            useAngularDists=False)
     except Exception as e:
         print("An exception occurred while loading the data: " + str(e))
         return
     choice = data.choice
+    RT = data.RT
     valueLeft = data.valueLeft
     valueRight = data.valueRight
     fixItem = data.fixItem
@@ -192,6 +217,8 @@ def main():
 
     # Get empirical distributions from even trials.
     try:
+        if args.verbose:
+            print("Getting empirical distributions")
         dists = get_empirical_distributions(
             valueLeft, valueRight, fixItem, fixTime, useOddTrials=False,
             useEvenTrials=True)
@@ -217,6 +244,8 @@ def main():
     # Generate simulations using the even trials distributions and the
     # estimated parameters.
     try:
+        if args.verbose:
+            print("Running simulations")
         simul = run_simulations(
             probLeftFixFirst, distLatencies, distTransitions, distFixations,
             args.num_simulations, trialConditions, optimD, optimTheta,
@@ -235,11 +264,15 @@ def main():
     totalTrials = args.num_simulations * len(trialConditions)
 
     if args.save_simulations:
+        if args.verbose:
+            print("Saving simlated data")
         save_simulations_to_csv(
             simulChoice, simulRT, simulValueLeft, simulValueRight, simulFixItem,
             simulFixTime, simulFixRDV, totalTrials)
 
     if args.save_figures:
+        if args.verbose:
+            print("Saving figures")
         # Create pdf file to save figures.
         pp = PdfPages(
             "figures_" + str(optimD) + "_" + str(optimTheta) + "_" +
