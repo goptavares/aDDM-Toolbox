@@ -15,6 +15,7 @@ from multiprocessing import Pool
 import argparse
 import csv
 import numpy as np
+#import pdb
 
 from addm import (get_trial_likelihood, get_empirical_distributions,
                   run_simulations)
@@ -37,8 +38,8 @@ def get_trial_likelihood_wrapper(params):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("subject", type=str, help="Subject name.")
-    parser.add_argument("--num-threads", type=int, default=9,
+    parser.add_argument("--subject", type=str, help="Subject name.", default = "mar")
+    parser.add_argument("--num-threads", type=int, default=11,
                         help="Size of the thread pool.")
     parser.add_argument("--num-trials", type=int, default=200,
                         help="Number of artificial data trials to be generated "
@@ -58,11 +59,11 @@ def main():
     parser.add_argument("--range-theta", nargs="+", type=float,
                         default=[0.4, 0.5, 0.6],
                         help="Search range for parameter theta.")
-    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+    parser.add_argument("--expdata-file-name", type=str, default="expdata-1subj.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
-    parser.add_argument("--verbose", default=False, action="store_true",
+                        default="fixations-1subj.csv", help="Name of fixations file.")
+    parser.add_argument("--verbose", default=True, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
@@ -113,6 +114,7 @@ def main():
     if args.verbose:
         print("Running simulations...")
     try:
+        #pdb.set_trace()
         simul = run_simulations(
             probLeftFixFirst, distLatencies, distTransitions, distFixations,
             args.num_trials, trialConditions, args.d, args.theta,
@@ -173,6 +175,7 @@ def main():
             i += 1
 
         if args.verbose and trial % 200 == 0:
+            print("Posteriors up to trial " + str(trial) + " out of " + str(len(trials)))
             for model in posteriors:
                 print("P" + str(model) + " = " + str(posteriors[model]))
             print("Sum: " + str(sum(posteriors.values())))

@@ -37,7 +37,7 @@ def get_trial_likelihood_wrapper(params):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num-threads", type=int, default=9,
+    parser.add_argument("--num-threads", type=int, default=10,
                         help="Size of the thread pool.")
     parser.add_argument("--num-trials", type=int, default=800,
                         help="Number of artificial data trials to be generated "
@@ -52,7 +52,7 @@ def main():
                         default=[0.005, 0.006, 0.007],
                         help="Search range for parameter d.")
     parser.add_argument("--range-sigma", nargs="+", type=float,
-                        default=[0.065, 0.08, 0.095],
+                        default=[0.065, 0.08, 0.95],
                         help="Search range for parameter sigma.")
     parser.add_argument("--range-theta", nargs="+", type=float,
                         default=[0.4, 0.5, 0.6],
@@ -61,7 +61,7 @@ def main():
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
                         default="fixations.csv", help="Name of fixations file.")
-    parser.add_argument("--verbose", default=False, action="store_true",
+    parser.add_argument("--verbose", default=True, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
@@ -167,6 +167,7 @@ def main():
             i += 1
 
         if args.verbose and trial % 200 == 0:
+            print("Posteriors up to trial " + str(trial) + " out of " + str(len(trials)))
             for model in posteriors:
                 print("P" + str(model) + " = " + str(posteriors[model]))
             print("Sum: " + str(sum(posteriors.values())))

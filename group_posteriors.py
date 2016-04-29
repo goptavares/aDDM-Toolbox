@@ -64,7 +64,7 @@ def main():
                         default="fixations.csv", help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
-    parser.add_argument("--verbose", default=False, action="store_true",
+    parser.add_argument("--verbose", default=True, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
