@@ -255,8 +255,8 @@ def generate_choice_curves(choicesData, valueLeftData, valueRightData,
       A handle to a figure with the plotted choice curves.
     """
 
-    countTotal = np.zeros(7)
-    countLeftChosen = np.zeros(7)
+    countTotal = np.zeros(9)
+    countLeftChosen = np.zeros(9)
 
     subjects = choicesData.keys()
     for subject in subjects:
@@ -264,45 +264,45 @@ def generate_choice_curves(choicesData, valueLeftData, valueRightData,
         for trial in trials:
             valueDiff = (valueLeftData[subject][trial] -
                          valueRightData[subject][trial])
-            idx = valueDiff + 3
+            idx = valueDiff + 4
             if choicesData[subject][trial] == -1:  # Choice was left.
                 countLeftChosen[idx] +=1
                 countTotal[idx] += 1
             elif choicesData[subject][trial] == 1:  # Choice was right.
                 countTotal[idx] += 1
 
-    stdProbLeftChosen = np.zeros(7)
-    probLeftChosen = np.zeros(7)
-    for i in xrange(0,7):
+    stdProbLeftChosen = np.zeros(9)
+    probLeftChosen = np.zeros(9)
+    for i in xrange(0,9):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
         stdProbLeftChosen[i] = np.sqrt(
             (probLeftChosen[i] * (1 - probLeftChosen[i])) / countTotal[i])
 
     colors = cm.rainbow(np.linspace(0, 1, 9))
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), probLeftChosen, yerr=stdProbLeftChosen,
+    plt.errorbar(range(-4,5,1), probLeftChosen, yerr=stdProbLeftChosen,
                  color=colors[0], label='Data')
 
-    countTotal = np.zeros(7)
-    countLeftChosen = np.zeros(7)
+    countTotal = np.zeros(9)
+    countLeftChosen = np.zeros(9)
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeftSimul[trial] - valueRightSimul[trial]
-        idx = valueDiff + 3
+        idx = valueDiff + 4
         if choicesSimul[trial] == -1:  # Choice was left.
             countLeftChosen[idx] +=1
             countTotal[idx] += 1
         elif choicesSimul[trial] == 1:  # Choice was right.
             countTotal[idx] += 1
 
-    stdProbLeftChosen = np.zeros(7)
-    probLeftChosen = np.zeros(7)
-    for i in xrange(0,7):
+    stdProbLeftChosen = np.zeros(9)
+    probLeftChosen = np.zeros(9)
+    for i in xrange(0,9):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
         stdProbLeftChosen[i] = np.sqrt(
             (probLeftChosen[i] * (1 - probLeftChosen[i])) / countTotal[i])
 
-    plt.errorbar(range(-3,4,1), probLeftChosen, yerr=stdProbLeftChosen,
+    plt.errorbar(range(-4,5,1), probLeftChosen, yerr=stdProbLeftChosen,
                  color=colors[5], label='Simulations')
     plt.xlabel('Value difference')
     plt.ylabel('P(choose left)')
@@ -334,7 +334,7 @@ def generate_rt_curves(RTsData, valueLeftData, valueRightData, RTsSimul,
     """
 
     RTsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in xrange(-4,5,1):
         RTsPerValueDiff[valueDiff] = list()
 
     subjects = RTsData.keys()
@@ -345,36 +345,36 @@ def generate_rt_curves(RTsData, valueLeftData, valueRightData, RTsSimul,
                          valueRightData[subject][trial])
             RTsPerValueDiff[valueDiff].append(RTsData[subject][trial])
 
-    meanRTs = np.zeros(7)
-    stdRTs = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    meanRTs = np.zeros(9)
+    stdRTs = np.zeros(9)
+    for valueDiff in xrange(-4,5,1):
+        idx = valueDiff + 4
         meanRTs[idx] = np.mean(np.array(RTsPerValueDiff[valueDiff]))
         stdRTs[idx] = (np.std(np.array(RTsPerValueDiff[valueDiff])) /
                        np.sqrt(len(RTsPerValueDiff[valueDiff])))
 
     colors = cm.rainbow(np.linspace(0, 1, 9))
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), meanRTs, yerr=stdRTs, label='Data',
+    plt.errorbar(range(-4,5,1), meanRTs, yerr=stdRTs, label='Data',
                  color=colors[0])
 
     RTsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in xrange(-4,5,1):
         RTsPerValueDiff[valueDiff] = list()
 
     for trial in xrange(0, numTrials):
         valueDiff = valueLeftSimul[trial] - valueRightSimul[trial]
         RTsPerValueDiff[valueDiff].append(RTsSimul[trial])
 
-    meanRTs = np.zeros(7)
-    stdRTs = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    meanRTs = np.zeros(9)
+    stdRTs = np.zeros(9)
+    for valueDiff in xrange(-4,5,1):
+        idx = valueDiff + 4
         meanRTs[idx] = np.mean(np.array(RTsPerValueDiff[valueDiff]))
         stdRTs[idx] = (np.std(np.array(RTsPerValueDiff[valueDiff])) /
                        np.sqrt(len(RTsPerValueDiff[valueDiff])))
 
-    plt.errorbar(range(-3,4,1), meanRTs, yerr=stdRTs, label='Simulations',
+    plt.errorbar(range(-4,5,1), meanRTs, yerr=stdRTs, label='Simulations',
                  color=colors[5])
     plt.xlabel('Value difference')
     plt.ylabel('Mean RT')
