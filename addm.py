@@ -217,7 +217,7 @@ def get_trial_likelihood(choice, valueLeft, valueRight, fixItem, fixTime, d,
 
 
 def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
-                                timeStep=10, maxFixTime=3000, numFixDists=3,
+                                timeStep=10, maxFixTime=3000, numFixDists=2,
                                 fixDistType='fixation', useOddTrials=True,
                                 useEvenTrials=True, isCisTrial=None,
                                 isTransTrial=None, useCisTrials=True,
@@ -282,9 +282,9 @@ def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
                            "'difficulty', 'fixation'}")
 
     if fixDistType == 'difficulty':
-        valueDiffs = range(0,4,1)
+        valueDiffs = range(0,5,1)
     elif fixDistType == 'fixation':
-        valueDiffs = range(-3,4,1)
+        valueDiffs = range(-4,5,1)
 
     countLeftFirst = 0
     countTotalTrials = 0
@@ -378,6 +378,10 @@ def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
             for valueDiff in valueDiffs:
                 distFixations[fixNumber][valueDiff] = np.array(
                     distFixationsList[fixNumber][valueDiff])
+                currDistFixations = distFixations[fixNumber][valueDiff]
+                if not currDistFixations.size:
+                    print "Warning: no fixations for fixNumber %d, valueDiff %d, subject %s" % (fixNumber, valueDiff, subject)
+
 
     dists = collections.namedtuple(
         'Dists', ['probLeftFixFirst', 'distLatencies', 'distTransitions',
@@ -388,7 +392,7 @@ def get_empirical_distributions(valueLeft, valueRight, fixItem, fixTime,
 
 def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                     distFixations, numTrials, trialConditions, d, theta,
-                    sigma=0, mu=0, timeStep=10, barrier=1, numFixDists=3,
+                    sigma=0, mu=0, timeStep=10, barrier=1, numFixDists=2,
                     fixDistType='fixation', visualDelay=0, motorDelay=0):
     """
     Generates aDDM simulations given the model parameters and some empirical
@@ -651,8 +655,11 @@ def run_simulations(probLeftFixFirst, distLatencies, distTransitions,
                         distFixations[fixNumber][valueDiff]) - visualDelay
                 elif fixDistType == 'fixation':
                     valueDiff = fixUnfixValueDiffs[currFixItem]
-                    currFixTime = np.random.choice(
-                        distFixations[fixNumber][valueDiff]) - visualDelay
+                    currFixDist = distFixations[fixNumber][valueDiff]
+                    if not currFixDist.size:
+                        currFixDist = distFixations[fixNumber - 1][valueDiff]
+                        print "Warning: No fixation times for fixNumber == %d and valueDiff == %d ; compensating by drawing from fixNumber - 1" % (fixNumber, valueDiff)
+                    currFixTime = np.random.choice(currFixDist) - visualDelay
                 if fixNumber < numFixDists:
                     fixNumber += 1
 
