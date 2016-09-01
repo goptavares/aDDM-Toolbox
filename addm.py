@@ -43,8 +43,8 @@ class FixationData:
         """
         if (fixDistType is not 'simple' and fixDistType is not 'difficulty' and
             fixDistType is not 'fixation'):
-            raise RuntimeError("Argument fixDistType must be one of {'simple', "
-                               "'difficulty', 'fixation'}")
+            raise RuntimeError("Argument fixDistType must be one of "
+                               "{'simple', 'difficulty', 'fixation'}")
         self.probFixLeftFirst = probFixLeftFirst
         self.latencies = latencies
         self.transitions = transitions
@@ -53,10 +53,10 @@ class FixationData:
 
 
 class aDDMTrial:
-    def __init__(self, RT, choice, valueLeft, valueRight, fixItem=np.empty((0)),
-                 fixTime=np.empty((0)), fixRDV=np.empty((0)),
-                 uninterruptedLastFixTime=None, isCisTrial=False,
-                 isTransTrial=False):
+    def __init__(self, RT, choice, valueLeft, valueRight,
+                 fixItem=np.empty((0)), fixTime=np.empty((0)),
+                 fixRDV=np.empty((0)), uninterruptedLastFixTime=None,
+                 isCisTrial=False, isTransTrial=False):
         """
         Args:
           RT: reaction time in miliseconds.
@@ -64,8 +64,8 @@ class aDDMTrial:
           valueLeft: value of the left item.
           valueRight: value of the right item.
           fixItem: list of items fixated during the trial in chronological
-              order; 1 correponds to left, 2 corresponds to right, and any other
-              value is considered a transition/blank fixation.
+              order; 1 correponds to left, 2 corresponds to right, and any
+              other value is considered a transition/blank fixation.
           fixTime: list of fixation durations (in miliseconds) in chronological
               order.
           fixRDV: list of floats corresponding to the RDV values at the end of
@@ -101,8 +101,8 @@ def unwrap_addm_get_trial_likelihood(arg, **kwarg):
 
 class aDDM:
     """
-    Implementation of the attentional drift-diffusion model (aDDM), as described
-    by Krajbich et al. (2010).
+    Implementation of the attentional drift-diffusion model (aDDM), as
+    described by Krajbich et al. (2010).
     """
     def __init__(self, d, sigma, theta, barrier=1):
         """
@@ -174,7 +174,8 @@ class aDDM:
         for fTime in correctedFixTime:
             numTimeSteps += int(fTime // timeStep)
         if numTimeSteps < 1:
-            raise RuntimeError("Trial reaction time is smaller than time step.")
+            raise RuntimeError("Trial reaction time is smaller than time "
+                               "step.")
         numTimeSteps += 1
 
         # The values of the barriers can change over time.
@@ -194,8 +195,8 @@ class aDDM:
                            barrierUp[0] - (stateStep / 2.) + stateStep,
                            stateStep)
 
-        # Initial probability for all states is zero, except the zero state, for
-        # which the initial probability is one.
+        # Initial probability for all states is zero, except the zero state,
+        # for which the initial probability is one.
         prStates = np.zeros((states.size, numTimeSteps))
         prStates[np.where(states==0)[0],0] = 1
 
@@ -227,12 +228,13 @@ class aDDM:
             # Iterate over the time interval of this fixation.
             for t in xrange(int(fTime // timeStep)):
                 # Update the probability of the states that remain inside the
-                # barriers. The probability of being in state B is the sum, over
-                # all states A, of the probability of being in A at the previous
-                # timestep times the probability of changing from A to B. We
-                # multiply the probability by the stateStep to ensure that the
-                # area under the curves for the probability distributions
-                # probUpCrossing and probDownCrossing add up to 1.
+                # barriers. The probability of being in state B is the sum,
+                # over all states A, of the probability of being in A at the
+                # previous timestep times the probability of changing from A to
+                # B. We multiply the probability by the stateStep to ensure
+                # that the area under the curves for the probability
+                # distributions probUpCrossing and probDownCrossing add up to
+                # 1.
                 prStatesNew = (
                     stateStep *
                     np.dot(norm.pdf(changeMatrix, mean, self.sigma),
@@ -240,11 +242,11 @@ class aDDM:
                 prStatesNew[(states >= barrierUp[time]) |
                             (states <= barrierDown[time])] = 0
 
-                # Calculate the probabilities of crossing the up barrier and the
-                # down barrier. This is given by the sum, over all states A, of
-                # the probability of being in A at the previous timestep times
-                # the probability of crossing the barrier if A is the previous
-                # state.
+                # Calculate the probabilities of crossing the up barrier and
+                # the down barrier. This is given by the sum, over all states
+                # A, of the probability of being in A at the previous timestep
+                # times the probability of crossing the barrier if A is the
+                # previous state.
                 tempUpCross = np.dot(
                     prStates[:,time-1],
                     (1 - norm.cdf(changeUp[:, time], mean, self.sigma)))
@@ -511,7 +513,8 @@ class aDDM:
                     fixItem.append(currFixItem)
                     fixTime.append(
                         ((t + 1) * timeStep) + visualDelay + motorDelay)
-                    trialTime += ((t + 1) * timeStep) + visualDelay + motorDelay
+                    trialTime += (((t + 1) * timeStep) + visualDelay +
+                                  motorDelay)
                     RT = trialTime
                     uninterruptedLastFixTime = currFixTime
                     trialFinished = True

@@ -6,9 +6,9 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Test to check the validity of the addm parameter estimation. Artificil data is
 generated using specific parameters for the model. Fixations are sampled from
-the data pooled from all subjects (or from a subset of subjects, when provided).
-The parameters used for data generation are then recovered through a posterior
-distribution estimation procedure.
+the data pooled from all subjects (or from a subset of subjects, when
+provided). The parameters used for data generation are then recovered through a
+posterior distribution estimation procedure.
 """
 
 import argparse
@@ -26,8 +26,8 @@ def main():
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
     parser.add_argument("--num-trials", type=int, default=800,
-                        help="Number of artificial data trials to be generated "
-                        "per trial condition.")
+                        help="Number of artificial data trials to be "
+                        "generated per trial condition.")
     parser.add_argument("--d", type=float, default=0.006,
                         help="aDDM parameter for generating artificial data.")
     parser.add_argument("--sigma", type=float, default=0.08,
@@ -46,7 +46,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()

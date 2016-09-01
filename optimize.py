@@ -5,9 +5,9 @@ optimize.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood estimation procedure for the attentional drift-diffusion
-model (aDDM), using a Basinhopping algorithm to search the parameter space. Data
-from all subjects is pooled such that a single set of optimal parameters is
-estimated.
+model (aDDM), using a Basinhopping algorithm to search the parameter space.
+Data from all subjects is pooled such that a single set of optimal parameters
+is estimated.
 """
 
 from scipy.optimize import basinhopping
@@ -29,8 +29,8 @@ def get_model_nll(params):
     Computes the negative log likelihood of the global data set given the
     parameters of the aDDM.
     Args:
-      params: list containing the 3 model parameters, in the following order: d,
-          theta, sigma.
+      params: list containing the 3 model parameters, in the following order:
+          d, theta, sigma.
     Returns:
       The negative log likelihood for the global data set and the given model.
     """
@@ -63,8 +63,9 @@ def main():
                         help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="Number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used.")
+                        help="Number of trials from each subject to be used "
+                        "in the analysis; if smaller than 1, all trials are "
+                        "used.")
     parser.add_argument("--num-iterations", type=int, default=100,
                         help="Number of basin hopping iterations.")
     parser.add_argument("--step-size", type=float, default=0.001,
@@ -91,7 +92,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     args = parser.parse_args()
 
     global dataTrials

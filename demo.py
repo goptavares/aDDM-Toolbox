@@ -32,9 +32,9 @@ def main():
     parser.add_argument("--max-time", type=int, default=200,
                         help="Amount of time to run the algorithm, in "
                         "miliseconds.")
-    parser.add_argument("--display-figures", default=False, action="store_true",
-                        help="Display plots showing the computation at the end "
-                        "of execution.")
+    parser.add_argument("--display-figures", default=False,
+                        action="store_true", help="Display plots showing the "
+                        "computation at the end of execution.")
     args = parser.parse_args()
 
     initialBarrierUp = args.barrier_size
@@ -45,7 +45,8 @@ def main():
     barrierDown = initialBarrierDown * np.ones(args.max_time)
     for t in xrange(1, args.max_time):
         barrierUp[t] = initialBarrierUp / (1 + args.barrier_decay * (t + 1))
-        barrierDown[t] = initialBarrierDown / (1 + args.barrier_decay * (t + 1))
+        barrierDown[t] = (initialBarrierDown /
+                          (1 + args.barrier_decay * (t + 1)))
 
     # Obtain correct state step.
     approxStateStep = args.state_step
@@ -104,11 +105,11 @@ def main():
         tempDownCross = tempDownCross * sumIn / sumCurrent
 
         # Update the probabilities of each state and the probabilities of
-        # crossing each barrier at this timestep. Note that the probabilities at
-        #each time step DO NOT add up to 1. These probabilities account only for
-        # the probability of the signal staying inside the barriers or crossing
-        # a barrier at this time step, but not the probability of already having
-        # crossed a barrier at an earlier time.
+        # crossing each barrier at this timestep. Note that the probabilities
+        # at each time step DO NOT add up to 1. These probabilities account
+        # only for the probability of the signal staying inside the barriers or
+        # crossing a barrier at this time step, but not the probability of
+        # already having crossed a barrier at an earlier time.
         prStates[:,t] = prStatesNew
         probUpCrossing[t] = tempUpCross
         probDownCrossing[t] = tempDownCross

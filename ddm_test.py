@@ -22,8 +22,8 @@ def main():
                         help="Number of item values to use in the artificial "
                         "data.")
     parser.add_argument("--num-trials", type=int, default=32,
-                        help="Number of artificial data trials to be generated "
-                        "per trial condition.")
+                        help="Number of artificial data trials to be "
+                        "generated per trial condition.")
     parser.add_argument("--d", type=float, default=0.006,
                         help="DDM parameter for generating artificial data.")
     parser.add_argument("--sigma", type=float, default=0.08,

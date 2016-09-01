@@ -86,7 +86,8 @@ class DDM:
         # Get the number of time steps for this trial.
         numTimeSteps = int(trial.RT // timeStep)
         if numTimeSteps < 1:
-            raise RuntimeError("Trial reaction time is smaller than time step.")
+            raise RuntimeError("Trial reaction time is smaller than time "
+                               "step.")
 
         # The values of the barriers can change over time.
         decay = 0  # decay = 0 means barriers are constant.
@@ -105,8 +106,8 @@ class DDM:
                            barrierUp[0] - (stateStep / 2.) + stateStep,
                            stateStep)
 
-        # Initial probability for all states is zero, except the zero state, for
-        # which the initial probability is one.
+        # Initial probability for all states is zero, except the zero state,
+        # for which the initial probability is one.
         prStates = np.zeros((states.size, numTimeSteps))
         prStates[np.where(states==0)[0],0] = 1
 
@@ -126,8 +127,8 @@ class DDM:
         # Iterate over the time of this trial.
         for time in xrange(1, numTimeSteps):
             # Update the probability of the states that remain inside the
-            # barriers. The probability of being in state B is the sum, over all
-            # states A, of the probability of being in A at the previous
+            # barriers. The probability of being in state B is the sum, over
+            # all states A, of the probability of being in A at the previous
             # time step times the probability of changing from A to B. We
             # multiply the probability by the stateStep to ensure that the area
             # under the curves for the probability distributions probUpCrossing

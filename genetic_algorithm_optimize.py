@@ -5,8 +5,8 @@ genetic_algorithm_optimize.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood estimation procedure for the attentional drift-diffusion
-model (aDDM), using a genetic algorithm to search the parameter space. Data from
-all subjects is pooled such that a single set of optimal parameters is
+model (aDDM), using a genetic algorithm to search the parameter space. Data
+from all subjects is pooled such that a single set of optimal parameters is
 estimated.
 """
 
@@ -68,8 +68,9 @@ def main():
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="Number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used.")
+                        help="Number of trials from each subject to be used "
+                        "in the analysis; if smaller than 1, all trials are "
+                        "used.")
     parser.add_argument("--pop-size", type=int, default=18,
                         help="Number of individuals in each population.")
     parser.add_argument("--num-generations", type=int, default=20,
@@ -93,7 +94,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     args = parser.parse_args()
 
     global dataTrials
@@ -152,8 +154,8 @@ def main():
     try:
         fitnesses = toolbox.map(toolbox.evaluate, pop)
     except:
-        print("An exception occurred during the first population evaluation: " +
-              str(e))
+        print("An exception occurred during the first population "
+              "evaluation: " + str(e))
         return
     bestFit = sys.float_info.max
     bestInd = None

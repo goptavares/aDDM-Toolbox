@@ -5,12 +5,12 @@ old_ddm.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Old implementation of the traditional drift-diffusion model (DDM). This
-algorithm uses reaction time histograms conditioned on choice from both data and
-simulations to estimate each model's likelihood. Here we perforrm a test to
-check the validity of this algorithm. Artificil data is generated using specific
-parameters for the model. These parameters are then recovered through a maximum
-likelihood estimation procedure, using a grid search over the 2 free parameters
-of the model.
+algorithm uses reaction time histograms conditioned on choice from both data
+and simulations to estimate each model's likelihood. Here we perforrm a test to
+check the validity of this algorithm. Artificil data is generated using
+specific parameters for the model. These parameters are then recovered through
+a maximum likelihood estimation procedure, using a grid search over the 2 free
+parameters of the model.
 """
 
 from multiprocessing import Pool
@@ -64,8 +64,8 @@ class DDM:
         Args:
           valueLeft: integer, value of the left item.
           valueRight: integer, value of the right item.
-          timeStep: integer, value in miliseconds which determines how often the
-              RDV signal is updated.
+          timeStep: integer, value in miliseconds which determines how often
+              the RDV signal is updated.
         Returns:
           A DDMTrial object resulting from the simulation.
         """
@@ -93,7 +93,8 @@ class DDM:
         provided in the form of reaction time histograms conditioned on choice.
         Args:
           trialConditions: list of pairs corresponding to the different trial
-              conditions. Each pair contains the values of left and right items.
+              conditions. Each pair contains the values of left and right
+              items.
           numSimulations: integer, number of simulations per trial condition to
               be generated when creating reaction time histograms.
           histBins: list of numbers corresponding to the time bins used to
@@ -156,8 +157,8 @@ def main():
                         help="Number of item values to use in the artificial "
                         "data.")
     parser.add_argument("--num-trials", type=int, default=10,
-                        help="Number of artificial data trials to be generated "
-                        "per trial condition.")
+                        help="Number of artificial data trials to be "
+                        "generated per trial condition.")
     parser.add_argument("--num-simulations", type=int, default=10,
                         help="Number of simulations to be generated per trial "
                         "condition, to be used in the RT histograms.")

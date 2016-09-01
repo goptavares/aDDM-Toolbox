@@ -75,7 +75,8 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
                 data[subjectId].append(
                     aDDMTrial(RT=dataTrial[0,0], choice=dataTrial[0,1],
                               valueLeft=valueLeft, valueRight=valueRight,
-                              isCisTrial=isCisTrial, isTransTrial=isTransTrial))
+                              isCisTrial=isCisTrial,
+                              isTransTrial=isTransTrial))
             else:
                 data[subjectId].append(
                     aDDMTrial(RT=dataTrial[0,0], choice=dataTrial[0,1],
@@ -181,7 +182,8 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
                 continue
             if not useEvenTrials and trialId % 2 == 0:
                 continue
-            if not useCisTrials and trial.isCisTrial and not trial.isTransTrial:
+            if (not useCisTrials and trial.isCisTrial and
+                not trial.isTransTrial):
                 continue
             if (not useTransTrials and trial.isTransTrial
                 and not trial.isCisTrial):
@@ -200,7 +202,8 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
                 excludeCount += 1
                 if (trial.fixItem[i] == 1 or trial.fixItem[i] == 2):
                     break
-            # Iterate over this trial's fixations (skip the last item fixation).
+            # Iterate over this trial's fixations (skip the last item
+            # fixation).
             latency = 0
             firstItemFixReached = False
             fixNumber = 1
@@ -297,7 +300,8 @@ def generate_choice_curves(dataTrials, simulTrials):
     Args:
       dataTrials: a list of aDDMTrial objects corresponding to the experimental
           data.
-      simulTrials: a list of aDDMTrial objects corresponding to the simulations.
+      simulTrials: a list of aDDMTrial objects corresponding to the
+          simulations.
     Returns:
       A handle to a figure with the plotted choice curves.
     """
@@ -358,7 +362,8 @@ def generate_rt_curves(dataTrials, simulTrials):
     Args:
       dataTrials: a list of aDDMTrial objects corresponding to the experimental
           data.
-      simulTrials: a list of aDDMTrial objects corresponding to the simulations.
+      simulTrials: a list of aDDMTrial objects corresponding to the
+          simulations.
     Returns:
       A handle to a figure with the plotted reaction time curves.
     """

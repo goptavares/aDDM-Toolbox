@@ -43,13 +43,15 @@ class TestLoadData(unittest.TestCase):
 
     def testLoadDataFromEmptyDataFile(self):
         self.assertRaisesRegexp(
-            Exception, "No columns to parse from file", util.load_data_from_csv,
-            "test_files/empty_file.csv", "test_files/sample_fixations.csv")
+            Exception, "No columns to parse from file",
+            util.load_data_from_csv, "test_files/empty_file.csv",
+            "test_files/sample_fixations.csv")
 
     def testLoadDataFromEmptyFixationsFile(self):
         self.assertRaisesRegexp(
-            Exception, "No columns to parse from file", util.load_data_from_csv,
-            "test_files/sample_trial_data.csv", "test_files/empty_file.csv")
+            Exception, "No columns to parse from file",
+            util.load_data_from_csv, "test_files/sample_trial_data.csv",
+            "test_files/empty_file.csv")
 
     def testLoadDataFromDataFileWithMissingField(self):
         self.assertRaisesRegexp(
@@ -92,8 +94,8 @@ class TestLoadData(unittest.TestCase):
                                          isTransTrial=True)]
         expectedData['xyz'] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
                                          valueRight=1, fixItem=[1, 2, 1],
-                                         fixTime=[100, 50, 50], isCisTrial=True,
-                                         isTransTrial=False)]
+                                         fixTime=[100, 50, 50],
+                                         isCisTrial=True, isTransTrial=False)]
         self.compareTrials(expectedData['abc'][0], data['abc'][0])
         self.compareTrials(expectedData['xyz'][0], data['xyz'][0])
 
@@ -113,7 +115,8 @@ class TestSaveSimulationsToCSV(unittest.TestCase):
         self.assertEqual("parcode,trial,rt,choice,item_left,item_right\n",
                          expdataFile.readline())
         self.assertEqual("dummy_subject,0,100,1,1,0\n", expdataFile.readline())
-        self.assertEqual("dummy_subject,1,200,-1,2,1\n", expdataFile.readline())
+        self.assertEqual("dummy_subject,1,200,-1,2,1\n",
+                         expdataFile.readline())
 
         fixationsFile = open('simul_fixations.csv', 'r')
         self.assertEqual("parcode,trial,fix_item,fix_time\n",

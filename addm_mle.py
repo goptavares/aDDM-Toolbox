@@ -35,8 +35,9 @@ def main():
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="Number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used.")
+                        help="Number of trials from each subject to be used "
+                        "in the analysis; if smaller than 1, all trials are "
+                        "used.")
     parser.add_argument("--num-simulations", type=int, default=800,
                         help="Number of simulations to be generated per trial "
                         "condition.")
@@ -52,7 +53,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--save-figures", default=False,
@@ -86,7 +88,8 @@ def main():
                      if 1 <= args.trials_per_subject <= maxNumTrials
                      else maxNumTrials)
         trialSet = np.random.choice(
-            [trialId for trialId in range(len(data[subjectId])) if trialId % 2],
+            [trialId for trialId in range(len(data[subjectId]))
+             if trialId % 2],
             numTrials, replace=False)
         dataTrials.extend([data[subjectId][t] for t in trialSet])
 
@@ -127,7 +130,8 @@ def main():
     # Get fixation distributions from even trials.
     try:
         fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
+            data, subjectIds=subjectIds, useOddTrials=False,
+            useEvenTrials=True)
     except:
         print("An exception occurred while getting fixation distributions.")
         raise

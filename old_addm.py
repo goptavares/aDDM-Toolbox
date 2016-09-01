@@ -5,12 +5,12 @@ old_addm.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Old implementation of the attentional drift-diffusion model (aDDM). This
-algorithm uses reaction time histograms conditioned on choice from both data and
-simulations to estimate each model's likelihood. Here we perforrm a test to
-check the validity of this algorithm. Artificil data is generated using specific
-parameters for the model. These parameters are then recovered through a maximum
-likelihood estimation procedure, using a grid search over the 3 free parameters
-of the model.
+algorithm uses reaction time histograms conditioned on choice from both data
+and simulations to estimate each model's likelihood. Here we perforrm a test to
+check the validity of this algorithm. Artificil data is generated using
+specific parameters for the model. These parameters are then recovered through
+a maximum likelihood estimation procedure, using a grid search over the 3 free
+parameters of the model.
 """
 
 from multiprocessing import Pool
@@ -39,8 +39,8 @@ def wrap_addm_get_model_likelihood(args):
 
 class aDDM:
     """
-    Implementation of the attentional drift-diffusion model (aDDM), as described
-    by Krajbich et al. (2010).
+    Implementation of the attentional drift-diffusion model (aDDM), as
+    described by Krajbich et al. (2010).
     """
     def __init__(self, d, sigma, theta, barrier=1):
         """
@@ -201,12 +201,13 @@ class aDDM:
                              dataHistRight):
         """
         Computes the likelihood of a data set given the parameters of the aDDM.
-        Data set is provided in the form of reaction time histograms conditioned
-        on choice.
+        Data set is provided in the form of reaction time histograms
+        conditioned on choice.
         Args:
           fixationData: a FixationData object.
           trialConditions: list of pairs corresponding to the different trial
-              conditions. Each pair contains the values of left and right items.
+              conditions. Each pair contains the values of left and right
+              items.
           numSimulations: integer, number of simulations per trial condition to
               be generated when creating reaction time histograms.
           histBins: list of numbers corresponding to the time bins used to
@@ -269,8 +270,8 @@ def main():
                         help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
     parser.add_argument("--num-trials", type=int, default=10,
-                        help="Number of artificial data trials to be generated "
-                        "per trial condition.")
+                        help="Number of artificial data trials to be "
+                        "generated per trial condition.")
     parser.add_argument("--num-simulations", type=int, default=10,
                         help="Number of simulations to be generated per trial "
                         "condition, to be used in the RT histograms.")
@@ -297,7 +298,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()
@@ -359,7 +361,8 @@ def main():
                 RTsRight.append(aDDMTrial.RT)
             trial += 1
         dataHistLeft[trialCondition] = np.histogram(RTsLeft, bins=histBins)[0]
-        dataHistRight[trialCondition] = np.histogram(RTsRight, bins=histBins)[0]
+        dataHistRight[trialCondition] = np.histogram(RTsRight,
+                                                     bins=histBins)[0]
 
     if args.verbose:
         print("Done generating histograms of artificial data!")
@@ -375,8 +378,8 @@ def main():
                 model = aDDM(d, sigma, theta)
                 models.append(model)
                 listParams.append((model, fixationData, trialConditions,
-                                   args.num_simulations, histBins, dataHistLeft,
-                                   dataHistRight))
+                                   args.num_simulations, histBins,
+                                   dataHistLeft, dataHistRight))
     try:
         likelihoods = pool.map(wrap_addm_get_model_likelihood, listParams)
     except:

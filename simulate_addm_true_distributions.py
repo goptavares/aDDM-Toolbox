@@ -11,10 +11,10 @@ and therefore their duration should not be sampled. Since long fixations are
 more likely to be interrupted, they end up not being included in the
 distributions. This means that the distributions we use to sample fixations are
 biased towards shorter fixations than the "true" distributions. Here we use the
-uninterrupted duration of last fixations to approximate the "true" distributions
-of fixations. We do this by dividing each bin in the empirical fixation
-distributions by the probability of a fixation in that bin being the last
-fixation in the trial. The "true" distributions estimated are then used to
+uninterrupted duration of last fixations to approximate the "true"
+distributions of fixations. We do this by dividing each bin in the empirical
+fixation distributions by the probability of a fixation in that bin being the
+last fixation in the trial. The "true" distributions estimated are then used to
 generate aDDM simulations.  
 """
 
@@ -61,7 +61,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--verbose", default=False, action="store_true",
@@ -69,7 +70,8 @@ def main():
     args = parser.parse_args()
 
     # Time bins to be used in the fixation distributions.
-    bins = range(args.bin_step, args.max_fix_bin + args.bin_step, args.bin_step)
+    bins = range(args.bin_step, args.max_fix_bin + args.bin_step,
+                 args.bin_step)
 
     # Load experimental data from CSV file.
     if args.verbose:
@@ -86,7 +88,8 @@ def main():
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
     try:
         fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
+            data, subjectIds=subjectIds, useOddTrials=False,
+            useEvenTrials=True)
     except:
         print("An exception occurred while getting fixation distributions.")
         raise
@@ -127,8 +130,8 @@ def main():
     for it in xrange(args.num_iterations):
         if args.verbose:
             print("Iteration " + str(it + 1) + "/" + str(args.num_iterations))
-        # Generate simulations using the current empirical distributions and the
-        # model parameters.
+        # Generate simulations using the current empirical distributions and
+        # the model parameters.
         simulTrials = list()
         for trialCondition in trialConditions:
             for s in range(args.num_simulations):

@@ -7,9 +7,9 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Maximum likelihood estimation procedure for the attentional drift-diffusion
 model (aDDM), specific for perceptual decisions, allowing for analysis of cis
 trials or trans trials exclusively. A grid search is performed over the 3 free
-parameters of the model. Data from all subjects is pooled such that a single set
-of optimal parameters is estimated. aDDM simulations are generated for the model
-estimated.
+parameters of the model. Data from all subjects is pooled such that a single
+set of optimal parameters is estimated. aDDM simulations are generated for the
+model estimated.
 """
 
 from multiprocessing import Pool
@@ -32,8 +32,9 @@ def main():
                         help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
-                        help="Number of trials from each subject to be used in "
-                        "the analysis; if smaller than 1, all trials are used.")
+                        help="Number of trials from each subject to be used "
+                        "in the analysis; if smaller than 1, all trials are "
+                        "used.")
     parser.add_argument("--num-simulations", type=int, default=400,
                         help="Number of simulations to be generated per trial "
                         "condition.")
@@ -49,7 +50,8 @@ def main():
     parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv", help="Name of fixations file.")
+                        default="fixations.csv",
+                        help="Name of fixations file.")
     parser.add_argument("--use-cis-trials", default=False, action="store_true",
                         help="Use CIS trials in the analysis.")
     parser.add_argument("--use-trans-trials", default=False,
@@ -141,8 +143,8 @@ def main():
     # Get fixation distributions from even trials.
     try:
         fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True,
-            useCisTrials=args.use_cis_trials,
+            data, subjectIds=subjectIds, useOddTrials=False,
+            useEvenTrials=True, useCisTrials=args.use_cis_trials,
             useTransTrials=args.use_trans_trials)
     except:
         print("An exception occurred while getting fixation distributions.")
