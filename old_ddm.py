@@ -19,121 +19,133 @@ import argparse
 import collections
 import numpy as np
 
+from ddm import DDMTrial
 
-def ddm(d, sigma, valueLeft, valueRight, timeStep=10, barrier=1):
+
+def wrap_ddm_get_model_likelihood(args):
     """
-    DDM algorithm. Given the parameters of the model and the trial conditions,
-    returns the choice and reaction time as predicted by the model.
+    Wrapper for DDM.get_model_likelihood(), intended for parallel computation
+    using a threadpool.
     Args:
-      d: float, parameter of the model which controls the speed of integration
-          of the signal.
-      sigma: float, parameter of the model, controls the Gaussian noise to be
-          added to the RDV signal.
-      valueLeft: integer, value of the left item.
-      valueRight: integer, value of the right item.
-      timeStep: integer, value in miliseconds which determines how often the RDV
-          signal is updated.
-      barrier: positive number, magnitude of the signal thresholds.
+      args: a tuple where the first item is a DDM object, and the remaining
+          item are the same arguments required by DDM.get_model_likelihood().
     Returns:
-      A named tuple containing the following fields:
-        RT: integer, reaction time in miliseconds.
-        choice: either -1 (for left item) or +1 (for right item).
+      The output of DDM.get_model_likelihood().
     """
-
-    RT = 0
-    choice = 0
-    RDV = 0
-    valueDiff = valueLeft - valueRight
-
-    while RDV < barrier and RDV > -barrier:
-        RT = RT + timeStep
-        epsilon = np.random.normal(0, sigma)
-        RDV = RDV + (d * valueDiff) + epsilon
-
-    if RDV >= barrier:
-        choice = -1
-    elif RDV <= -barrier:
-        choice = 1
-
-    results = collections.namedtuple('Results', ['RT', 'choice'])
-    return results(RT, choice)
+    model = args[0]
+    return model.get_model_likelihood(*args[1:])
 
 
-def get_model_likelihood(d, sigma, trialConditions, numSimulations, histBins,
-                         dataHistLeft, dataHistRight):
+class DDM:
     """
-    Computes the likelihood of a data set given the parameters of the DDM. Data
-    set is provided in the form of reaction time histograms conditioned on
-    choice.
-    Args:
-      d: float, parameter of the model which controls the speed of integration
-          of the signal.
-      sigma: float, parameter of the model, standard deviation for the normal
-          distribution.
-      trialConditions: list of pairs corresponding to the different trial
-          conditions. Each pair contains the values of left and right items.
-      numSimulations: integer, number of simulations per trial condition to be
-          generated when creating reaction time histograms.
-      histBins: list of numbers corresponding to the time bins used to create
-          the reaction time histograms.
-      dataHistLeft: dict indexed by trial condition (where each trial condition
-          is a pair (valueLeft, valueRight)). Each entry is a numpy array
-          corresponding to the reaction time histogram conditioned on left
-          choice for the data. It is assumed that this histogram was created
-          using the same time bins as argument histBins.
-      dataHistRight: same as dataHistLeft, except that the reaction time
-          histograms are conditioned on right choice.
-      Returns:
-          The likelihood for the given data and model.
+    Implementation of the traditional drift-diffusion model (DDM), as described
+    by Ratcliff et al. (1998).
     """
-
-    likelihood = 0
-    for trialCondition in trialConditions:
-        RTsLeft = list()
-        RTsRight = list()
-        sim = 0
-        while sim < numSimulations:
-            try:
-                results = ddm(d, sigma, trialCondition[0], trialCondition[1])
-            except:
-                print("An exception occurred while running the model for "
-                      "likelihood computation, at simulation " + str(sim) + ".")
-                raise
-            if results.choice == -1:
-                RTsLeft.append(results.RT)
-            elif results.choice == 1:
-                RTsRight.append(results.RT)
-            sim += 1
-
-        simulLeft = np.histogram(RTsLeft, bins=histBins)[0]
-        if np.sum(simulLeft) != 0:
-            simulLeft = simulLeft / float(np.sum(simulLeft))
-        logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
-        dataLeft = np.array(dataHistLeft[trialCondition])
-        likelihood += np.dot(logSimulLeft, dataLeft)
-
-        simulRight = np.histogram(RTsRight, bins=histBins)[0]
-        if np.sum(simulRight) != 0:
-            simulRight = simulRight / float(np.sum(simulRight))
-        logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
-        dataRight = np.array(dataHistRight[trialCondition])
-        likelihood += np.dot(logSimulRight, dataRight)
-
-    return likelihood
+    def __init__(self, d, sigma, barrier=1):
+        """
+        Args:
+          d: float, parameter of the model which controls the speed of
+              integration of the signal.
+          sigma: float, parameter of the model, standard deviation for the
+              normal distribution.
+          barrier: positive number, magnitude of the signal thresholds.
+        """
+        self.d = d
+        self.sigma = sigma
+        self.barrier = barrier
+        self.params = (d, sigma)
 
 
-def get_model_likelihood_wrapper(params):
-    """
-    Wrapper for get_model_likelihood() which takes a single argument. Intended
-    for parallel computation using a thread pool.
-    Args:
-      params: tuple consisting of all arguments required by
-          get_model_likelihood().
-    Returns:
-      The output of get_model_likelihood().
-    """
+    def simulate_trial(self, valueLeft, valueRight, timeStep=10): 
+        """
+        DDM algorithm. Given the parameters of the model and the trial
+        conditions, returns the choice and reaction time as predicted by the
+        model.
+        Args:
+          valueLeft: integer, value of the left item.
+          valueRight: integer, value of the right item.
+          timeStep: integer, value in miliseconds which determines how often the
+              RDV signal is updated.
+        Returns:
+          A DDMTrial object resulting from the simulation.
+        """
+        RT = 0
+        choice = 0
+        RDV = 0
+        valueDiff = valueLeft - valueRight
 
-    return get_model_likelihood(*params)
+        while RDV < self.barrier and RDV > -self.barrier:
+            RT = RT + timeStep
+            epsilon = np.random.normal(0, self.sigma)
+            RDV = RDV + (self.d * valueDiff) + epsilon
+
+        if RDV >= self.barrier:
+            choice = -1
+        elif RDV <= -self.barrier:
+            choice = 1
+        return DDMTrial(RT, choice, valueLeft, valueRight)
+
+
+    def get_model_likelihood(self, trialConditions, numSimulations, histBins,
+                             dataHistLeft, dataHistRight):
+        """
+        Computes the likelihood of a data set given the model. Data set is
+        provided in the form of reaction time histograms conditioned on choice.
+        Args:
+          trialConditions: list of pairs corresponding to the different trial
+              conditions. Each pair contains the values of left and right items.
+          numSimulations: integer, number of simulations per trial condition to
+              be generated when creating reaction time histograms.
+          histBins: list of numbers corresponding to the time bins used to
+              create the reaction time histograms.
+          dataHistLeft: dict indexed by trial condition (where each trial
+              condition is a pair (valueLeft, valueRight)). Each entry is a
+              numpy array corresponding to the reaction time histogram
+              conditioned on left choice for the data. It is assumed that this
+              histogram was created using the same time bins as argument
+              histBins.
+          dataHistRight: same as dataHistLeft, except that the reaction time
+              histograms are conditioned on right choice.
+          Returns:
+              The likelihood for the data given the model.
+        """
+        likelihood = 0
+        for trialCondition in trialConditions:
+            RTsLeft = list()
+            RTsRight = list()
+            sim = 0
+            while sim < numSimulations:
+                try:
+                    ddmTrial = self.simulate_trial(trialCondition[0],
+                                                   trialCondition[1])
+                except:
+                    print("An exception occurred while running the model for "
+                          "likelihood computation, at simulation " +
+                          str(sim) + ".")
+                    raise
+                if ddmTrial.choice == -1:
+                    RTsLeft.append(ddmTrial.RT)
+                elif ddmTrial.choice == 1:
+                    RTsRight.append(ddmTrial.RT)
+                sim += 1
+
+            simulLeft = np.histogram(RTsLeft, bins=histBins)[0]
+            if np.sum(simulLeft) != 0:
+                simulLeft = simulLeft / float(np.sum(simulLeft))
+            with np.errstate(divide='ignore'):
+                logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
+            dataLeft = np.array(dataHistLeft[trialCondition])
+            likelihood += np.dot(logSimulLeft, dataLeft)
+
+            simulRight = np.histogram(RTsRight, bins=histBins)[0]
+            if np.sum(simulRight) != 0:
+                simulRight = simulRight / float(np.sum(simulRight))
+            with np.errstate(divide='ignore'):
+                logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
+            dataRight = np.array(dataHistRight[trialCondition])
+            likelihood += np.dot(logSimulRight, dataRight)
+
+        return likelihood
 
 
 def main():
@@ -184,23 +196,22 @@ def main():
     for trialCondition in trialConditions:
         dataRTLeft[trialCondition] = list()
         dataRTRight[trialCondition] = list()
+    model = DDM(args.d, args.sigma)
     for trialCondition in trialConditions:
         trial = 0
         while trial < args.num_trials:
             try:
-                results = ddm(args.d, args.sigma, trialCondition[0],
-                              trialCondition[1])
+                ddmTrial = model.simulate_trial(trialCondition[0],
+                                                trialCondition[1])
             except Exception as e:
                 print("An exception occurred while running the model for "
                       "artificial data generation, at trial " + str(trial) +
                       ": " + str(e))
                 return
-            RT = results.RT
-            choice = results.choice
-            if choice == -1:
-                dataRTLeft[trialCondition].append(RT)
-            elif choice == 1:
-                dataRTRight[trialCondition].append(RT)
+            if ddmTrial.choice == -1:
+                dataRTLeft[trialCondition].append(ddmTrial.RT)
+            elif ddmTrial.choice == 1:
+                dataRTRight[trialCondition].append(ddmTrial.RT)
             trial += 1
 
     # Generate histograms for artificial data.
@@ -213,24 +224,29 @@ def main():
             dataRTRight[trialCondition], bins=histBins)[0]
 
     # Grid search on the parameters of the model.
+    if args.verbose:
+        print("Performing grid search over the model parameters...")
+    listParams = list()
     models = list()
     for d in args.range_d:
         for sigma in args.range_sigma:
-            model = (d, sigma)
+            model = DDM(d, sigma)
             models.append(model)
+            listParams.append((model, trialConditions, args.num_simulations,
+                              histBins, dataHistLeft, dataHistRight))
+    try:
+        likelihoods = pool.map(wrap_ddm_get_model_likelihood, listParams)
+    except:
+        print("An exception occurred during the likelihood computations.")
+        raise
 
-    listParams = list()
-    for model in models:
-        listParams.append(
-            (model[0], model[1], trialConditions, args.num_simulations,
-            histBins, dataHistLeft, dataHistRight))
-    likelihoods = pool.map(get_model_likelihood_wrapper, listParams)
+    pool.close()
 
     if args.verbose:
-        for i in xrange(len(models)):
-            print("L" + str(models[i]) + " = " + str(likelihoods[i]))
+        for i, model in enumerate(models):
+            print("L" + str(model.params) + " = " + str(likelihoods[i]))
         bestIndex = likelihoods.index(max(likelihoods))
-        print("Best fit: " + str(models[bestIndex]))
+        print("Best fit: " + str(models[bestIndex].params))
 
 
 if __name__ == '__main__':

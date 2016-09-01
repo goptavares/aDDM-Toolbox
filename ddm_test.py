@@ -9,25 +9,9 @@ generated using specific parameters for the model. These parameters are then
 recovered through a posterior distribution estimation procedure.
 """
 
-from multiprocessing import Pool
-
 import argparse
 
-from ddm import get_trial_likelihood, run_simulations
-
-
-def get_trial_likelihood_wrapper(params):
-    """
-    Wrapper for ddm.get_trial_likelihood() which takes a single argument.
-    Intended for parallel computation using a thread pool.
-    Args:
-      params: tuple consisting of all arguments required by
-          ddm.get_trial_likelihood().
-    Returns:
-      The output of ddm.get_trial_likelihood().
-    """
-
-    return get_trial_likelihood(*params)
+from ddm import DDMTrial, DDM
 
 
 def main():
@@ -54,75 +38,61 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
-    pool = Pool(args.num_threads)
-
-    # Trial conditions for generating artificial data.
-    values = range(1, args.num_values + 1, 1)
-    trialConditions = list()
-    for vLeft in values:
-        for vRight in values:
-            trialConditions.append((vLeft, vRight))
-
     # Generate artificial data.
-    try:
-        simul = run_simulations(args.num_trials, trialConditions, args.d,
-                                args.sigma)
-    except Exception as e:
-        print("An exception occurred while generating artificial data: " +
-              str(e))
-        return
-    RT = simul.RT
-    choice = simul.choice
-    valueLeft = simul.valueLeft
-    valueRight = simul.valueRight
+    model = DDM(args.d, args.sigma)
+    trials = list()
+    values = range(1, args.num_values + 1, 1)
+    for valueLeft in values:
+        for valueRight in values:
+            for t in xrange(args.num_trials):
+                try:
+                    trials.append(model.simulate_trial(valueLeft, valueRight))
+                except:
+                    print("An exception occurred while generating artificial "
+                          "data.")
+                    raise
 
+    # Get likelihoods for all models and all artificial trials.
     numModels = len(args.range_d) * len(args.range_sigma)
+    likelihoods = dict()
     models = list()
     posteriors = dict()
     for d in args.range_d:
         for sigma in args.range_sigma:
-            model = (d, sigma)
+            model = DDM(d, sigma)
+            if args.verbose:
+                print("Computing likelihoods for model " +
+                      str(model.params) + "...")
+            try:
+                likelihoods[model.params] = model.parallel_get_likelihoods(
+                    trials, numThreads=args.num_threads)
+            except:
+                print("An exception occurred during the likelihood "
+                      "computations for model " + str(model.params) + ".")
+                raise
             models.append(model)
-            posteriors[model] = 1. / numModels
+            posteriors[model.params] = 1. / numModels
 
-    trials = RT.keys()
-    for trial in trials:
-        listParams = list()
-        for model in models:
-            listParams.append(
-                (RT[trial], choice[trial], valueLeft[trial], valueRight[trial],
-                model[0], model[1]))
-        try:
-            likelihoods = pool.map(get_trial_likelihood_wrapper, listParams)
-        except Exception as e:
-            print("An exception occurred during the likelihood computation for "
-                  "trial " + str(trial) + ": " + str(e))
-            return
-
+    # Compute the posteriors.
+    for t in xrange(len(trials)):
         # Get the denominator for normalizing the posteriors.
-        i = 0
         denominator = 0
         for model in models:
-            denominator += posteriors[model] * likelihoods[i]
-            i += 1
+            denominator += (posteriors[model.params] *
+                            likelihoods[model.params][t])
         if denominator == 0:
             continue
 
         # Calculate the posteriors after this trial.
-        i = 0
         for model in models:
-            prior = posteriors[model]
-            posteriors[model] = likelihoods[i] * prior / denominator
-            i += 1
-
-        if args.verbose and trial % 200 == 0:
-            for model in posteriors:
-                print("P" + str(model) + " = " + str(posteriors[model]))
-            print("Sum: " + str(sum(posteriors.values())))
+            prior = posteriors[model.params]
+            posteriors[model.params] = (likelihoods[model.params][t] *
+                prior / denominator)
 
     if args.verbose:
-        for model in posteriors:
-            print("P" + str(model) + " = " + str(posteriors[model]))
+        for model in models:
+            print("P" + str(model.params) +  " = " +
+                  str(posteriors[model.params]))
         print("Sum: " + str(sum(posteriors.values())))
 
 

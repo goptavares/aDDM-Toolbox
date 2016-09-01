@@ -12,147 +12,120 @@ import os
 import unittest
 
 import util
+from addm import aDDMTrial
 
 
-class TestLoadDataFromNonexistentDataFile(unittest.TestCase):
-    def runTest(self):
+class TestLoadData(unittest.TestCase):
+    def compareTrials(self, trial1, trial2):
+        self.assertEqual(trial1.RT, trial2.RT)
+        self.assertEqual(trial1.choice, trial2.choice)
+        self.assertEqual(trial1.valueLeft, trial2.valueLeft)
+        self.assertEqual(trial1.valueRight, trial2.valueRight)
+        np.testing.assert_equal(trial1.fixItem, trial2.fixItem)
+        np.testing.assert_equal(trial1.fixTime, trial2.fixTime)
+        np.testing.assert_equal(trial1.fixRDV, trial2.fixRDV)
+        self.assertEqual(trial1.uninterruptedLastFixTime,
+                         trial2.uninterruptedLastFixTime)
+        self.assertEqual(trial1.isCisTrial, trial2.isCisTrial)
+        self.assertEqual(trial1.isTransTrial, trial2.isTransTrial)
+
+    def testLoadDataFromNonexistentDataFile(self):
         self.assertRaisesRegexp(
             Exception, "File test_files/dummy_file.csv does not exist",
             util.load_data_from_csv, "test_files/dummy_file.csv",
             "test_files/sample_fixations.csv")
 
-
-class TestLoadDataFromNonexistentFixationsFile(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromNonexistentFixationsFile(self):
         self.assertRaisesRegexp(
             Exception, "File test_files/dummy_file.csv does not exist",
             util.load_data_from_csv, "test_files/sample_trial_data.csv",
             "test_files/dummy_file.csv")
 
-
-class TestLoadDataFromEmptyDataFile(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromEmptyDataFile(self):
         self.assertRaisesRegexp(
-            Exception, ".*only 0 lines in file.*", util.load_data_from_csv,
+            Exception, "No columns to parse from file", util.load_data_from_csv,
             "test_files/empty_file.csv", "test_files/sample_fixations.csv")
 
-
-class TestLoadDataFromEmptyFixationsFile(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromEmptyFixationsFile(self):
         self.assertRaisesRegexp(
-            Exception, ".*only 0 lines in file.*", util.load_data_from_csv,
+            Exception, "No columns to parse from file", util.load_data_from_csv,
             "test_files/sample_trial_data.csv", "test_files/empty_file.csv")
 
-
-class TestLoadDataFromDataFileWithMissingField(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromDataFileWithMissingField(self):
         self.assertRaisesRegexp(
             RuntimeError, "Missing field in experimental data file.",
             util.load_data_from_csv,
             "test_files/sample_trial_data_incomplete.csv",
             "test_files/sample_fixations.csv")
 
-
-class TestLoadDataFromFixationsFileWithMissingField(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromFixationsFileWithMissingField(self):
         self.assertRaisesRegexp(
             RuntimeError, "Missing field in fixations file.",
             util.load_data_from_csv,
             "test_files/sample_trial_data.csv",
             "test_files/sample_fixations_incomplete.csv")
 
-
-class TestLoadDataFromCSVEconomicChoice(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromCSVEconomicChoice(self):
         data = util.load_data_from_csv(
             "test_files/sample_trial_data.csv",
             "test_files/sample_fixations.csv", useAngularDists=False)
 
-        expectedRT = {'abc': {1: 100}, 'xyz': {1: 200}}
-        expectedChoice = {'abc': {1: 1}, 'xyz': {1: -1}}
-        expectedValueLeft = {'abc': {1: -10}, 'xyz': {1: 5}}
-        expectedValueRight = {'abc': {1: 15}, 'xyz': {1: 10}}
-        expectedFixItem = {'abc': {1: np.array([1, 2])},
-                           'xyz': {1: np.array([1, 2, 1])}}
-        expectedFixTime = {'abc': {1: np.array([50, 50])},
-                           'xyz': {1: np.array([100, 50, 50])}}
-        expectedIsCisTrial = {'abc': {1: False}, 'xyz': {1: False}}
-        expectedIsTransTrial = {'abc': {1: False}, 'xyz': {1: False}}
-        
-        self.assertEqual(expectedRT, data.RT)
-        self.assertEqual(expectedChoice, data.choice)
-        self.assertEqual(expectedValueLeft, data.valueLeft)
-        self.assertEqual(expectedValueRight, data.valueRight)
-        np.testing.assert_equal(expectedFixItem, data.fixItem)
-        np.testing.assert_equal(expectedFixTime, data.fixTime)
-        self.assertEqual(expectedIsCisTrial, data.isCisTrial)
-        self.assertEqual(expectedIsTransTrial, data.isTransTrial)
+        expectedData = {}
+        expectedData['abc'] = [aDDMTrial(RT=100, choice=1, valueLeft=-10,
+                                         valueRight=15, fixItem=[1, 2],
+                                         fixTime=[50, 50])]
+        expectedData['xyz'] = [aDDMTrial(RT=200, choice=-1, valueLeft=5,
+                                         valueRight=10, fixItem=[1, 2, 1],
+                                         fixTime=[100, 50, 50])]
+        self.compareTrials(expectedData['abc'][0], data['abc'][0])
+        self.compareTrials(expectedData['xyz'][0], data['xyz'][0])
 
-
-class TestLoadDataFromCSVPerceptualChoice(unittest.TestCase):
-    def runTest(self):
+    def testLoadDataFromCSVPerceptualChoice(self):
         data = util.load_data_from_csv(
             "test_files/sample_trial_data.csv",
             "test_files/sample_fixations.csv", useAngularDists=True)
 
-        expectedRT = {'abc': {1: 100}, 'xyz': {1: 200}}
-        expectedChoice = {'abc': {1: 1}, 'xyz': {1: -1}}
-        expectedValueLeft = {'abc': {1: 1}, 'xyz': {1: 2}}
-        expectedValueRight = {'abc': {1: 0}, 'xyz': {1: 1}}
-        expectedFixItem = {'abc': {1: np.array([1, 2])},
-                           'xyz': {1: np.array([1, 2, 1])}}
-        expectedFixTime = {'abc': {1: np.array([50, 50])},
-                           'xyz': {1: np.array([100, 50, 50])}}
-        expectedIsCisTrial = {'abc': {1: False}, 'xyz': {1: True}}
-        expectedIsTransTrial = {'abc': {1: True}, 'xyz': {1: False}}
-        
-        self.assertEqual(expectedRT, data.RT)
-        self.assertEqual(expectedChoice, data.choice)
-        self.assertEqual(expectedValueLeft, data.valueLeft)
-        self.assertEqual(expectedValueRight, data.valueRight)
-        np.testing.assert_equal(expectedFixItem, data.fixItem)
-        np.testing.assert_equal(expectedFixTime, data.fixTime)
-        self.assertEqual(expectedIsCisTrial, data.isCisTrial)
-        self.assertEqual(expectedIsTransTrial, data.isTransTrial)
+        expectedData = {}
+        expectedData['abc'] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
+                                         valueRight=0, fixItem=[1, 2],
+                                         fixTime=[50, 50], isCisTrial=False,
+                                         isTransTrial=True)]
+        expectedData['xyz'] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
+                                         valueRight=1, fixItem=[1, 2, 1],
+                                         fixTime=[100, 50, 50], isCisTrial=True,
+                                         isTransTrial=False)]
+        self.compareTrials(expectedData['abc'][0], data['abc'][0])
+        self.compareTrials(expectedData['xyz'][0], data['xyz'][0])
 
 
 class TestSaveSimulationsToCSV(unittest.TestCase):
     def runTest(self):
-        choice = {0: 1, 1: -1, 2: 1}
-        RT = {0: 100, 1: 200, 2: 300}
-        valueLeft = {0: 0, 1: 1, 2: 2}
-        valueRight = {0: 3, 1: 2, 2: 1}
-        fixItem = {0: [2, 1], 1: [1, 2], 2: [1, 2]}
-        fixTime = {0: [50, 50], 1: [150, 50], 2: [150, 150]}
-        fixRDV = {0: [0.1, 0.2], 1: [0.5, 0.8], 2: [0.3, 0.6]}
-        numTrials = 3
-        util.save_simulations_to_csv(
-            choice, RT, valueLeft, valueRight, fixItem, fixTime, fixRDV,
-            numTrials)
+        trials = [aDDMTrial(RT=100, choice=1, valueLeft=1, valueRight=0,
+                            fixItem=[1, 2], fixTime=[50, 50], isCisTrial=False,
+                            isTransTrial=True),
+                  aDDMTrial(RT=200, choice=-1, valueLeft=2, valueRight=1,
+                            fixItem=[1, 2, 1], fixTime=[100, 50, 50],
+                            isCisTrial=True, isTransTrial=False)]
 
-        choiceFile = open('choice.csv', 'r')
-        RTFile = open('rt.csv', 'r')
-        valueLeftFile = open('value_left.csv', 'r')
-        valueRightFile = open('value_right.csv', 'r')
-        fixItemFile = open('fix_item.csv', 'r')
-        fixTimeFile = open('fix_time.csv', 'r')
-        fixRDVFile = open('fix_rdv.csv', 'r')
+        util.save_simulations_to_csv(trials)
 
-        self.assertEqual("0,1,-1,1\n", choiceFile.read())
-        self.assertEqual("0,100,200,300\n", RTFile.read())
-        self.assertEqual("0,0,1,2\n", valueLeftFile.read())
-        self.assertEqual("0,3,2,1\n", valueRightFile.read())
-        self.assertEqual("0,2,1,1\n1,1,2,2\n", fixItemFile.read())
-        self.assertEqual("0,50,150,150\n1,50,50,150\n", fixTimeFile.read())
-        self.assertEqual("0,0.1,0.5,0.3\n1,0.2,0.8,0.6\n", fixRDVFile.read())
+        expdataFile = open('simul_expdata.csv', 'r')
+        self.assertEqual("parcode,trial,rt,choice,item_left,item_right\n",
+                         expdataFile.readline())
+        self.assertEqual("dummy_subject,0,100,1,1,0\n", expdataFile.readline())
+        self.assertEqual("dummy_subject,1,200,-1,2,1\n", expdataFile.readline())
 
-        os.remove('choice.csv')
-        os.remove('rt.csv')
-        os.remove('value_left.csv')
-        os.remove('value_right.csv')
-        os.remove('fix_item.csv')
-        os.remove('fix_time.csv')
-        os.remove('fix_rdv.csv')
+        fixationsFile = open('simul_fixations.csv', 'r')
+        self.assertEqual("parcode,trial,fix_item,fix_time\n",
+                         fixationsFile.readline())
+        self.assertEqual("dummy_subject,0,1,50\n", fixationsFile.readline())
+        self.assertEqual("dummy_subject,0,2,50\n", fixationsFile.readline())
+        self.assertEqual("dummy_subject,1,1,100\n", fixationsFile.readline())
+        self.assertEqual("dummy_subject,1,2,50\n", fixationsFile.readline())
+        self.assertEqual("dummy_subject,1,1,50\n", fixationsFile.readline())
+
+        os.remove('simul_expdata.csv')
+        os.remove('simul_fixations.csv')
 
 
 if __name__ == '__main__':

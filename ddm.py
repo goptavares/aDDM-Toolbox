@@ -11,217 +11,283 @@ Ratcliff et al. (1998).
 import matplotlib
 matplotlib.use('Agg')
 
+from datetime import datetime
+from matplotlib.backends.backend_pdf import PdfPages
+from multiprocessing import Pool
 from scipy.stats import norm
 
-import collections
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def get_trial_likelihood(RT, choice, valueLeft, valueRight, d, sigma,
-                         timeStep=10, stateStep=0.1, barrier=1,
-                         plotResults=False):
+class DDMTrial:
+    def __init__(self, RT, choice, valueLeft, valueRight):
+        """
+        Args:
+          RT: reaction time in miliseconds.
+          choice: either -1 (for left item) or +1 (for right item).
+          valueLeft: value of the left item.
+          valueRight: value of the right item.
+        """
+        self.RT = RT
+        self.choice = choice
+        self.valueLeft = valueLeft
+        self.valueRight = valueRight
+
+
+def unwrap_ddm_get_trial_likelihood(arg, **kwarg):
     """
-    Computes the likelihood of the data from a single trial given a set of DDM
-    parameters.
+    Wrapper for DDM.get_trial_likelihood(), intended for parallel computation
+    using a threadpool. This method should stay outside the class, allowing it
+    to be pickled (as required by multiprocessing).
     Args:
-      RT: reaction time in miliseconds.
-      choice: integer, either -1 (for left item) or +1 (for right item).
-      valueLeft: integer, value of the left item.
-      valueRight: integer, value of the right item.
-      d: float, parameter of the model which controls the speed of integration
-          of the signal.
-      sigma: float, parameter of the model, standard deviation for the normal
-          distribution.
-      timeStep: integer, value in miliseconds to be used for binning the time
-          axis.
-      stateStep: float, to be used for binning the RDV axis.
-      barrier: positive number, magnitude of the signal thresholds.
-      plotResults: boolean, flag that determines whether the algorithm evolution
-          for the trial should be plotted.
+      params: same arguments required by DDM.get_trial_likelihood().
     Returns:
-      The likelihood obtained for the given trial and model.
+      The output of DDM.get_trial_likelihood().
     """
-
-    # Get the number of time steps for this trial.
-    numTimeSteps = int(RT // timeStep)
-    if numTimeSteps < 1:
-        raise RuntimeError("Trial reaction time is smaller than time step.")
-
-    # The values of the barriers can change over time.
-    decay = 0  # decay = 0 means barriers are constant.
-    barrierUp = barrier * np.ones(numTimeSteps)
-    barrierDown = -barrier * np.ones(numTimeSteps)
-    for t in xrange(1, numTimeSteps):
-        barrierUp[t] = float(barrier) / float(1 + (decay * t))
-        barrierDown[t] = float(-barrier) / float(1 + (decay * t))
-
-    # The vertical axis (RDV space) is divided into states.
-    states = np.arange(-barrier, barrier + stateStep, stateStep)
-    states[(states < 0.001) & (states > -0.001)] = 0
-
-    # Initial probability for all states is zero, except for the zero state,
-    # which has initial probability equal to one.
-    prStates = np.zeros(states.size)
-    prStates[states == 0] = 1
-    prStates[(states > barrierUp[0]) | (states < barrierDown[0])] = 0
-
-    # The probability of crossing each barrier over the time of the trial.
-    probUpCrossing = np.zeros(numTimeSteps)
-    probDownCrossing = np.zeros(numTimeSteps)
-
-    # Create matrix of traces to keep track of the RDV position probabilities.
-    if plotResults:
-        traces = np.zeros((states.size, numTimeSteps))
-        traces[:, 0] = prStates
-
-    # We use a normal distribution to model changes in RDV stochastically.
-    # The mean of the distribution (the change most likely to occur) is
-    # calculated from the model parameter d and from the item values.
-    mean = d * (valueLeft - valueRight)
-
-    changeMatrix = np.subtract(states.reshape(states.size, 1), states)
-    changeUp = np.subtract(barrierUp, states.reshape(states.size, 1))
-    changeDown = np.subtract(barrierDown, states.reshape(states.size, 1))
-
-    # Iterate over the time of this trial.
-    for time in xrange(1, numTimeSteps):
-        # Update the probability of the states that remain inside the
-        # barriers. The probability of being in state B is the sum, over all
-        # states A, of the probability of being in A at the previous timestep
-        # times the probability of changing from A to B. We multiply the
-        # probability by the stateStep to ensure that the area under the curves
-        # for the probability distributions probUpCrossing and probDownCrossing
-        # add up to 1.
-        prStatesNew = (stateStep *
-                       np.dot(norm.pdf(changeMatrix, mean, sigma), prStates))
-        prStatesNew[(states >= barrierUp[time]) |
-                    (states <= barrierDown[time])] = 0
-
-        # Calculate the probabilities of crossing the up barrier and the
-        # down barrier. This is given by the sum, over all states A, of the
-        # probability of being in A at the previous timestep times the
-        # probability of crossing the barrier if A is the previous state.
-        tempUpCross = np.dot(
-            prStates, (1 - norm.cdf(changeUp[:, time], mean, sigma)))
-        tempDownCross = np.dot(
-            prStates, norm.cdf(changeDown[:, time], mean, sigma))
-
-        # Renormalize to cope with numerical approximations.
-        sumIn = np.sum(prStates)
-        sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
-        prStatesNew = (prStatesNew * float(sumIn)) / float(sumCurrent)
-        tempUpCross = (tempUpCross * float(sumIn)) / float(sumCurrent)
-        tempDownCross = (tempDownCross * float(sumIn)) / float(sumCurrent)
-
-        # Update the probabilities of each state and the probabilities of
-        # crossing each barrier at this timestep.
-        prStates = prStatesNew
-        probUpCrossing[time] = tempUpCross
-        probDownCrossing[time] = tempDownCross
-
-        # Update traces matrix.
-        if plotResults:
-            traces[:,time] = prStates
-
-    # Compute the likelihood contribution of this trial based on the final
-    # choice.
-    likelihood = 0
-    if choice == -1:  # Choice was left.
-        if probUpCrossing[-1] > 0:
-            likelihood = probUpCrossing[-1]
-    elif choice == 1:  # Choice was right.
-        if probDownCrossing[-1] > 0:
-            likelihood = probDownCrossing[-1]
-
-    if plotResults:
-        fig1 = plt.figure()
-        xAxis = np.arange(0, numTimeSteps * timeStep, timeStep)
-        yAxis = np.arange(initialBarrierDown, initialBarrierUp + stateStep,
-                          stateStep)
-        heatmap = plt.pcolor(xAxis, yAxis, np.flipud(traces))
-        plt.xlim(0, numTimeSteps * timeStep - timeStep)
-        plt.xlabel('Time')
-        plt.ylabel('RDV')
-        plt.colorbar(heatmap)
-
-        fig2 = plt.figure()
-        plt.plot(range(0, len(probUpCrossing) * timeStep, timeStep),
-                 probUpCrossing, label='Up')
-        plt.plot(range(0, len(probDownCrossing) * timeStep, timeStep),
-                 probDownCrossing, label='Down')
-        plt.xlabel('Time')
-        plt.ylabel('P(crossing)')
-        plt.legend()
-        plt.show()
-
-    return likelihood
+    return DDM.get_trial_likelihood(*arg, **kwarg)
 
 
-def run_simulations(numTrials, trialConditions, d, sigma, timeStep=10,
-                    barrier=1):
+class DDM:
     """
-    Generates DDM simulations given the model parameters.
-    Args:
-      numTrials: integer, number of simulations to be generated for each trial
-          condition.
-      trialConditions: list of tuples, where each entry is a pair (valueLeft,
-          valueRight), containing the values of the two items.
-      d: float, parameter of the model which controls the speed of integration
-          of the signal.
-      sigma: float, parameter of the model, standard deviation for the normal
-          distribution.
-      timeStep: integer, value in miliseconds to be used for binning the time
-          axis.
-      barrier: positive number, magnitude of the signal thresholds.
-    Returns:
-      A named tuple containing the following fields:
-        RT: dict indexed by trial number, where each entry corresponds to the
-            reaction time in miliseconds.
-        choice: dict indexed by trial number, where each entry is either -1
-            (for left item) or +1 (for right item).
-        valueLeft: dict indexed by trial number, where each entry corresponds to
-            the value of the left item.
-        valueRight: dict indexed by trial number, where each entry corresponds
-            to the value of the right item.
+    Implementation of the traditional drift-diffusion model (DDM), as described
+    by Ratcliff et al. (1998).
     """
+    def __init__(self, d, sigma, barrier=1):
+        """
+        Args:
+          d: float, parameter of the model which controls the speed of
+              integration of the signal.
+          sigma: float, parameter of the model, standard deviation for the
+              normal distribution.
+          barrier: positive number, magnitude of the signal thresholds.
+        """
+        self.d = d
+        self.sigma = sigma
+        self.barrier = barrier
+        self.params = (d, sigma)
 
-    # Simulation data to be returned.
-    RT = dict()
-    choice = dict()
-    valueLeft = dict()
-    valueRight = dict()
 
-    trialCount = 0
+    def get_trial_likelihood(self, trial, timeStep=10, approxStateStep=0.1,
+                             plotTrial=False):
+        """
+        Computes the likelihood of the data from a single DDM trial for these
+        particular DDM parameters.
+        Args:
+          trial: DDMTrial object.
+          timeStep: integer, value in miliseconds to be used for binning the
+              time axis.
+          approxStateStep: float, to be used for binning the RDV axis.
+          plotTrial: boolean, flag that determines whether the algorithm
+              evolution for the trial should be plotted.
+        Returns:
+          The likelihood obtained for the given trial and model.
+        """
+        # Get the number of time steps for this trial.
+        numTimeSteps = int(trial.RT // timeStep)
+        if numTimeSteps < 1:
+            raise RuntimeError("Trial reaction time is smaller than time step.")
 
-    for trialCondition in trialConditions:
-        vLeft = trialCondition[0]
-        vRight = trialCondition[1]
-        mean = d * (vLeft - vRight)
+        # The values of the barriers can change over time.
+        decay = 0  # decay = 0 means barriers are constant.
+        barrierUp = self.barrier * np.ones(numTimeSteps)
+        barrierDown = -self.barrier * np.ones(numTimeSteps)
+        for t in xrange(1, numTimeSteps):
+            barrierUp[t] = float(self.barrier) / float(1 + (decay * t))
+            barrierDown[t] = float(-self.barrier) / float(1 + (decay * t))
 
-        for trial in xrange(numTrials):
-            RDV = 0
-            time = 0
-            while True:
-                # If the RDV hit one of the barriers, the trial is over.
-                if RDV >= barrier or RDV <= -barrier:
-                    RT[trialCount] = time * timeStep
-                    valueLeft[trialCount] = vLeft
-                    valueRight[trialCount] = vRight
-                    if RDV >= barrier:
-                        choice[trialCount] = -1
-                    elif RDV <= -barrier:
-                        choice[trialCount] = 1
-                    break
+        # Obtain correct state step.
+        halfNumStateBins = np.ceil(self.barrier / float(approxStateStep))
+        stateStep = self.barrier / float(halfNumStateBins + 0.5)
 
-                # Sample the change in RDV from the distribution.
-                RDV += np.random.normal(mean, sigma)
+        # The vertical axis is divided into states.
+        states = np.arange(barrierDown[0] + (stateStep / 2.),
+                           barrierUp[0] - (stateStep / 2.) + stateStep,
+                           stateStep)
 
-                time += 1
+        # Initial probability for all states is zero, except the zero state, for
+        # which the initial probability is one.
+        prStates = np.zeros((states.size, numTimeSteps))
+        prStates[np.where(states==0)[0],0] = 1
 
-            # Move on to the next trial.
-            trialCount += 1
+        # The probability of crossing each barrier over the time of the trial.
+        probUpCrossing = np.zeros(numTimeSteps)
+        probDownCrossing = np.zeros(numTimeSteps)
 
-    simul = collections.namedtuple('Simul', ['RT', 'choice', 'valueLeft',
-                                   'valueRight'])
-    return simul(RT, choice, valueLeft, valueRight)
+        # We use a normal distribution to model changes in RDV stochastically.
+        # The mean of the distribution (the change most likely to occur) is
+        # calculated from the model parameter d and from the item values.
+        mean = self.d * (trial.valueLeft - trial.valueRight)
+
+        changeMatrix = np.subtract(states.reshape(states.size, 1), states)
+        changeUp = np.subtract(barrierUp, states.reshape(states.size, 1))
+        changeDown = np.subtract(barrierDown, states.reshape(states.size, 1))
+
+        # Iterate over the time of this trial.
+        for time in xrange(1, numTimeSteps):
+            # Update the probability of the states that remain inside the
+            # barriers. The probability of being in state B is the sum, over all
+            # states A, of the probability of being in A at the previous
+            # time step times the probability of changing from A to B. We
+            # multiply the probability by the stateStep to ensure that the area
+            # under the curves for the probability distributions probUpCrossing
+            # and probDownCrossing add up to 1.
+            prStatesNew = (stateStep *
+                           np.dot(norm.pdf(changeMatrix, mean, self.sigma),
+                           prStates[:,time-1]))
+            prStatesNew[(states >= barrierUp[time]) |
+                        (states <= barrierDown[time])] = 0
+
+            # Calculate the probabilities of crossing the up barrier and the
+            # down barrier. This is given by the sum, over all states A, of the
+            # probability of being in A at the previous timestep times the
+            # probability of crossing the barrier if A is the previous state.
+            tempUpCross = np.dot(
+                prStates[:,time-1],
+                (1 - norm.cdf(changeUp[:, time], mean, self.sigma)))
+            tempDownCross = np.dot(
+                prStates[:,time-1],
+                norm.cdf(changeDown[:, time], mean, self.sigma))
+
+            # Renormalize to cope with numerical approximations.
+            sumIn = np.sum(prStates[:,time-1])
+            sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
+            prStatesNew = (prStatesNew * float(sumIn)) / float(sumCurrent)
+            tempUpCross = (tempUpCross * float(sumIn)) / float(sumCurrent)
+            tempDownCross = (tempDownCross * float(sumIn)) / float(sumCurrent)
+
+            # Update the probabilities of each state and the probabilities of
+            # crossing each barrier at this timestep.
+            prStates[:, time] = prStatesNew
+            probUpCrossing[time] = tempUpCross
+            probDownCrossing[time] = tempDownCross
+
+        # Compute the likelihood contribution of this trial based on the final
+        # choice.
+        likelihood = 0
+        if trial.choice == -1:  # Choice was left.
+            if probUpCrossing[-1] > 0:
+                likelihood = probUpCrossing[-1]
+        elif trial.choice == 1:  # Choice was right.
+            if probDownCrossing[-1] > 0:
+                likelihood = probDownCrossing[-1]
+
+        if plotTrial:
+            currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+            pp = PdfPages("ddm_trial_" + currTime + ".pdf")
+            title = ("value left = %d, value right = %d" %
+                     (trial.valueLeft, trial.valueRight))
+
+            # Choose a suitable normalization constant.
+            maxProb = max(prStates[:,3])
+
+            fig = plt.figure()
+            plt.imshow(prStates[::-1,:], extent=[1, numTimeSteps,
+                                                 -self.barrier,
+                                                 self.barrier],
+                       aspect="auto", vmin=0, vmax=maxProb)
+            plt.title(title)
+            pp.savefig(fig)
+            plt.close(fig)
+
+            fig = plt.figure()
+            plt.plot(range(1, numTimeSteps + 1), probUpCrossing, label="up",
+                     color="red")
+            plt.plot(range(1, numTimeSteps + 1), probDownCrossing,
+                     label="down", color="green")
+            plt.xlabel("Time")
+            plt.ylabel("P(crossing)")
+            plt.legend()
+            plt.title(title)
+            pp.savefig(fig)
+            plt.close(fig)
+
+            probInner = np.sum(prStates, 0)
+            probUp = np.cumsum(probUpCrossing)
+            probDown = np.cumsum(probDownCrossing)
+            probTotal = probInner + probUp + probDown
+            fig = plt.figure()
+            plt.plot(range(1, numTimeSteps + 1), probUp, color="red",
+                     label="up")
+            plt.plot(range(1, numTimeSteps + 1), probDown, color="green",
+                     label="down")
+            plt.plot(range(1, numTimeSteps + 1), probInner, color="yellow",
+                     label="in")
+            plt.plot(range(1, numTimeSteps + 1), probTotal, color="blue",
+                     label="total")
+            plt.axis([1, numTimeSteps, 0, 1.1])
+            plt.xlabel("Time")
+            plt.ylabel("Cumulative probability")
+            plt.legend()
+            plt.title(title)
+            pp.savefig(fig)
+            plt.close(fig)
+
+            fig = plt.figure()
+            plt.plot(range(1, numTimeSteps + 1), probTotal - 1)
+            plt.xlabel("Time")
+            plt.ylabel("Numerical error")
+            plt.title(title)
+            pp.savefig(fig)
+            plt.close(fig)
+            
+            pp.close()
+
+        return likelihood
+
+
+    def parallel_get_likelihoods(self, ddmTrials, timeStep=10, stateStep=0.1,
+                                 numThreads=4):
+        """
+        Uses a threadpool to compute the likelihood of the data from a set of
+        DDM trials given the DDM parameters.
+        Args:
+          ddmTrials: list of DDMTrial objects.
+          timeStep: integer, value in miliseconds to be used for binning the
+              time axis.
+          stateStep: float, to be used for binning the RDV axis.
+          numThreads: int, number of threads to be used in the threadpool.
+        Returns:
+          A list of likelihoods obtained for the given trials and model.
+        """
+        pool = Pool(numThreads)
+        likelihoods = pool.map(unwrap_ddm_get_trial_likelihood,
+                               zip([self] * len(ddmTrials),
+                                   ddmTrials,
+                                   [timeStep] * len(ddmTrials),
+                                   [stateStep] * len(ddmTrials)))
+        pool.close()
+        return likelihoods
+
+
+    def simulate_trial(self, valueLeft, valueRight, timeStep=10):
+        """
+        Generates a DDM trial given the item values.
+        Args:
+          valueLeft: value of the left item.
+          valueRight: value of the right item.
+          timeStep: integer, value in miliseconds to be used for binning the
+              time axis.
+        Returns:
+          A DDMTrial object resulting from the simulation.
+        """
+        mean = self.d * (valueLeft - valueRight)
+        RDV = 0
+        time = 0
+        while True:
+            # If the RDV hit one of the barriers, the trial is over.
+            if RDV >= self.barrier or RDV <= -self.barrier:
+                RT = time * timeStep
+                if RDV >= self.barrier:
+                    choice = -1
+                elif RDV <= -self.barrier:
+                    choice = 1
+                break
+
+            # Sample the change in RDV from the distribution.
+            RDV += np.random.normal(mean, self.sigma)
+
+            time += 1
+
+        return DDMTrial(RT, choice, valueLeft, valueRight)
+

@@ -14,18 +14,14 @@ from scipy.optimize import basinhopping
 
 import argparse
 import numpy as np
+import sys
 
-from addm import get_trial_likelihood
+from addm import aDDM
 from util import load_data_from_csv
 
 
 # Global variables.
-choice = dict()
-valueLeft = dict()
-valueRight = dict()
-fixItem = dict()
-fixTime = dict()
-trialsPerSubject = 0
+dataTrials = []
 
 
 def get_model_nll(params):
@@ -38,34 +34,34 @@ def get_model_nll(params):
     Returns:
       The negative log likelihood for the global data set and the given model.
     """
-
     d = params[0]
     theta = params[1]
     sigma = params[2]
+    model = aDDM(d, sigma, theta) 
 
     logLikelihood = 0
-    subjects = choice.keys()
-    for subject in subjects:
-        trials = choice[subject].keys()
-        trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
-        for trial in trialSet:
-            try:
-                likelihood = get_trial_likelihood(
-                    choice[subject][trial], valueLeft[subject][trial],
-                    valueRight[subject][trial], fixItem[subject][trial],
-                    fixTime[subject][trial], d, theta, sigma=sigma)
-            except:
-                print("An exception occurred during the likelihood computation "
-                      "for subject " + subject + ", trial " + str(trial) + ".")
-                raise
-            if likelihood != 0:
-                logLikelihood += np.log(likelihood)
+    for trial in dataTrials:
+        try:
+            likelihood = model.get_trial_likelihood(trial)
+        except:
+            print("An exception occurred during the likelihood "
+                  "computations for model " + str(model.params) + ".")
+            raise
+        if likelihood != 0:
+            logLikelihood += np.log(likelihood)
+
     print("NLL for " + str(params) + ": " + str(-logLikelihood))
-    return -logLikelihood
+    if logLikelihood != 0:
+        return -logLikelihood
+    else:
+        return sys.maxint
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
+                        help="List of subject ids. If not provided, all "
+                        "existing subjects will be used.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
                         help="Number of trials from each subject to be used in "
                         "the analysis; if smaller than 1, all trials are used.")
@@ -98,12 +94,7 @@ def main():
                         default="fixations.csv", help="Name of fixations file.")
     args = parser.parse_args()
 
-    global choice
-    global valueLeft
-    global valueRight
-    global fixItem
-    global fixTime
-    global trialsPerSubject
+    global dataTrials
 
     # Load experimental data from CSV file and update global variables.
     try:
@@ -113,13 +104,16 @@ def main():
     except Exception as e:
         print("An exception occurred while loading the data: " + str(e))
         return
-    choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
-    fixItem = data.fixItem
-    fixTime = data.fixTime
 
-    trialsPerSubject = args.trials_per_subject
+    # Get correct subset of trials.
+    subjectIds = args.subject_ids if args.subject_ids else data.keys()
+    for subjectId in subjectIds:
+        numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
+                     else len(data[subjectId]))
+        trialSet = np.random.choice(
+            [trialId for trialId in range(len(data[subjectId]))],
+            numTrials, replace=False)
+        dataTrials.extend([data[subjectId][t] for t in trialSet])
 
     # Initial guess for the parameters: d, theta, sigma.
     initialParams = [args.initial_d, args.initial_theta, args.initial_sigma]

@@ -1,22 +1,25 @@
 #!/usr/bin/python
 
 """
-cis_trans_fitting.py
+addm_mle.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood estimation procedure for the attentional drift-diffusion
-model (aDDM), specific for perceptual decisions, allowing for analysis of cis
-trials or trans trials exclusively. A grid search is performed over the 3 free
-parameters of the model. Data from all subjects is pooled such that a single set
-of optimal parameters is estimated. aDDM simulations are generated for the model
-estimated.
+model (aDDM), using a grid search over the 3 free parameters of the model. Data
+from all subjects is pooled such that a single set of optimal parameters is
+estimated (or from a subset of subjects, when provided).
+
+aDDM simulations are generated for the model with maximum estimated likelihood.
 """
 
-from multiprocessing import Pool
+import matplotlib
+matplotlib.use('Agg')
+
+from datetime import datetime
+from matplotlib.backends.backend_pdf import PdfPages
 
 import argparse
 import numpy as np
-import sys
 
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
@@ -26,15 +29,15 @@ from util import (load_data_from_csv, get_empirical_distributions,
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num-threads", type=int, default=9,
-                        help="Size of the thread pool.")
     parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
                         help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
                         help="Number of trials from each subject to be used in "
                         "the analysis; if smaller than 1, all trials are used.")
-    parser.add_argument("--num-simulations", type=int, default=400,
+    parser.add_argument("--num-simulations", type=int, default=800,
                         help="Number of simulations to be generated per trial "
                         "condition.")
     parser.add_argument("--range-d", nargs="+", type=float,
@@ -50,11 +53,6 @@ def main():
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
                         default="fixations.csv", help="Name of fixations file.")
-    parser.add_argument("--use-cis-trials", default=False, action="store_true",
-                        help="Use CIS trials in the analysis.")
-    parser.add_argument("--use-trans-trials", default=False,
-                        action="store_true", help="Use TRANS trials in the "
-                        "analysis.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--save-figures", default=False,
@@ -83,25 +81,13 @@ def main():
     dataTrials = list()
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
     for subjectId in subjectIds:
-        numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
-                     else len(data[subjectId]))
-        if args.use_cis_trials and args.use_trans_trials:
-            trialSet = np.random.choice(
-                [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2],
-                numTrials, replace=False)
-        elif args.use_cis_trials and not args.use_trans_trials:
-            trialSet = np.random.choice(
-                [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2 and data[subjectId][trialId].isCisTrial],
-                numTrials, replace=False)
-        elif not args.use_cis_trials and args.use_trans_trials:
-            trialSet = np.random.choice(
-                [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2 and data[subjectId][trialId].isTransTrial],
-                numTrials, replace=False)
-        else:
-            return
+        maxNumTrials = len(data[subjectId]) / 2
+        numTrials = (args.trials_per_subject
+                     if 1 <= args.trials_per_subject <= maxNumTrials
+                     else maxNumTrials)
+        trialSet = np.random.choice(
+            [trialId for trialId in range(len(data[subjectId])) if trialId % 2],
+            numTrials, replace=False)
         dataTrials.extend([data[subjectId][t] for t in trialSet])
 
     # Create all models to be used in the grid search.
@@ -141,9 +127,7 @@ def main():
     # Get fixation distributions from even trials.
     try:
         fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True,
-            useCisTrials=args.use_cis_trials,
-            useTransTrials=args.use_trans_trials)
+            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
     except:
         print("An exception occurred while getting fixation distributions.")
         raise
@@ -155,13 +139,11 @@ def main():
     orientations = range(-15,20,5)
     for orLeft in orientations:
         for orRight in orientations:
-            if (orLeft == orRight or
-                (not args.use_cis_trials and orLeft * orRight > 0) or
-                (not args.use_trans_trials and orLeft * orRight < 0)):
+            if orLeft == orRight:
                 continue
             valueLeft = np.absolute((np.absolute(orLeft) - 15) / 5)
             valueRight = np.absolute((np.absolute(orRight) - 15) / 5)
-            for t in range(args.num_simulations):
+            for s in range(args.num_simulations):
                 try:
                     simulTrials.append(
                         model.simulate_trial(valueLeft, valueRight,

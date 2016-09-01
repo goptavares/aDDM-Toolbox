@@ -1,22 +1,27 @@
 #!/usr/bin/python
 
 """
-cis_trans_fitting.py
+addm_posteriors.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
-Maximum likelihood estimation procedure for the attentional drift-diffusion
-model (aDDM), specific for perceptual decisions, allowing for analysis of cis
-trials or trans trials exclusively. A grid search is performed over the 3 free
-parameters of the model. Data from all subjects is pooled such that a single set
-of optimal parameters is estimated. aDDM simulations are generated for the model
-estimated.
+Posterior distribution estimation procedure for the attentional drift-diffusion
+model (aDDM), using a grid search over the 3 free parameters of the model. Data
+from all subjects is pooled such that a single set of optimal parameters is
+estimated (or from a subset of subjects, when provided).
+
+aDDM simulations are generated according to the posterior distribution obtained
+(instead of generating simulations from a single model, we sample models from
+the posterior distribution and simulate them, then aggregate all simulations).
 """
 
-from multiprocessing import Pool
+import matplotlib
+matplotlib.use('Agg')
+
+from datetime import datetime
+from matplotlib.backends.backend_pdf import PdfPages
 
 import argparse
 import numpy as np
-import sys
 
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
@@ -26,17 +31,20 @@ from util import (load_data_from_csv, get_empirical_distributions,
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num-threads", type=int, default=9,
-                        help="Size of the thread pool.")
     parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
                         help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
                         help="Number of trials from each subject to be used in "
                         "the analysis; if smaller than 1, all trials are used.")
-    parser.add_argument("--num-simulations", type=int, default=400,
-                        help="Number of simulations to be generated per trial "
-                        "condition.")
+    parser.add_argument("--num-samples", type=int, default=100,
+                        help="Number of samples to be drawn from the posterior "
+                        "distribution when generating simulations.")
+    parser.add_argument("--num-simulations-per-sample", type=int, default=10,
+                        help="Number of simulations to be genearated for each "
+                        "sample drawn from the posterior distribution.")
     parser.add_argument("--range-d", nargs="+", type=float,
                         default=[0.003, 0.006, 0.009],
                         help="Search range for parameter d.")
@@ -50,11 +58,6 @@ def main():
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
                         default="fixations.csv", help="Name of fixations file.")
-    parser.add_argument("--use-cis-trials", default=False, action="store_true",
-                        help="Use CIS trials in the analysis.")
-    parser.add_argument("--use-trans-trials", default=False,
-                        action="store_true", help="Use TRANS trials in the "
-                        "analysis.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
     parser.add_argument("--save-figures", default=False,
@@ -75,7 +78,7 @@ def main():
         print("An exception occurred while loading the data.")
         raise
 
-    # Begin maximum likelihood estimation using odd trials only.
+    # Begin posterior estimation using odd trials only.
     if args.verbose:
         print("Starting grid search...")
 
@@ -85,31 +88,22 @@ def main():
     for subjectId in subjectIds:
         numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
                      else len(data[subjectId]))
-        if args.use_cis_trials and args.use_trans_trials:
-            trialSet = np.random.choice(
-                [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2],
-                numTrials, replace=False)
-        elif args.use_cis_trials and not args.use_trans_trials:
-            trialSet = np.random.choice(
-                [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2 and data[subjectId][trialId].isCisTrial],
-                numTrials, replace=False)
-        elif not args.use_cis_trials and args.use_trans_trials:
-            trialSet = np.random.choice(
-                [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2 and data[subjectId][trialId].isTransTrial],
-                numTrials, replace=False)
-        else:
-            return
+        trialSet = np.random.choice(
+            [trialId for trialId in range(len(data[subjectId])) if trialId % 2],
+            numTrials, replace=False)
         dataTrials.extend([data[subjectId][t] for t in trialSet])
 
     # Create all models to be used in the grid search.
+    numModels = (len(args.range_d) * len(args.range_theta) *
+                 len(args.range_sigma))
     models = list()
+    posteriors = dict()
     for d in args.range_d:
         for sigma in args.range_sigma:
             for theta in args.range_theta:
-                models.append(aDDM(d, sigma, theta))
+                model = aDDM(d, sigma, theta)
+                models.append(model)
+                posteriors[model.params] = 1. / numModels
 
     # Get likelihoods for all models.
     likelihoods = dict()
@@ -125,50 +119,62 @@ def main():
                   "computations for model " + str(model.params) + ".")
             raise
 
-    # Get negative log likelihoods and optimal parameters.
-    NLL = dict()
-    for model in models:
-        NLL[model.params] = - np.sum(np.log(likelihoods[model.params]))
-    optimalParams = min(NLL, key=NLL.get)
-
     if args.verbose:
         print("Finished grid search!")
-        print("Optimal d: " + str(optimalParams[0]))
-        print("Optimal sigma: " + str(optimalParams[1]))
-        print("Optimal theta: " + str(optimalParams[2]))
-        print("Min NLL: " + str(min(NLL.values())))
+
+    # Compute posterior distribution over all models.
+    for t in xrange(len(dataTrials)):
+        # Get the denominator for normalizing the posteriors.
+        denominator = 0
+        for model in models:
+            denominator += (posteriors[model.params] *
+                            likelihoods[model.params][t])
+        if denominator == 0:
+            continue
+
+        # Calculate the posteriors after this trial.
+        for model in models:
+            prior = posteriors[model.params]
+            posteriors[model.params] = (likelihoods[model.params][t] * prior /
+                                        denominator)
 
     # Get fixation distributions from even trials.
     try:
         fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True,
-            useCisTrials=args.use_cis_trials,
-            useTransTrials=args.use_trans_trials)
+            data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
     except:
         print("An exception occurred while getting fixation distributions.")
         raise
 
-    # Generate simulations using the even trials fixation distributions and the
-    # estimated parameters.
-    model = aDDM(*optimalParams)
+    # Get list of posterior distribution values.
+    posteriorsList = list()
+    for model in models:
+        posteriorsList.append(posteriors[model.params])
+
+    # Generate probabilistic set of simulations using the posterior
+    # distribution.
     simulTrials = list()
     orientations = range(-15,20,5)
     for orLeft in orientations:
         for orRight in orientations:
-            if (orLeft == orRight or
-                (not args.use_cis_trials and orLeft * orRight > 0) or
-                (not args.use_trans_trials and orLeft * orRight < 0)):
+            if orLeft == orRight:
                 continue
             valueLeft = np.absolute((np.absolute(orLeft) - 15) / 5)
             valueRight = np.absolute((np.absolute(orRight) - 15) / 5)
-            for t in range(args.num_simulations):
-                try:
-                    simulTrials.append(
-                        model.simulate_trial(valueLeft, valueRight,
-                                            fixationData))
-                except:
-                    print("An exception occurred while running simulations.")
-                    raise
+            for s in xrange(args.num_samples):
+                # Sample model from posteriors distribution.
+                modelIndex = np.random.choice(
+                    np.array(range(numModels)), p=np.array(posteriorsList))
+                model = models[modelIndex]
+                for t in xrange(args.num_simulations_per_sample):
+                    try:
+                        simulTrials.append(
+                            model.simulate_trial(valueLeft, valueRight,
+                                                 fixationData))
+                    except:
+                        print("An exception occurred while running "
+                              "simulations.")
+                        raise
 
     if args.save_simulations:
         save_simulations_to_csv(simulTrials)

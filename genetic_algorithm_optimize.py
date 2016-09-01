@@ -18,17 +18,12 @@ import numpy as np
 import random
 import sys
 
-from addm import get_trial_likelihood
+from addm import aDDM
 from util import load_data_from_csv
 
 
 # Global variables.
-choice = dict()
-valueLeft = dict()
-valueRight = dict()
-fixItem = dict()
-fixTime = dict()
-trialsPerSubject = 0
+dataTrials = []
 
 
 def evaluate(individual):
@@ -42,35 +37,34 @@ def evaluate(individual):
       A list containing the negative log likelihood for the global data set and
           the given model.
     """
-
     d = individual[0]
     theta = individual[1]
     sigma = individual[2]
+    model = aDDM(d, sigma, theta) 
 
     logLikelihood = 0
-    subjects = choice.keys()
-    for subject in subjects:
-        trials = choice[subject].keys()
-        trialSet = np.random.choice(trials, trialsPerSubject, replace=False)
-        for trial in trialSet:
-            try:
-                likelihood = get_trial_likelihood(
-                    choice[subject][trial], valueLeft[subject][trial],
-                    valueRight[subject][trial], fixItem[subject][trial],
-                    fixTime[subject][trial], d, theta, sigma=sigma,
-                    plotResults=False)
-            except:
-                print("An exception occurred during the likelihood computation "
-                      "for subject " + subject + ", trial " + str(trial) + ".")
-                raise
-            if likelihood != 0:
-                logLikelihood += np.log(likelihood)
+    for trial in dataTrials:
+        try:
+            likelihood = model.get_trial_likelihood(trial)
+        except:
+            print("An exception occurred during the likelihood "
+                  "computations for model " + str(model.params) + ".")
+            raise
+        if likelihood != 0:
+            logLikelihood += np.log(likelihood)
+
     print("NLL for " + str(individual) + ": " + str(-logLikelihood))
-    return -logLikelihood,
+    if logLikelihood != 0:
+        return -logLikelihood,
+    else:
+        return sys.maxint,
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
+                        help="List of subject ids. If not provided, all "
+                        "existing subjects will be used.")
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
     parser.add_argument("--trials-per-subject", type=int, default=100,
@@ -102,12 +96,7 @@ def main():
                         default="fixations.csv", help="Name of fixations file.")
     args = parser.parse_args()
 
-    global choice
-    global valueLeft
-    global valueRight
-    global fixItem
-    global fixTime
-    global trialsPerSubject
+    global dataTrials
 
     # Load experimental data from CSV file and update global variables.
     try:
@@ -117,13 +106,16 @@ def main():
     except Exception as e:
         print("An exception occurred while loading the data: " + str(e))
         return
-    choice = data.choice
-    valueLeft = data.valueLeft
-    valueRight = data.valueRight
-    fixItem = data.fixItem
-    fixTime = data.fixTime
 
-    trialsPerSubject = args.trials_per_subject
+    # Get correct subset of trials.
+    subjectIds = args.subject_ids if args.subject_ids else data.keys()
+    for subjectId in subjectIds:
+        numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
+                     else len(data[subjectId]))
+        trialSet = np.random.choice(
+            [trialId for trialId in range(len(data[subjectId]))],
+            numTrials, replace=False)
+        dataTrials.extend([data[subjectId][t] for t in trialSet])
 
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
