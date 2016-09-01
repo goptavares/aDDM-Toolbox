@@ -31,46 +31,46 @@ class TestLoadData(unittest.TestCase):
 
     def testLoadDataFromNonexistentDataFile(self):
         self.assertRaisesRegexp(
-            Exception, "File test_files/dummy_file.csv does not exist",
-            util.load_data_from_csv, "test_files/dummy_file.csv",
-            "test_files/sample_fixations.csv")
+            Exception, "File test_data/dummy_file.csv does not exist",
+            util.load_data_from_csv, "test_data/dummy_file.csv",
+            "test_data/sample_fixations.csv")
 
     def testLoadDataFromNonexistentFixationsFile(self):
         self.assertRaisesRegexp(
-            Exception, "File test_files/dummy_file.csv does not exist",
-            util.load_data_from_csv, "test_files/sample_trial_data.csv",
-            "test_files/dummy_file.csv")
+            Exception, "File test_data/dummy_file.csv does not exist",
+            util.load_data_from_csv, "test_data/sample_trial_data.csv",
+            "test_data/dummy_file.csv")
 
     def testLoadDataFromEmptyDataFile(self):
         self.assertRaisesRegexp(
             Exception, "No columns to parse from file",
-            util.load_data_from_csv, "test_files/empty_file.csv",
-            "test_files/sample_fixations.csv")
+            util.load_data_from_csv, "test_data/empty_file.csv",
+            "test_data/sample_fixations.csv")
 
     def testLoadDataFromEmptyFixationsFile(self):
         self.assertRaisesRegexp(
             Exception, "No columns to parse from file",
-            util.load_data_from_csv, "test_files/sample_trial_data.csv",
-            "test_files/empty_file.csv")
+            util.load_data_from_csv, "test_data/sample_trial_data.csv",
+            "test_data/empty_file.csv")
 
     def testLoadDataFromDataFileWithMissingField(self):
         self.assertRaisesRegexp(
             RuntimeError, "Missing field in experimental data file.",
             util.load_data_from_csv,
-            "test_files/sample_trial_data_incomplete.csv",
-            "test_files/sample_fixations.csv")
+            "test_data/sample_trial_data_incomplete.csv",
+            "test_data/sample_fixations.csv")
 
     def testLoadDataFromFixationsFileWithMissingField(self):
         self.assertRaisesRegexp(
             RuntimeError, "Missing field in fixations file.",
             util.load_data_from_csv,
-            "test_files/sample_trial_data.csv",
-            "test_files/sample_fixations_incomplete.csv")
+            "test_data/sample_trial_data.csv",
+            "test_data/sample_fixations_incomplete.csv")
 
     def testLoadDataFromCSVEconomicChoice(self):
         data = util.load_data_from_csv(
-            "test_files/sample_trial_data.csv",
-            "test_files/sample_fixations.csv", useAngularDists=False)
+            "test_data/sample_trial_data.csv",
+            "test_data/sample_fixations.csv", useAngularDists=False)
 
         expectedData = {}
         expectedData['abc'] = [aDDMTrial(RT=100, choice=1, valueLeft=-10,
@@ -84,8 +84,8 @@ class TestLoadData(unittest.TestCase):
 
     def testLoadDataFromCSVPerceptualChoice(self):
         data = util.load_data_from_csv(
-            "test_files/sample_trial_data.csv",
-            "test_files/sample_fixations.csv", useAngularDists=True)
+            "test_data/sample_trial_data.csv",
+            "test_data/sample_fixations.csv", useAngularDists=True)
 
         expectedData = {}
         expectedData['abc'] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
