@@ -76,23 +76,15 @@ def main():
     # Load experimental data from CSV file.
     if args.verbose:
         print("Loading experimental data...")
-    try:
-        data = load_data_from_csv(
-            args.expdata_file_name, args.fixations_file_name,
-            useAngularDists=True)
-    except:
-        print("An exception occurred while loading the data.")
-        raise
+    data = load_data_from_csv(
+        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
 
     # Get fixation distributions from even trials.
+    if args.verbose:
+        print("Getting fixation distributions from even trials...")
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
-    try:
-        fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False,
-            useEvenTrials=True)
-    except:
-        print("An exception occurred while getting fixation distributions.")
-        raise
+    fixationData = get_empirical_distributions(
+        data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
 
     # Trial conditions for generating simulations.
     orientations = range(-15,20,5)
@@ -140,11 +132,13 @@ def main():
                         trialCondition[0], trialCondition[1], fixationData,
                         numFixDists=args.num_fix_dists,
                         fixationDist=empiricalFixDist, timeBins=bins))
-                except Exception as e:
-                    print("An exception occurred while running simulations "
-                          "for trial condition " + str(trialCondition) + 
-                          ", iteration " + str(it) + ": " + str(e))
-                    return
+                except:
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(s) + " for condition " +
+                          str(trialCondition[0]) + ", " +
+                          str(trialCondition[1]) + " (iteration " + str(it) +
+                          ").")
+                    raise
 
         countLastFix = dict()
         countTotal = dict()
@@ -227,11 +221,12 @@ def main():
                     trialCondition[0], trialCondition[1], fixationData,
                     numFixDists=args.num_fix_dists,
                     fixationDist=empiricalFixDist, timeBins=bins))
-            except Exception as e:
-                print("An exception occurred while running final simulations "
-                      "for trial condition " + str(trialCondition) + ": " +
-                      str(e))
-                return
+            except:
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(s) + " for condition " +
+                      str(trialCondition[0]) + ", " + str(trialCondition[1]) +
+                      ", in the final simulations generation.")
+                raise
 
     if args.save_simulations:
         save_simulations_to_csv(simulTrials)

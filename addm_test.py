@@ -55,21 +55,14 @@ def main():
     # Load experimental data from CSV file.
     if args.verbose:
         print("Loading experimental data...")
-    try:
-        data = load_data_from_csv(
-            args.expdata_file_name, args.fixations_file_name,
-            useAngularDists=True)
-    except:
-        print("An exception occurred while loading the data.")
-        raise
+    data = load_data_from_csv(
+        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
 
     # Get fixation distributions.
+    if args.verbose:
+        print("Getting fixation distributions...")
     subjectIds = args.subject_ids if args.subject_ids else None
-    try:
-        fixationData = get_empirical_distributions(data, subjectIds=subjectIds)
-    except:
-        print("An exception occurred while getting fixation distributions.")
-        raise
+    fixationData = get_empirical_distributions(data, subjectIds=subjectIds)
 
     # Generate artificial data.
     if args.verbose:
@@ -89,8 +82,9 @@ def main():
                         model.simulate_trial(valueLeft, valueRight,
                                              fixationData))
                 except:
-                    print("An exception occurred while generating artificial "
-                          "data.")
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(t) + " for condition " +
+                          str(valueLeft) + ", " + str(valueRight) + ".")
                     raise
 
     # Get likelihoods for all models and all artificial trials.
@@ -110,7 +104,7 @@ def main():
                     likelihoods[model.params] = model.parallel_get_likelihoods(
                         trials, numThreads=args.num_threads)
                 except:
-                    print("An exception occurred during the likelihood "
+                    print("An exception occurred during the likelihood " +
                           "computations for model " + str(model.params) + ".")
                     raise
                 models.append(model)

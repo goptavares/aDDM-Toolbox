@@ -120,9 +120,11 @@ class DDM:
                     ddmTrial = self.simulate_trial(trialCondition[0],
                                                    trialCondition[1])
                 except:
-                    print("An exception occurred while running the model for "
-                          "likelihood computation, at simulation " +
-                          str(sim) + ".")
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(sim) + " for condition " +
+                          str(trialCondition[0]) + ", " +
+                          str(trialCondition[1]) + ", during the likelihood " +
+                          "computation for model " + str(self.params) + ".")
                     raise
                 if ddmTrial.choice == -1:
                     RTsLeft.append(ddmTrial.RT)
@@ -204,11 +206,12 @@ def main():
             try:
                 ddmTrial = model.simulate_trial(trialCondition[0],
                                                 trialCondition[1])
-            except Exception as e:
-                print("An exception occurred while running the model for "
-                      "artificial data generation, at trial " + str(trial) +
-                      ": " + str(e))
-                return
+            except:
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(trial) + " for condition " +
+                      str(trialCondition[0]) + ", " + str(trialCondition[1]) +
+                      ".")
+                raise
             if ddmTrial.choice == -1:
                 dataRTLeft[trialCondition].append(ddmTrial.RT)
             elif ddmTrial.choice == 1:
@@ -235,12 +238,7 @@ def main():
             models.append(model)
             listParams.append((model, trialConditions, args.num_simulations,
                               histBins, dataHistLeft, dataHistRight))
-    try:
-        likelihoods = pool.map(wrap_ddm_get_model_likelihood, listParams)
-    except:
-        print("An exception occurred during the likelihood computations.")
-        raise
-
+    likelihoods = pool.map(wrap_ddm_get_model_likelihood, listParams)
     pool.close()
 
     if args.verbose:

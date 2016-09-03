@@ -47,7 +47,7 @@ def evaluate(individual):
         try:
             likelihood = model.get_trial_likelihood(trial)
         except:
-            print("An exception occurred during the likelihood "
+            print("An exception occurred during the likelihood " +
                   "computations for model " + str(model.params) + ".")
             raise
         if likelihood != 0:
@@ -96,18 +96,17 @@ def main():
     parser.add_argument("--fixations-file-name", type=str,
                         default="fixations.csv",
                         help="Name of fixations file.")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     global dataTrials
 
-    # Load experimental data from CSV file and update global variables.
-    try:
-        data = load_data_from_csv(
-            args.expdata_file_name, args.fixations_file_name,
-            useAngularDists=True)
-    except Exception as e:
-        print("An exception occurred while loading the data: " + str(e))
-        return
+    # Load experimental data from CSV file.
+    if args.verbose:
+        print("Loading experimental data...")
+    data = load_data_from_csv(
+        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
 
     # Get correct subset of trials.
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
@@ -154,9 +153,9 @@ def main():
     try:
         fitnesses = toolbox.map(toolbox.evaluate, pop)
     except:
-        print("An exception occurred during the first population "
-              "evaluation: " + str(e))
-        return
+        print("An exception occurred during the first population " +
+              "evaluation.")
+        raise
     bestFit = sys.float_info.max
     bestInd = None
     for ind, fit in zip(pop, fitnesses):
@@ -166,7 +165,8 @@ def main():
             bestInd = ind
 
     for g in xrange(args.num_generations):
-        print("Generation " + str(g) + "...")
+        if args.verbose:
+            print("Generation " + str(g) + "...")
 
         # Select the next generation individuals.
         offspring = toolbox.select(pop, len(pop))
@@ -201,8 +201,8 @@ def main():
             fitnesses = map(toolbox.evaluate, invalidInd)
         except:
             print("An exception occurred during the population evaluation " +
-                  "for generation " + str(g) + ": " + str(e))
-            return
+                  "for generation " + str(g) + ".")
+            raise
         for ind, fit in zip(invalidInd, fitnesses):
             ind.fitness.values = fit
 

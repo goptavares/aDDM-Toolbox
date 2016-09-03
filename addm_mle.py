@@ -67,13 +67,8 @@ def main():
     # Load experimental data from CSV file.
     if args.verbose:
         print("Loading experimental data...")
-    try:
-        data = load_data_from_csv(
-            args.expdata_file_name, args.fixations_file_name,
-            useAngularDists=True)
-    except:
-        print("An exception occurred while loading the data.")
-        raise
+    data = load_data_from_csv(
+        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
 
     # Begin maximum likelihood estimation using odd trials only.
     if args.verbose:
@@ -110,7 +105,7 @@ def main():
             likelihoods[model.params] = model.parallel_get_likelihoods(
                 dataTrials, numThreads=args.num_threads)
         except:
-            print("An exception occurred during the likelihood "
+            print("An exception occurred during the likelihood " +
                   "computations for model " + str(model.params) + ".")
             raise
 
@@ -128,13 +123,10 @@ def main():
         print("Min NLL: " + str(min(NLL.values())))
 
     # Get fixation distributions from even trials.
-    try:
-        fixationData = get_empirical_distributions(
-            data, subjectIds=subjectIds, useOddTrials=False,
-            useEvenTrials=True)
-    except:
-        print("An exception occurred while getting fixation distributions.")
-        raise
+    if args.verbose:
+        print("Getting fixation distributions from even trials...")
+    fixationData = get_empirical_distributions(
+        data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
 
     # Generate simulations using the even trials fixation distributions and the
     # estimated parameters.
@@ -153,7 +145,9 @@ def main():
                         model.simulate_trial(valueLeft, valueRight,
                                             fixationData))
                 except:
-                    print("An exception occurred while running simulations.")
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(s) + " for condition " +
+                          str(valueLeft) + ", " + str(valueRight) + ".")
                     raise
 
     if args.save_simulations:

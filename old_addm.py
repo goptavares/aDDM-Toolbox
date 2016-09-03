@@ -233,9 +233,11 @@ class aDDM:
                     addmTrial = self.simulate_trial(
                         trialCondition[0], trialCondition[1], fixationData)
                 except:
-                    print("An exception occurred while running the model for "
-                          "likelihood computation, at simulation " +
-                          str(sim) + ".")
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(sim) + " for condition " +
+                          str(trialCondition[0]) + ", " +
+                          str(trialCondition[1]) + ", during the likelihood " +
+                          "computation for model " + str(self.params) + ".")
                     raise
                 if addmTrial.choice == -1:
                     RTsLeft.append(addmTrial.RT)
@@ -309,23 +311,14 @@ def main():
     # Load experimental data from CSV file.
     if args.verbose:
         print("Loading experimental data...")
-    try:
-        data = load_data_from_csv(
-            args.expdata_file_name, args.fixations_file_name,
-            useAngularDists=True)
-    except:
-        print("An exception occurred while loading the data.")
-        raise
+    data = load_data_from_csv(
+        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
 
     # Get fixation distributions.
     if args.verbose:
         print("Getting fixation distributions...")
     subjectIds = args.subject_ids if args.subject_ids else None
-    try:
-        fixationData = get_empirical_distributions(data, subjectIds=subjectIds)
-    except:
-        print("An exception occurred while getting fixation distributions.")
-        raise
+    fixationData = get_empirical_distributions(data, subjectIds=subjectIds)
 
     histBins = range(0, args.max_rt + args.bin_step, args.bin_step)
 
@@ -350,11 +343,12 @@ def main():
             try:
                 aDDMTrial = model.simulate_trial(
                     trialCondition[0], trialCondition[1], fixationData)
-            except Exception as e:
-                print("An exception occurred while running the model for "
-                      "artificial data generation, at trial " + str(trial) +
-                      ": " + str(e))
-                return
+            except:
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(trial) + " for condition " +
+                      str(trialCondition[0]) + ", " + str(trialCondition[1]) +
+                      ".")
+                raise
             if aDDMTrial.choice == -1:
                 RTsLeft.append(aDDMTrial.RT)
             elif aDDMTrial.choice == 1:
@@ -380,12 +374,7 @@ def main():
                 listParams.append((model, fixationData, trialConditions,
                                    args.num_simulations, histBins,
                                    dataHistLeft, dataHistRight))
-    try:
-        likelihoods = pool.map(wrap_addm_get_model_likelihood, listParams)
-    except:
-        print("An exception occurred during the likelihood computations.")
-        raise
-
+    likelihoods = pool.map(wrap_addm_get_model_likelihood, listParams)
     pool.close()
 
     if args.verbose:

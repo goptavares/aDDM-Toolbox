@@ -35,7 +35,7 @@ def main():
               "--num-simulations 1 --range-d 0.006 0.007 --range-sigma "
               "0.07 0.08 --range-theta 0.4 0.5 --verbose")
 
-    print("\n----------Testing group_posteriors.py----------")
+    print("\n----------Testing addm_posteriors.py----------")
     os.system("python addm_posteriors.py --trials-per-subject 1 "
               "--num-samples 10 --num-simulations-per-sample 1 "
               "--range-d 0.006 0.007 --range-sigma 0.07 0.08 "

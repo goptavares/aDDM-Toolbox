@@ -48,8 +48,9 @@ def main():
                 try:
                     trials.append(model.simulate_trial(valueLeft, valueRight))
                 except:
-                    print("An exception occurred while generating artificial "
-                          "data.")
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(t) + " for condition " +
+                          str(valueLeft) + ", " + str(valueRight) + ".")
                     raise
 
     # Get likelihoods for all models and all artificial trials.
@@ -67,7 +68,7 @@ def main():
                 likelihoods[model.params] = model.parallel_get_likelihoods(
                     trials, numThreads=args.num_threads)
             except:
-                print("An exception occurred during the likelihood "
+                print("An exception occurred during the likelihood " +
                       "computations for model " + str(model.params) + ".")
                 raise
             models.append(model)
