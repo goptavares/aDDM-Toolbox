@@ -8,11 +8,11 @@ Demo of the attentional drift-diffusion model (aDDM), as described by Krajbich
 set al. (2010).
 """
 
-from scipy.stats import norm
-
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+
+from scipy.stats import norm
 
 
 def main():

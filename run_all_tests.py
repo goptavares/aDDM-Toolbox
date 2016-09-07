@@ -61,18 +61,18 @@ def main():
 
     print("\n----------Testing optimize.py----------")
     os.system("python optimize.py --trials-per-subject 1 --num-iterations 1 "
-              "--step-size 0.005")
+              "--step-size 0.005 --verbose")
 
     print("\n----------Testing genetic_algorithm_optimize.py----------")
     os.system("python genetic_algorithm_optimize.py --trials-per-subject 1 "
-              "--pop-size 5 --num-generations 2")
+              "--pop-size 5 --num-generations 2 --verbose")
 
     print("\n----------Testing old_ddm.py----------")
-    os.system("python old_ddm.py --num-values 3 --num-trials 1 "
-              "--num-simulations 1 --verbose")
+    os.system("python old_ddm.py --num-values 3 --num-trials 100 "
+              "--num-simulations 100 --verbose")
 
     print("\n----------Testing old_addm.py----------")
-    os.system("python old_addm.py --num-trials 1 --num-simulations 1 "
+    os.system("python old_addm.py --num-trials 100 --num-simulations 100 "
               "--verbose")
 
 

@@ -10,14 +10,13 @@ from all subjects is pooled such that a single set of optimal parameters is
 estimated.
 """
 
-from deap import base, creator, tools
-from multiprocessing import Pool
-
 import argparse
 import numpy as np
 import random
 import sys
 
+from deap import base, creator, tools
+from multiprocessing import Pool
 from addm import aDDM
 from util import load_data_from_csv
 

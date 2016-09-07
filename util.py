@@ -7,15 +7,13 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Utility functions for the aDDM toolbox.
 """
 
-import matplotlib
-matplotlib.use("Agg")
-
-import collections
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
+
+from datetime import datetime
+from matplotlib.backends.backend_pdf import PdfPages
 
 from addm import FixationData, aDDMTrial, aDDM
 
@@ -255,7 +253,7 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
                         fixDistType)
 
 
-def save_simulations_to_csv(trials):
+def save_simulations_to_csv(trials, expdataFileName, fixationsFileName):
     """
     Saves the simulations generated with the aDDM algorithm into 2 CSV files.
     In file simul_expdata.csv, each row corresponds to a simulated trial, with
@@ -280,21 +278,21 @@ def save_simulations_to_csv(trials):
 
     try:
         expdata.to_csv(
-            'simul_expdata.csv', sep=',', index=False, float_format='%d',
+            expdataFileName, sep=',', index=False, float_format='%d',
             columns=['parcode','trial','rt','choice','item_left','item_right'])
     except:
         print("Failed to save experimental data to CSV file.")
         raise
     try:
         fixations.to_csv(
-            'simul_fixations.csv', sep=',', index=False, float_format='%d',
+            fixationsFileName, sep=',', index=False, float_format='%d',
             columns=['parcode','trial','fix_item','fix_time'])
     except:
         print("Failed to save fixations to CSV file.")
         raise
 
 
-def generate_choice_curves(dataTrials, simulTrials):
+def generate_choice_curves(dataTrials, simulTrials, pdfPages):
     """
     Plots the psychometric choice curves for data and simulations.
     Args:
@@ -302,8 +300,7 @@ def generate_choice_curves(dataTrials, simulTrials):
           data.
       simulTrials: a list of aDDMTrial objects corresponding to the
           simulations.
-    Returns:
-      A handle to a figure with the plotted choice curves.
+      pdfPages: matplotlib.backends.backend_pdf.PdfPages object.
     """
     countTotal = np.zeros(7)
     countLeftChosen = np.zeros(7)
@@ -353,10 +350,12 @@ def generate_choice_curves(dataTrials, simulTrials):
     plt.xlabel('Value difference')
     plt.ylabel('P(choose left)')
     plt.legend()
-    return fig
+
+    pdfPages.savefig(fig)
+    plt.close(fig)
 
 
-def generate_rt_curves(dataTrials, simulTrials):
+def generate_rt_curves(dataTrials, simulTrials, pdfPages):
     """
     Plots the reaction times for data and simulations.
     Args:
@@ -364,8 +363,7 @@ def generate_rt_curves(dataTrials, simulTrials):
           data.
       simulTrials: a list of aDDMTrial objects corresponding to the
           simulations.
-    Returns:
-      A handle to a figure with the plotted reaction time curves.
+      pdfPages: matplotlib.backends.backend_pdf.PdfPages object.
     """
     RTsPerValueDiff = dict()
     for valueDiff in xrange(-3,4,1):
@@ -409,4 +407,6 @@ def generate_rt_curves(dataTrials, simulTrials):
     plt.xlabel('Value difference')
     plt.ylabel('Mean RT')
     plt.legend()
-    return fig
+    
+    pdfPages.savefig(fig)
+    plt.close(fig)

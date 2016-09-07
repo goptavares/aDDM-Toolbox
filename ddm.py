@@ -8,19 +8,16 @@ Implementation of the traditional drift-diffusion model (DDM), as described by
 Ratcliff et al. (1998).
 """
 
-import matplotlib
-matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
 
 from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 from scipy.stats import norm
 
-import matplotlib.pyplot as plt
-import numpy as np
 
-
-class DDMTrial:
+class DDMTrial(object):
     def __init__(self, RT, choice, valueLeft, valueRight):
         """
         Args:
@@ -48,7 +45,7 @@ def unwrap_ddm_get_trial_likelihood(arg, **kwarg):
     return DDM.get_trial_likelihood(*arg, **kwarg)
 
 
-class DDM:
+class DDM(object):
     """
     Implementation of the traditional drift-diffusion model (DDM), as described
     by Ratcliff et al. (1998).
@@ -175,64 +172,10 @@ class DDM:
 
         if plotTrial:
             currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            pp = PdfPages("ddm_trial_" + currTime + ".pdf")
-            title = ("value left = %d, value right = %d" %
-                     (trial.valueLeft, trial.valueRight))
-
-            # Choose a suitable normalization constant.
-            maxProb = max(prStates[:,3])
-
-            fig = plt.figure()
-            plt.imshow(prStates[::-1,:], extent=[1, numTimeSteps,
-                                                 -self.barrier,
-                                                 self.barrier],
-                       aspect="auto", vmin=0, vmax=maxProb)
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-
-            fig = plt.figure()
-            plt.plot(range(1, numTimeSteps + 1), probUpCrossing, label="up",
-                     color="red")
-            plt.plot(range(1, numTimeSteps + 1), probDownCrossing,
-                     label="down", color="green")
-            plt.xlabel("Time")
-            plt.ylabel("P(crossing)")
-            plt.legend()
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-
-            probInner = np.sum(prStates, 0)
-            probUp = np.cumsum(probUpCrossing)
-            probDown = np.cumsum(probDownCrossing)
-            probTotal = probInner + probUp + probDown
-            fig = plt.figure()
-            plt.plot(range(1, numTimeSteps + 1), probUp, color="red",
-                     label="up")
-            plt.plot(range(1, numTimeSteps + 1), probDown, color="green",
-                     label="down")
-            plt.plot(range(1, numTimeSteps + 1), probInner, color="yellow",
-                     label="in")
-            plt.plot(range(1, numTimeSteps + 1), probTotal, color="blue",
-                     label="total")
-            plt.axis([1, numTimeSteps, 0, 1.1])
-            plt.xlabel("Time")
-            plt.ylabel("Cumulative probability")
-            plt.legend()
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-
-            fig = plt.figure()
-            plt.plot(range(1, numTimeSteps + 1), probTotal - 1)
-            plt.xlabel("Time")
-            plt.ylabel("Numerical error")
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-            
-            pp.close()
+            fileName = "ddm_trial_" + currTime + ".pdf"
+            self.plot_trial(trial.valueLeft, trial.valueRight, timeStep,
+                            numTimeSteps, prStates, probUpCrossing,
+                            probDownCrossing, fileName=fileName)
 
         return likelihood
 
@@ -292,3 +235,92 @@ class DDM:
 
         return DDMTrial(RT, choice, valueLeft, valueRight)
 
+
+    def plot_trial(self, valueLeft, valueRight, timeStep, numTimeSteps,
+                   probStates, probUpCrossing, probDownCrossing,
+                   fileName=None):
+        """
+        Plots the likelihood computation for a trial and saves the figures to a
+        PDF file.
+        Args:
+          valueLeft: value of the left item.
+          valueRight: value of the right item.
+          timeStep: integer, value in miliseconds used in the computation for
+              binning the time axis.
+          numTimeSteps: integer, number of time steps in the trial.
+          probStates: 2-dimensional numpy array with size S x T, where S is the
+              number of states and T is the number of time steps. Each value
+              corresponds to the probability of the signa being at a specific
+              state at a specific time in the trial. 
+          probUpCrossing: numpy array with size T, where T is the number of
+              time steps. Each value corresponds to the probability of crossing
+              the upper barrier over the time of the trial.
+          probDownCrossing: numpy array with size T, where T is the number of
+              time steps. Each value corresponds to the probability of crossing
+              the lower barrier over the time of the trial.
+          fileName: string, name of the PDF file to save.
+        """
+        if not fileName:
+            currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+            fileName = "trial_" + currTime + ".pdf"
+        pp = PdfPages(fileName)
+
+        title = "value left = %d, value right = %d" % (valueLeft, valueRight)
+
+        # Choose a suitable normalization constant.
+        maxProb = max(probStates[:,3])
+
+        fig, ax = plt.subplots()
+        plt.imshow(probStates[::-1,:],
+                   extent=[1, numTimeSteps, -self.barrier, self.barrier],
+                   aspect="auto", vmin=0, vmax=maxProb)
+        ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
+        plt.title(title)
+        pp.savefig(fig)
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        plt.plot(range(1, numTimeSteps + 1), probUpCrossing,
+                 label="up", color="red")
+        plt.plot(range(1, numTimeSteps + 1), probDownCrossing,
+                 label="down", color="green")
+        ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
+        plt.xlabel("Time")
+        plt.ylabel("P(crossing)")
+        plt.legend()
+        plt.title(title)
+        pp.savefig(fig)
+        plt.close(fig)
+
+        probInner = np.sum(probStates, 0)
+        probUp = np.cumsum(probUpCrossing)
+        probDown = np.cumsum(probDownCrossing)
+        probTotal = probInner + probUp + probDown
+        fig, ax = plt.subplots()
+        plt.plot(range(1, numTimeSteps + 1), probUp, color="red",
+                 label="up")
+        plt.plot(range(1, numTimeSteps + 1), probDown,
+                 color="green", label="down")
+        plt.plot(range(1, numTimeSteps + 1), probInner,
+                 color="yellow", label="in")
+        plt.plot(range(1, numTimeSteps + 1), probTotal,
+                 color="blue", label="total")
+        plt.axis([1, numTimeSteps, 0, 1.1])
+        ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
+        plt.xlabel("Time")
+        plt.ylabel("Cumulative probability")
+        plt.legend()
+        plt.title(title)
+        pp.savefig(fig)
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        plt.plot(range(1, numTimeSteps + 1), probTotal - 1)
+        ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
+        plt.xlabel("Time")
+        plt.ylabel("Numerical error")
+        plt.title(title)
+        pp.savefig(fig)
+        plt.close(fig)
+        
+        pp.close()

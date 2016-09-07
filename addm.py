@@ -8,16 +8,15 @@ Implementation of the attentional drift-diffusion model (aDDM), as described by
 Krajbich et al. (2010).
 """
 
-import matplotlib
-matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
 
 from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 from scipy.stats import norm
 
-import matplotlib.pyplot as plt
-import numpy as np
+from ddm import DDMTrial, DDM
 
 
 class FixationData:
@@ -52,7 +51,7 @@ class FixationData:
         self.fixDistType = fixDistType
 
 
-class aDDMTrial:
+class aDDMTrial(DDMTrial):
     def __init__(self, RT, choice, valueLeft, valueRight,
                  fixItem=np.empty((0)), fixTime=np.empty((0)),
                  fixRDV=np.empty((0)), uninterruptedLastFixTime=None,
@@ -74,10 +73,7 @@ class aDDMTrial:
             miliseconds, that the last fixation in the trial would have if it
             had not been interrupted when a decision was made.
         """
-        self.RT = RT
-        self.choice = choice
-        self.valueLeft = valueLeft
-        self.valueRight = valueRight
+        DDMTrial.__init__(self, RT, choice, valueLeft, valueRight)
         self.fixItem = fixItem
         self.fixTime = fixTime
         self.fixRDV = fixRDV
@@ -99,7 +95,7 @@ def unwrap_addm_get_trial_likelihood(arg, **kwarg):
     return aDDM.get_trial_likelihood(*arg, **kwarg)
 
 
-class aDDM:
+class aDDM(DDM):
     """
     Implementation of the attentional drift-diffusion model (aDDM), as
     described by Krajbich et al. (2010).
@@ -115,10 +111,8 @@ class aDDM:
               the attentional bias.
           barrier: positive number, magnitude of the signal thresholds.
         """
-        self.d = d
-        self.sigma = sigma
+        DDM.__init__(self, d, sigma, barrier)
         self.theta = theta
-        self.barrier = barrier
         self.params = (d, sigma, theta)
 
 
@@ -282,64 +276,10 @@ class aDDM:
 
         if plotTrial:
             currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            pp = PdfPages("addm_trial_" + currTime + ".pdf")
-            title = ("value left = %d, value right = %d" %
-                     (trial.valueLeft, trial.valueRight))
-
-            # Choose a suitable normalization constant.
-            maxProb = max(prStates[:,3])
-
-            fig = plt.figure()
-            plt.imshow(prStates[::-1,:], extent=[1, numTimeSteps,
-                                                 -self.barrier,
-                                                 self.barrier],
-                       aspect="auto", vmin=0, vmax=maxProb)
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-
-            fig = plt.figure()
-            plt.plot(range(1, numTimeSteps + 1), probUpCrossing, label="up",
-                     color="red")
-            plt.plot(range(1, numTimeSteps + 1), probDownCrossing,
-                     label="down", color="green")
-            plt.xlabel("Time")
-            plt.ylabel("P(crossing)")
-            plt.legend()
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-
-            probInner = np.sum(prStates, 0)
-            probUp = np.cumsum(probUpCrossing)
-            probDown = np.cumsum(probDownCrossing)
-            probTotal = probInner + probUp + probDown
-            fig = plt.figure()
-            plt.plot(range(1, numTimeSteps + 1), probUp, color="red",
-                     label="up")
-            plt.plot(range(1, numTimeSteps + 1), probDown, color="green",
-                     label="down")
-            plt.plot(range(1, numTimeSteps + 1), probInner, color="yellow",
-                     label="in")
-            plt.plot(range(1, numTimeSteps + 1), probTotal, color="blue",
-                     label="total")
-            plt.axis([1, numTimeSteps, 0, 1.1])
-            plt.xlabel("Time")
-            plt.ylabel("Cumulative probability")
-            plt.legend()
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-
-            fig = plt.figure()
-            plt.plot(range(1, numTimeSteps + 1), probTotal - 1)
-            plt.xlabel("Time")
-            plt.ylabel("Numerical error")
-            plt.title(title)
-            pp.savefig(fig)
-            plt.close(fig)
-            
-            pp.close()
+            fileName = "addm_trial_" + currTime + ".pdf"
+            self.plot_trial(trial.valueLeft, trial.valueRight, timeStep,
+                            numTimeSteps, prStates, probUpCrossing,
+                            probDownCrossing, fileName=fileName)
 
         return likelihood
 

@@ -10,11 +10,11 @@ Data from all subjects is pooled such that a single set of optimal parameters
 is estimated.
 """
 
-from scipy.optimize import basinhopping
-
 import argparse
 import numpy as np
 import sys
+
+from scipy.optimize import basinhopping
 
 from addm import aDDM
 from util import load_data_from_csv

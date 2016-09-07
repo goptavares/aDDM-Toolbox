@@ -13,11 +13,10 @@ a maximum likelihood estimation procedure, using a grid search over the 2 free
 parameters of the model.
 """
 
-from multiprocessing import Pool
-
 import argparse
-import collections
 import numpy as np
+
+from multiprocessing import Pool
 
 from ddm import DDMTrial
 

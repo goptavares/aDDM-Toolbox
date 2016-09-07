@@ -18,13 +18,11 @@ last fixation in the trial. The "true" distributions estimated are then used to
 generate aDDM simulations.  
 """
 
-from multiprocessing import Pool
-
 import argparse
-import collections
 import numpy as np
-import pandas as pd
-import sys
+
+from datetime import datetime
+from multiprocessing import Pool
 
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
@@ -47,7 +45,7 @@ def main():
     parser.add_argument("--num-fix-dists", type=int, default=3,
                         help="Number of fixation distributions.")
     parser.add_argument("--num-iterations", type=int, default=3,
-                        help="Number of iterations used to approximate the"
+                        help="Number of iterations used to approximate the "
                         "true distributions.")
     parser.add_argument("--num-simulations", type=int, default=400,
                         help="Number of simulations to be generated per trial "
@@ -229,7 +227,10 @@ def main():
                 raise
 
     if args.save_simulations:
-        save_simulations_to_csv(simulTrials)
+        currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        save_simulations_to_csv(simulTrials,
+                                "simul_expdata_" + currTime + ".csv",
+                                "simul_fixations_" + currTime + ".csv")
 
 
 if __name__ == '__main__':

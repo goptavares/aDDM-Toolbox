@@ -12,11 +12,12 @@ set of optimal parameters is estimated. aDDM simulations are generated for the
 model estimated.
 """
 
-from multiprocessing import Pool
-
 import argparse
 import numpy as np
 import sys
+
+from datetime import datetime
+from multiprocessing import Pool
 
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
@@ -166,21 +167,18 @@ def main():
                           str(valueLeft) + ", " + str(valueRight) + ".")
                     raise
 
+    currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
     if args.save_simulations:
-        save_simulations_to_csv(simulTrials)
+        save_simulations_to_csv(simulTrials,
+                                "simul_expdata_" + currTime + ".csv",
+                                "simul_fixations_" + currTime + ".csv")
 
     if args.save_figures:
-        # Create pdf file to save figures.
-        currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-        pp = PdfPages("addm_fit_" + currTime + ".pdf")
-
-        # Generate choice and RT curves for real data (odd trials) and
-        # simulations (generated from even trials).
-        fig1 = generate_choice_curves(dataTrials, simulTrials)
-        pp.savefig(fig1)
-        fig2 = generate_rt_curves(dataTrials, simulTrials)
-        pp.savefig(fig2)
-        pp.close()
+        pdfPages = PdfPages("addm_fit_" + currTime + ".pdf")
+        generate_choice_curves(dataTrials, simulTrials, pdfPages)
+        generate_rt_curves(dataTrials, simulTrials, pdfPages)
+        pdfPages.close()
 
 
 if __name__ == '__main__':
