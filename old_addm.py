@@ -19,7 +19,8 @@ import numpy as np
 from multiprocessing import Pool
 
 from addm import aDDMTrial
-from util import load_data_from_csv, get_empirical_distributions
+from util import (load_data_from_csv, get_empirical_distributions,
+                  convert_item_values)
 
 
 def wrap_addm_get_model_likelihood(args):
@@ -234,8 +235,7 @@ class aDDM:
                 except:
                     print("An exception occurred while generating " +
                           "artificial trial " + str(sim) + " for condition " +
-                          str(trialCondition[0]) + ", " +
-                          str(trialCondition[1]) + ", during the likelihood " +
+                          str(trialCondition) + ", during the likelihood " +
                           "computation for model " + str(self.params) + ".")
                     raise
                 if addmTrial.choice == -1:
@@ -247,7 +247,7 @@ class aDDM:
             simulLeft = np.histogram(RTsLeft, bins=histBins)[0]
             if np.sum(simulLeft) != 0:
                 simulLeft = simulLeft / float(np.sum(simulLeft))
-            with np.errstate(divide='ignore'):
+            with np.errstate(divide="ignore"):
                 logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
             dataLeft = np.array(dataHistLeft[trialCondition])
             likelihood += np.dot(logSimulLeft, dataLeft)
@@ -255,7 +255,7 @@ class aDDM:
             simulRight = np.histogram(RTsRight, bins=histBins)[0]
             if np.sum(simulRight) != 0:
                 simulRight = simulRight / float(np.sum(simulRight))
-            with np.errstate(divide='ignore'):
+            with np.errstate(divide="ignore"):
                 logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
             dataRight = np.array(dataHistRight[trialCondition])
             likelihood += np.dot(logSimulRight, dataRight)
@@ -311,7 +311,8 @@ def main():
     if args.verbose:
         print("Loading experimental data...")
     data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
 
     # Get fixation distributions.
     if args.verbose:
@@ -383,5 +384,5 @@ def main():
         print("Best fit: " + str(models[bestIndex].params))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

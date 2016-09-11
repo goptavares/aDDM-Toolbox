@@ -14,7 +14,8 @@ import unittest
 from datetime import datetime
 
 from addm import aDDMTrial
-from util import load_data_from_csv, save_simulations_to_csv
+from util import (load_data_from_csv, save_simulations_to_csv,
+                  convert_item_values)
 
 
 class TestLoadData(unittest.TestCase):
@@ -28,8 +29,6 @@ class TestLoadData(unittest.TestCase):
         np.testing.assert_equal(trial1.fixRDV, trial2.fixRDV)
         self.assertEqual(trial1.uninterruptedLastFixTime,
                          trial2.uninterruptedLastFixTime)
-        self.assertEqual(trial1.isCisTrial, trial2.isCisTrial)
-        self.assertEqual(trial1.isTransTrial, trial2.isTransTrial)
 
     def test_load_data_from_nonexistent_data_file(self):
         self.assertRaisesRegexp(
@@ -72,45 +71,41 @@ class TestLoadData(unittest.TestCase):
     def test_load_data_from_csv_economic_choice(self):
         data = load_data_from_csv(
             "test_data/sample_trial_data.csv",
-            "test_data/sample_fixations.csv", useAngularDists=False)
+            "test_data/sample_fixations.csv")
 
         expectedData = {}
-        expectedData['abc'] = [aDDMTrial(RT=100, choice=1, valueLeft=-10,
-                                         valueRight=15, fixItem=[1, 2],
+        expectedData["abc"] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
+                                         valueRight=0, fixItem=[1, 2],
                                          fixTime=[50, 50])]
-        expectedData['xyz'] = [aDDMTrial(RT=200, choice=-1, valueLeft=5,
-                                         valueRight=10, fixItem=[1, 2, 1],
+        expectedData["xyz"] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
+                                         valueRight=1, fixItem=[1, 2, 1],
                                          fixTime=[100, 50, 50])]
-        self.compare_trials(expectedData['abc'][0], data['abc'][0])
-        self.compare_trials(expectedData['xyz'][0], data['xyz'][0])
+        self.compare_trials(expectedData["abc"][0], data["abc"][0])
+        self.compare_trials(expectedData["xyz"][0], data["xyz"][0])
 
     def test_load_data_from_csv_perceptual_choice(self):
         data = load_data_from_csv(
-            "test_data/sample_trial_data.csv",
-            "test_data/sample_fixations.csv", useAngularDists=True)
+            "test_data/sample_trial_data_perceptual.csv",
+            "test_data/sample_fixations.csv",
+            convertItemValues=convert_item_values)
 
         expectedData = {}
-        expectedData['abc'] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
+        expectedData["abc"] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
                                          valueRight=0, fixItem=[1, 2],
-                                         fixTime=[50, 50], isCisTrial=False,
-                                         isTransTrial=True)]
-        expectedData['xyz'] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
+                                         fixTime=[50, 50])]
+        expectedData["xyz"] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
                                          valueRight=1, fixItem=[1, 2, 1],
-                                         fixTime=[100, 50, 50],
-                                         isCisTrial=True, isTransTrial=False)]
-        self.compare_trials(expectedData['abc'][0], data['abc'][0])
-        self.compare_trials(expectedData['xyz'][0], data['xyz'][0])
+                                         fixTime=[100, 50, 50])]
+        self.compare_trials(expectedData["abc"][0], data["abc"][0])
+        self.compare_trials(expectedData["xyz"][0], data["xyz"][0])
 
 
 class TestSaveSimulationsToCSV(unittest.TestCase):
     def runTest(self):
         trials = [aDDMTrial(RT=100, choice=1, valueLeft=1, valueRight=0,
-                            fixItem=[1, 2], fixTime=[50, 50], isCisTrial=False,
-                            isTransTrial=True),
+                            fixItem=[1, 2], fixTime=[50, 50]),
                   aDDMTrial(RT=200, choice=-1, valueLeft=2, valueRight=1,
-                            fixItem=[1, 2, 1], fixTime=[100, 50, 50],
-                            isCisTrial=True, isTransTrial=False)]
-
+                            fixItem=[1, 2, 1], fixTime=[100, 50, 50])]
 
         currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         expdataFileName = "simul_expdata_" + currTime + ".csv"
@@ -137,5 +132,5 @@ class TestSaveSimulationsToCSV(unittest.TestCase):
         os.remove(fixationsFileName)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

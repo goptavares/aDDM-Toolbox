@@ -37,13 +37,14 @@ class FixationData:
               determines how the fixation distributions are indexed. If
               'simple', fixation distributions are indexed only by type (1st,
               2nd, etc). If 'difficulty', they are indexed by type and by trial
-              difficulty. If 'fixation', they are indexed by type and by the
+              difficulty, i.e., the absolute value for the trial's value
+              difference. If 'fixation', they are indexed by type and by the
               value difference between the fixated and unfixated items.
         """
-        if (fixDistType is not 'simple' and fixDistType is not 'difficulty' and
-            fixDistType is not 'fixation'):
-            raise RuntimeError("Argument fixDistType must be one of "
-                               "{'simple', 'difficulty', 'fixation'}")
+        if (fixDistType is not "simple" and fixDistType is not "difficulty" and
+            fixDistType is not "fixation"):
+            raise RuntimeError("Argument fixDistType must be one of {simple, "
+                               "difficulty, fixation}")
         self.probFixLeftFirst = probFixLeftFirst
         self.latencies = latencies
         self.transitions = transitions
@@ -54,8 +55,7 @@ class FixationData:
 class aDDMTrial(DDMTrial):
     def __init__(self, RT, choice, valueLeft, valueRight,
                  fixItem=np.empty((0)), fixTime=np.empty((0)),
-                 fixRDV=np.empty((0)), uninterruptedLastFixTime=None,
-                 isCisTrial=False, isTransTrial=False):
+                 fixRDV=np.empty((0)), uninterruptedLastFixTime=None):
         """
         Args:
           RT: reaction time in miliseconds.
@@ -78,8 +78,6 @@ class aDDMTrial(DDMTrial):
         self.fixTime = fixTime
         self.fixRDV = fixRDV
         self.uninterruptedLastFixTime = uninterruptedLastFixTime
-        self.isCisTrial = isCisTrial
-        self.isTransTrial = isTransTrial
 
 
 def unwrap_addm_get_trial_likelihood(arg, **kwarg):
@@ -385,14 +383,14 @@ class aDDM(DDM):
                                   1 - fixationData.probFixLeftFirst])
         currFixItem = np.random.choice([1, 2], p=probLeftRight)
         if not fixationDist:
-            if fixationData.fixDistType == 'simple':
+            if fixationData.fixDistType == "simple":
                 currFixTime = np.random.choice(
                     fixationData.fixations[1]) - visualDelay
-            elif fixationData.fixDistType == 'difficulty':
+            elif fixationData.fixDistType == "difficulty":
                 valueDiff = np.absolute(valueLeft - valueRight)
                 currFixTime = np.random.choice(
                     fixationData.fixations[1][valueDiff]) - visualDelay
-            elif fixationData.fixDistType == 'fixation':
+            elif fixationData.fixDistType == "fixation":
                 valueDiff = fixUnfixValueDiffs[currFixItem]
                 currFixTime = np.random.choice(
                     fixationData.fixations[1][valueDiff]) - visualDelay
@@ -505,15 +503,15 @@ class aDDM(DDM):
             elif currFixItem == 2:
                 currFixItem = 1
             if not fixationDist:
-                if fixationData.fixDistType == 'simple':
+                if fixationData.fixDistType == "simple":
                     currFixTime = np.random.choice(
                         fixationData.fixations[fixNumber]) - visualDelay
-                elif fixationData.fixDistType == 'difficulty':
+                elif fixationData.fixDistType == "difficulty":
                     valueDiff = np.absolute(valueLeft - valueRight)
                     currFixTime = (np.random.choice(
                         fixationData.fixations[fixNumber][valueDiff]) -
                         visualDelay)
-                elif fixationData.fixDistType == 'fixation':
+                elif fixationData.fixDistType == "fixation":
                     valueDiff = fixUnfixValueDiffs[currFixItem]
                     currFixTime = (np.random.choice(
                         fixationData.fixations[fixNumber][valueDiff]) -

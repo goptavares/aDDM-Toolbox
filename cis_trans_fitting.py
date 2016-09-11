@@ -22,7 +22,7 @@ from multiprocessing import Pool
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
                   save_simulations_to_csv, generate_choice_curves,
-                  generate_rt_curves)
+                  generate_rt_curves, convert_item_values)
 
 
 def main():
@@ -36,9 +36,9 @@ def main():
                         help="Number of trials from each subject to be used "
                         "in the analysis; if smaller than 1, all trials are "
                         "used.")
-    parser.add_argument("--num-simulations", type=int, default=400,
-                        help="Number of simulations to be generated per trial "
-                        "condition.")
+    parser.add_argument("--simulations-per-condition", type=int,
+                        default=400, help="Number of artificial data trials "
+                        "to be generated per trial condition.")
     parser.add_argument("--range-d", nargs="+", type=float,
                         default=[0.003, 0.006, 0.009],
                         help="Search range for parameter d.")
@@ -71,18 +71,20 @@ def main():
     if args.verbose:
         print("Loading experimental data...")
     data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
 
     # Begin maximum likelihood estimation using odd trials only.
-    if args.verbose:
-        print("Starting grid search...")
-
     # Get correct subset of trials.
     dataTrials = list()
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
     for subjectId in subjectIds:
         numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
                      else len(data[subjectId]))
+        isCisTrial = [True if trial.valueLeft * trial.valueRight >= 0
+                      else False for trial in data[subjectId]]
+        isTransTrial = [True if trial.valueLeft * trial.valueRight <= 0
+                        else False for trial in data[subjectId]]
         if args.use_cis_trials and args.use_trans_trials:
             trialSet = np.random.choice(
                 [trialId for trialId in range(len(data[subjectId]))
@@ -91,12 +93,12 @@ def main():
         elif args.use_cis_trials and not args.use_trans_trials:
             trialSet = np.random.choice(
                 [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2 and data[subjectId][trialId].isCisTrial],
+                 if trialId % 2 and isCisTrial[trialId]],
                 numTrials, replace=False)
         elif not args.use_cis_trials and args.use_trans_trials:
             trialSet = np.random.choice(
                 [trialId for trialId in range(len(data[subjectId]))
-                 if trialId % 2 and data[subjectId][trialId].isTransTrial],
+                 if trialId % 2 and isTransTrial[trialId]],
                 numTrials, replace=False)
         else:
             return
@@ -110,6 +112,8 @@ def main():
                 models.append(aDDM(d, sigma, theta))
 
     # Get likelihoods for all models.
+    if args.verbose:
+        print("Starting grid search...")
     likelihoods = dict()
     for model in models:
         if args.verbose:
@@ -156,15 +160,15 @@ def main():
                 continue
             valueLeft = np.absolute((np.absolute(orLeft) - 15) / 5)
             valueRight = np.absolute((np.absolute(orRight) - 15) / 5)
-            for s in range(args.num_simulations):
+            for s in range(args.simulations_per_condition):
                 try:
                     simulTrials.append(
                         model.simulate_trial(valueLeft, valueRight,
                                              fixationData))
                 except:
                     print("An exception occurred while generating " +
-                          "artificial trial " + str(s) + " for condition " +
-                          str(valueLeft) + ", " + str(valueRight) + ".")
+                          "artificial trial " + str(s) + " for condition (" +
+                          str(valueLeft) + ", " + str(valueRight) + ").")
                     raise
 
     currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -181,5 +185,5 @@ def main():
         pdfPages.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

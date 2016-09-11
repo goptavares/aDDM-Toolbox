@@ -18,10 +18,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
-    parser.add_argument("--num-values", type=int, default=4,
-                        help="Number of item values to use in the artificial "
-                        "data.")
-    parser.add_argument("--num-trials", type=int, default=32,
+    parser.add_argument("--trials-per-condition", type=int, default=800,
                         help="Number of artificial data trials to be "
                         "generated per trial condition.")
     parser.add_argument("--d", type=float, default=0.006,
@@ -38,20 +35,23 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
+    # Trial conditions with format (valueLeft, valueRight). Change this
+    # according to the experiment.
+    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
+                       (1, 2), (1, 3), (2, 2), (2, 3)]
+
     # Generate artificial data.
     model = DDM(args.d, args.sigma)
     trials = list()
-    values = range(1, args.num_values + 1, 1)
-    for valueLeft in values:
-        for valueRight in values:
-            for t in xrange(args.num_trials):
-                try:
-                    trials.append(model.simulate_trial(valueLeft, valueRight))
-                except:
-                    print("An exception occurred while generating " +
-                          "artificial trial " + str(t) + " for condition " +
-                          str(valueLeft) + ", " + str(valueRight) + ".")
-                    raise
+    for (valueLeft, valueRight) in trialConditions:
+        for t in xrange(args.trials_per_condition):
+            try:
+                trials.append(model.simulate_trial(valueLeft, valueRight))
+            except:
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(t) + " for condition (" + str(valueLeft) +
+                      ", " + str(valueRight) + ").")
+                raise
 
     # Get likelihoods for all models and all artificial trials.
     numModels = len(args.range_d) * len(args.range_sigma)
@@ -97,5 +97,5 @@ def main():
         print("Sum: " + str(sum(posteriors.values())))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

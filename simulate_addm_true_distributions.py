@@ -26,7 +26,7 @@ from multiprocessing import Pool
 
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
-                  save_simulations_to_csv)
+                  save_simulations_to_csv, convert_item_values)
 
 
 def main():
@@ -47,9 +47,9 @@ def main():
     parser.add_argument("--num-iterations", type=int, default=3,
                         help="Number of iterations used to approximate the "
                         "true distributions.")
-    parser.add_argument("--num-simulations", type=int, default=400,
-                        help="Number of simulations to be generated per trial "
-                        "condition.")
+    parser.add_argument("--simulations-per-condition", type=int,
+                        default=400, help="Number of artificial data trials "
+                        "to be generated per trial condition.")
     parser.add_argument("--d", type=float, default=0.004,
                         help="aDDM parameter for generating simulations.")
     parser.add_argument("--sigma", type=float, default=0.07,
@@ -67,6 +67,11 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
+    # Trial conditions with format (valueLeft, valueRight). Change this
+    # according to the experiment.
+    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
+                       (1, 2), (1, 3), (2, 2), (2, 3)]
+
     # Time bins to be used in the fixation distributions.
     bins = range(args.bin_step, args.max_fix_bin + args.bin_step,
                  args.bin_step)
@@ -75,7 +80,8 @@ def main():
     if args.verbose:
         print("Loading experimental data...")
     data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
 
     # Get fixation distributions from even trials.
     if args.verbose:
@@ -83,16 +89,6 @@ def main():
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
     fixationData = get_empirical_distributions(
         data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
-
-    # Trial conditions for generating simulations.
-    orientations = range(-15,20,5)
-    trialConditions = list()
-    for oLeft in orientations:
-        for oRight in orientations:
-            if oLeft != oRight:
-                vLeft = np.absolute((np.absolute(oLeft) - 15) / 5)
-                vRight = np.absolute((np.absolute(oRight) - 15) / 5)
-                trialConditions.append((vLeft, vRight))
 
     # Create original empirical distributions of fixations.
     empiricalFixDist = dict()
@@ -123,19 +119,19 @@ def main():
         # Generate simulations using the current empirical distributions and
         # the model parameters.
         simulTrials = list()
-        for trialCondition in trialConditions:
-            for s in range(args.num_simulations):
+        for (valueLeft, valueRight) in trialConditions:
+            for s in range(args.simulations_per_condition):
                 try:
-                    simulTrials.append(model.simulate_trial(
-                        trialCondition[0], trialCondition[1], fixationData,
-                        numFixDists=args.num_fix_dists,
-                        fixationDist=empiricalFixDist, timeBins=bins))
+                    simulTrials.append(
+                        model.simulate_trial(
+                            valueLeft, valueRight, fixationData,
+                            numFixDists=args.num_fix_dists,
+                            fixationDist=empiricalFixDist, timeBins=bins))
                 except:
                     print("An exception occurred while generating " +
-                          "artificial trial " + str(s) + " for condition " +
-                          str(trialCondition[0]) + ", " +
-                          str(trialCondition[1]) + " (iteration " + str(it) +
-                          ").")
+                          "artificial trial " + str(s) + " for condition (" +
+                          str(valueLeft) + ", " + str(valueRight) +
+                          ") (iteration " + str(it) + ").")
                     raise
 
         countLastFix = dict()
@@ -212,18 +208,19 @@ def main():
 
     # Generate final simulations.
     simulTrials = list()
-    for trialCondition in trialConditions:
-        for s in range(args.num_simulations):
+    for (valueLeft, valueRight) in trialConditions:
+        for s in range(args.simulations_per_condition):
             try:
-                simulTrials.append(model.simulate_trial(
-                    trialCondition[0], trialCondition[1], fixationData,
-                    numFixDists=args.num_fix_dists,
-                    fixationDist=empiricalFixDist, timeBins=bins))
+                simulTrials.append(
+                    model.simulate_trial(
+                        valueLeft, valueRight, fixationData,
+                        numFixDists=args.num_fix_dists,
+                        fixationDist=empiricalFixDist, timeBins=bins))
             except:
-                print("An exception occurred while generating artificial " +
-                      "trial " + str(s) + " for condition " +
-                      str(trialCondition[0]) + ", " + str(trialCondition[1]) +
-                      ", in the final simulations generation.")
+                print("An exception occurred while generating " +
+                      "artificial trial " + str(s) + " for condition (" +
+                      str(valueLeft) + ", " + str(valueRight) +
+                      ") in the final simulations generation.")
                 raise
 
     if args.save_simulations:
@@ -233,5 +230,5 @@ def main():
                                 "simul_fixations_" + currTime + ".csv")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

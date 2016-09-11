@@ -15,7 +15,8 @@ import argparse
 import numpy as np
 
 from addm import aDDM
-from util import load_data_from_csv, get_empirical_distributions
+from util import (load_data_from_csv, get_empirical_distributions,
+                  convert_item_values)
 
 
 def main():
@@ -25,7 +26,7 @@ def main():
                         "existing subjects will be used.")
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
-    parser.add_argument("--num-trials", type=int, default=800,
+    parser.add_argument("--trials-per-condition", type=int, default=800,
                         help="Number of artificial data trials to be "
                         "generated per trial condition.")
     parser.add_argument("--d", type=float, default=0.006,
@@ -52,11 +53,17 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
+    # Trial conditions with format (valueLeft, valueRight). Change this
+    # according to the experiment.
+    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
+                       (1, 2), (1, 3), (2, 2), (2, 3)]
+
     # Load experimental data from CSV file.
     if args.verbose:
         print("Loading experimental data...")
     data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
 
     # Get fixation distributions.
     if args.verbose:
@@ -69,23 +76,16 @@ def main():
         print("Generating artificial data...")
     model = aDDM(args.d, args.sigma, args.theta)
     trials = list()
-    orientations = range(-15, 20, 5)
-    for orLeft in orientations:
-        for orRight in orientations:
-            if orLeft == orRight:
-                continue
-            valueLeft = np.absolute((np.absolute(orLeft) - 15) / 5)
-            valueRight = np.absolute((np.absolute(orRight) - 15) / 5)
-            for t in xrange(args.num_trials):
-                try:
-                    trials.append(
-                        model.simulate_trial(valueLeft, valueRight,
-                                             fixationData))
-                except:
-                    print("An exception occurred while generating " +
-                          "artificial trial " + str(t) + " for condition " +
-                          str(valueLeft) + ", " + str(valueRight) + ".")
-                    raise
+    for (valueLeft, valueRight) in trialConditions:
+        for t in xrange(args.trials_per_condition):
+            try:
+                trials.append(
+                    model.simulate_trial(valueLeft, valueRight, fixationData))
+            except:
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(t) + " for condition (" + str(valueLeft) +
+                      ", " + str(valueRight) + ").")
+                raise
 
     # Get likelihoods for all models and all artificial trials.
     numModels = (len(args.range_d) * len(args.range_sigma) *
@@ -133,5 +133,5 @@ def main():
         print("Sum: " + str(sum(posteriors.values())))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

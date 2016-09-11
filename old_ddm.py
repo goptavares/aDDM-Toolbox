@@ -134,7 +134,7 @@ class DDM:
             simulLeft = np.histogram(RTsLeft, bins=histBins)[0]
             if np.sum(simulLeft) != 0:
                 simulLeft = simulLeft / float(np.sum(simulLeft))
-            with np.errstate(divide='ignore'):
+            with np.errstate(divide="ignore"):
                 logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
             dataLeft = np.array(dataHistLeft[trialCondition])
             likelihood += np.dot(logSimulLeft, dataLeft)
@@ -142,7 +142,7 @@ class DDM:
             simulRight = np.histogram(RTsRight, bins=histBins)[0]
             if np.sum(simulRight) != 0:
                 simulRight = simulRight / float(np.sum(simulRight))
-            with np.errstate(divide='ignore'):
+            with np.errstate(divide="ignore"):
                 logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
             dataRight = np.array(dataHistRight[trialCondition])
             likelihood += np.dot(logSimulRight, dataRight)
@@ -247,5 +247,5 @@ def main():
         print("Best fit: " + str(models[bestIndex].params))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

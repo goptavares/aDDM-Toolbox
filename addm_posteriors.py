@@ -23,7 +23,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
                   save_simulations_to_csv, generate_choice_curves,
-                  generate_rt_curves)
+                  generate_rt_curves, convert_item_values)
 
 
 def main():
@@ -40,9 +40,10 @@ def main():
     parser.add_argument("--num-samples", type=int, default=100,
                         help="Number of samples to be drawn from the "
                         "posterior distribution when generating simulations.")
-    parser.add_argument("--num-simulations-per-sample", type=int, default=10,
+    parser.add_argument("--num-simulations", type=int, default=10,
                         help="Number of simulations to be genearated for each "
-                        "sample drawn from the posterior distribution.")
+                        "sample drawn from the posterior distribution and for "
+                        "each trial condition.")
     parser.add_argument("--range-d", nargs="+", type=float,
                         default=[0.003, 0.006, 0.009],
                         help="Search range for parameter d.")
@@ -66,16 +67,19 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
+    # Trial conditions with format (valueLeft, valueRight). Change this
+    # according to the experiment.
+    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
+                       (1, 2), (1, 3), (2, 2), (2, 3)]
+
     # Load experimental data from CSV file.
     if args.verbose:
         print("Loading experimental data...")
     data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
 
     # Begin posterior estimation using odd trials only.
-    if args.verbose:
-        print("Starting grid search...")
-
     # Get correct subset of trials.
     dataTrials = list()
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
@@ -101,6 +105,8 @@ def main():
                 posteriors[model.params] = 1. / numModels
 
     # Get likelihoods for all models.
+    if args.verbose:
+        print("Starting grid search...")
     likelihoods = dict()
     for model in models:
         if args.verbose:
@@ -147,30 +153,24 @@ def main():
     # Generate probabilistic set of simulations using the posterior
     # distribution.
     simulTrials = list()
-    orientations = range(-15,20,5)
-    for orLeft in orientations:
-        for orRight in orientations:
-            if orLeft == orRight:
-                continue
-            valueLeft = np.absolute((np.absolute(orLeft) - 15) / 5)
-            valueRight = np.absolute((np.absolute(orRight) - 15) / 5)
-            for s in xrange(args.num_samples):
-                # Sample model from posteriors distribution.
-                modelIndex = np.random.choice(
-                    np.array(range(numModels)), p=np.array(posteriorsList))
-                model = models[modelIndex]
-                for t in xrange(args.num_simulations_per_sample):
-                    try:
-                        simulTrials.append(
-                            model.simulate_trial(valueLeft, valueRight,
-                                                 fixationData))
-                    except:
-                        print("An exception occurred while generating " +
-                              "artificial trial " + str(t) + " for " +
-                              "condition " + str(valueLeft) + ", " +
-                              str(valueRight) + " and model " +
-                              str(model.params) + " (sample " + str(s) + ").")
-                        raise
+    for s in xrange(args.num_samples):
+        # Sample model from posteriors distribution.
+        modelIndex = np.random.choice(
+            np.array(range(numModels)), p=np.array(posteriorsList))
+        model = models[modelIndex]
+        for (valueLeft, valueRight) in trialConditions:
+            for t in xrange(args.num_simulations):
+                try:
+                    simulTrials.append(
+                        model.simulate_trial(valueLeft, valueRight,
+                                             fixationData))
+                except:
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(t) + " for " +
+                          "condition (" + str(valueLeft) + ", " +
+                          str(valueRight) + ") and model " +
+                          str(model.params) + " (sample " + str(s) + ").")
+                    raise
 
     currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
@@ -186,5 +186,5 @@ def main():
         pdfPages.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

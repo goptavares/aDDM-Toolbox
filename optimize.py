@@ -17,7 +17,7 @@ import sys
 from scipy.optimize import basinhopping
 
 from addm import aDDM
-from util import load_data_from_csv
+from util import load_data_from_csv, convert_item_values
 
 
 # Global variables.
@@ -104,7 +104,8 @@ def main():
     if args.verbose:
         print("Loading experimental data...")
     data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name, useAngularDists=True)
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
 
     # Get correct subset of trials.
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
@@ -133,5 +134,5 @@ def main():
     print("Optimization result: " + str(result))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
