@@ -69,8 +69,11 @@ def main():
 
     # Trial conditions with format (valueLeft, valueRight). Change this
     # according to the experiment.
-    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
-                       (1, 2), (1, 3), (2, 2), (2, 3)]
+    trialConditions = [(0, 0), (0, 1), (0, 1), (0, 2), (0, 2), (0, 3),
+                       (1, 0), (1, 0), (1, 1), (1, 2), (1, 2), (1, 3),
+                       (2, 0), (2, 0), (2, 1), (2, 1), (2, 2), (2, 3),
+                       (3, 0), (3, 1), (3, 2)
+                      ]
 
     # Load experimental data from CSV file.
     if args.verbose:
@@ -84,8 +87,10 @@ def main():
     dataTrials = list()
     subjectIds = args.subject_ids if args.subject_ids else data.keys()
     for subjectId in subjectIds:
-        numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
-                     else len(data[subjectId]))
+        maxNumTrials = len(data[subjectId]) / 2
+        numTrials = (args.trials_per_subject
+                     if 1 <= args.trials_per_subject <= maxNumTrials
+                     else maxNumTrials)
         trialSet = np.random.choice(
             [trialId for trialId in range(len(data[subjectId]))
              if trialId % 2],
@@ -139,11 +144,17 @@ def main():
             posteriors[model.params] = (likelihoods[model.params][t] * prior /
                                         denominator)
 
+    if args.verbose:
+        for model in models:
+            print("P" + str(model.params) + " = " +
+                  str(posteriors[model.params]))
+
     # Get fixation distributions from even trials.
     if args.verbose:
         print("Getting fixation distributions from even trials...")
     fixationData = get_empirical_distributions(
-        data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
+        data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True,
+        maxFixTime=3000)
 
     # Get list of posterior distribution values.
     posteriorsList = list()

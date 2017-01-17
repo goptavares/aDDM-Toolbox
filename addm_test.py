@@ -55,8 +55,11 @@ def main():
 
     # Trial conditions with format (valueLeft, valueRight). Change this
     # according to the experiment.
-    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
-                       (1, 2), (1, 3), (2, 2), (2, 3)]
+    trialConditions = [(0, 0), (0, 1), (0, 1), (0, 2), (0, 2), (0, 3),
+                       (1, 0), (1, 0), (1, 1), (1, 2), (1, 2), (1, 3),
+                       (2, 0), (2, 0), (2, 1), (2, 1), (2, 2), (2, 3),
+                       (3, 0), (3, 1), (3, 2)
+                      ]
 
     # Load experimental data from CSV file.
     if args.verbose:

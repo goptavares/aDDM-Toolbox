@@ -230,7 +230,7 @@ class aDDM(DDM):
                 prStatesNew = (
                     stateStep *
                     np.dot(norm.pdf(changeMatrix, mean, self.sigma),
-                           prStates[:,time-1]))
+                           prStates[:, time-1]))
                 prStatesNew[(states >= barrierUp[time]) |
                             (states <= barrierDown[time])] = 0
 
@@ -240,14 +240,14 @@ class aDDM(DDM):
                 # times the probability of crossing the barrier if A is the
                 # previous state.
                 tempUpCross = np.dot(
-                    prStates[:,time-1],
+                    prStates[:, time-1],
                     (1 - norm.cdf(changeUp[:, time], mean, self.sigma)))
                 tempDownCross = np.dot(
-                    prStates[:,time-1],
+                    prStates[:, time-1],
                     norm.cdf(changeDown[:, time], mean, self.sigma))
 
                 # Renormalize to cope with numerical approximations.
-                sumIn = np.sum(prStates[:,time-1])
+                sumIn = np.sum(prStates[:, time-1])
                 sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
                 prStatesNew = (prStatesNew * float(sumIn)) / float(sumCurrent)
                 tempUpCross = (tempUpCross * float(sumIn)) / float(sumCurrent)

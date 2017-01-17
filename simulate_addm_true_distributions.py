@@ -15,7 +15,7 @@ uninterrupted duration of last fixations to approximate the "true"
 distributions of fixations. We do this by dividing each bin in the empirical
 fixation distributions by the probability of a fixation in that bin being the
 last fixation in the trial. The "true" distributions estimated are then used to
-generate aDDM simulations.  
+generate aDDM simulations.
 """
 
 import argparse
@@ -69,8 +69,11 @@ def main():
 
     # Trial conditions with format (valueLeft, valueRight). Change this
     # according to the experiment.
-    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
-                       (1, 2), (1, 3), (2, 2), (2, 3)]
+    trialConditions = [(0, 0), (0, 1), (0, 1), (0, 2), (0, 2), (0, 3),
+                       (1, 0), (1, 0), (1, 1), (1, 2), (1, 2), (1, 3),
+                       (2, 0), (2, 0), (2, 1), (2, 1), (2, 2), (2, 3),
+                       (3, 0), (3, 1), (3, 2)
+                      ]
 
     # Time bins to be used in the fixation distributions.
     bins = range(args.bin_step, args.max_fix_bin + args.bin_step,

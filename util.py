@@ -217,7 +217,7 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
                         firstItemFixReached = True
                         latenciesList.append(latency)
                     if fixNumber == 1:
-                        countTotalTrials +=1
+                        countTotalTrials += 1
                         if trial.fixItem[i] == 1:  # First fixation was left.
                             countLeftFirst += 1
                     if (trial.fixTime[i] >= timeStep and
@@ -267,14 +267,14 @@ def save_simulations_to_csv(trials, expdataFileName, fixationsFileName):
     fixations = pd.DataFrame()
     for t, trial in enumerate(trials):
         expdata = expdata.append(
-            {"parcode": "dummy_subject", "trial": t, "rt": trial.RT,
-             "choice": trial.choice, "item_left": trial.valueLeft,
-             "item_right": trial.valueRight}, ignore_index=True)
+            {"parcode": 0, "trial": t, "rt": trial.RT, "choice": trial.choice,
+             "item_left": trial.valueLeft, "item_right": trial.valueRight},
+            ignore_index=True)
 
         for item, time in zip(trial.fixItem, trial.fixTime):
             fixations = fixations.append(
-                {"parcode": "dummy_subject", "trial": t, "fix_item": item,
-                 "fix_time": time}, ignore_index=True)
+                {"parcode": 0, "trial": t, "fix_item": item, "fix_time": time},
+                ignore_index=True)
 
     try:
         expdata.to_csv(
