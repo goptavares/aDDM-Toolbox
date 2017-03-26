@@ -48,7 +48,7 @@ def main():
                         help="Number of iterations used to approximate the "
                         "true distributions.")
     parser.add_argument("--simulations-per-condition", type=int,
-                        default=400, help="Number of artificial data trials "
+                        default=800, help="Number of artificial data trials "
                         "to be generated per trial condition.")
     parser.add_argument("--d", type=float, default=0.004,
                         help="aDDM parameter for generating simulations.")

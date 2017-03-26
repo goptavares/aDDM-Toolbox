@@ -6,8 +6,8 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Old implementation of the attentional drift-diffusion model (aDDM). This
 algorithm uses reaction time histograms conditioned on choice from both data
-and simulations to estimate each model's likelihood. Here we perforrm a test to
-check the validity of this algorithm. Artificil data is generated using
+and simulations to estimate each model's log-likelihood. Here we perforrm a
+test to check the validity of this algorithm. Artificil data is generated using
 specific parameters for the model. These parameters are then recovered through
 a maximum likelihood estimation procedure, using a grid search over the 3 free
 parameters of the model.
@@ -23,18 +23,19 @@ from util import (load_data_from_csv, get_empirical_distributions,
                   convert_item_values)
 
 
-def wrap_addm_get_model_likelihood(args):
+def wrap_addm_get_model_log_likelihood(args):
     """
-    Wrapper for aDDM.get_model_likelihood(), intended for parallel computation
-    using a threadpool.
+    Wrapper for aDDM.get_model_log_likelihood(), intended for parallel
+    computation using a threadpool.
     Args:
       args: a tuple where the first item is an aDDM object, and the remaining
-          item are the same arguments required by aDDM.get_model_likelihood().
+          item are the same arguments required by
+          aDDM.get_model_log_likelihood().
     Returns:
-      The output of aDDM.get_model_likelihood().
+      The output of aDDM.get_model_log_likelihood().
     """
     model = args[0]
-    return model.get_model_likelihood(*args[1:])
+    return model.get_model_log_likelihood(*args[1:])
 
 
 class aDDM:
@@ -196,12 +197,12 @@ class aDDM:
                          fixRDV)
 
 
-    def get_model_likelihood(self, fixationData, trialConditions,
+    def get_model_log_likelihood(self, fixationData, trialConditions,
                              numSimulations, histBins, dataHistLeft,
                              dataHistRight):
         """
-        Computes the likelihood of a data set given the parameters of the aDDM.
-        Data set is provided in the form of reaction time histograms
+        Computes the log-likelihood of a data set given the parameters of the
+        aDDM. Data set is provided in the form of reaction time histograms
         conditioned on choice.
         Args:
           fixationData: a FixationData object.
@@ -221,9 +222,9 @@ class aDDM:
           dataHistRight: same as dataHistLeft, except that the reaction time
               histograms are conditioned on right choice.
           Returns:
-              The likelihood for the given data and model.
+              The log-likelihood for the given data and model.
         """
-        likelihood = 0
+        logLikelihood = 0
         for trialCondition in trialConditions:
             RTsLeft = list()
             RTsRight = list()
@@ -235,8 +236,9 @@ class aDDM:
                 except:
                     print("An exception occurred while generating " +
                           "artificial trial " + str(sim) + " for condition " +
-                          str(trialCondition) + ", during the likelihood " +
-                          "computation for model " + str(self.params) + ".")
+                          str(trialCondition) + ", during the "
+                          "log-likelihood computation for model " +
+                          str(self.params) + ".")
                     raise
                 if addmTrial.choice == -1:
                     RTsLeft.append(addmTrial.RT)
@@ -250,7 +252,7 @@ class aDDM:
             with np.errstate(divide="ignore"):
                 logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
             dataLeft = np.array(dataHistLeft[trialCondition])
-            likelihood += np.dot(logSimulLeft, dataLeft)
+            logLikelihood += np.dot(logSimulLeft, dataLeft)
 
             simulRight = np.histogram(RTsRight, bins=histBins)[0]
             if np.sum(simulRight) != 0:
@@ -258,9 +260,9 @@ class aDDM:
             with np.errstate(divide="ignore"):
                 logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
             dataRight = np.array(dataHistRight[trialCondition])
-            likelihood += np.dot(logSimulRight, dataRight)
+            logLikelihood += np.dot(logSimulRight, dataRight)
 
-        return likelihood
+        return logLikelihood
 
 
 def main():
@@ -374,13 +376,13 @@ def main():
                 listParams.append((model, fixationData, trialConditions,
                                    args.num_simulations, histBins,
                                    dataHistLeft, dataHistRight))
-    likelihoods = pool.map(wrap_addm_get_model_likelihood, listParams)
+    logLikelihoods = pool.map(wrap_addm_get_model_log_likelihood, listParams)
     pool.close()
 
     if args.verbose:
         for i, model in enumerate(models):
-            print("L" + str(model.params) + " = " + str(likelihoods[i]))
-        bestIndex = likelihoods.index(max(likelihoods))
+            print("L" + str(model.params) + " = " + str(logLikelihoods[i]))
+        bestIndex = logLikelihoods.index(max(logLikelihoods))
         print("Best fit: " + str(models[bestIndex].params))
 
 

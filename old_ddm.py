@@ -6,8 +6,8 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Old implementation of the traditional drift-diffusion model (DDM). This
 algorithm uses reaction time histograms conditioned on choice from both data
-and simulations to estimate each model's likelihood. Here we perforrm a test to
-check the validity of this algorithm. Artificil data is generated using
+and simulations to estimate each model's log-likelihood. Here we perforrm a
+test to check the validity of this algorithm. Artificil data is generated using
 specific parameters for the model. These parameters are then recovered through
 a maximum likelihood estimation procedure, using a grid search over the 2 free
 parameters of the model.
@@ -21,18 +21,19 @@ from multiprocessing import Pool
 from ddm import DDMTrial
 
 
-def wrap_ddm_get_model_likelihood(args):
+def wrap_ddm_get_model_log_likelihood(args):
     """
-    Wrapper for DDM.get_model_likelihood(), intended for parallel computation
-    using a threadpool.
+    Wrapper for DDM.get_model_log_likelihood(), intended for parallel
+    computation using a threadpool.
     Args:
       args: a tuple where the first item is a DDM object, and the remaining
-          item are the same arguments required by DDM.get_model_likelihood().
+          item are the same arguments required by
+          DDM.get_model_log_likelihood().
     Returns:
-      The output of DDM.get_model_likelihood().
+      The output of DDM.get_model_log_likelihood().
     """
     model = args[0]
-    return model.get_model_likelihood(*args[1:])
+    return model.get_model_log_likelihood(*args[1:])
 
 
 class DDM:
@@ -85,10 +86,10 @@ class DDM:
         return DDMTrial(RT, choice, valueLeft, valueRight)
 
 
-    def get_model_likelihood(self, trialConditions, numSimulations, histBins,
-                             dataHistLeft, dataHistRight):
+    def get_model_log_likelihood(self, trialConditions, numSimulations,
+                                 histBins, dataHistLeft, dataHistRight):
         """
-        Computes the likelihood of a data set given the model. Data set is
+        Computes the log-likelihood of a data set given the model. Data set is
         provided in the form of reaction time histograms conditioned on choice.
         Args:
           trialConditions: list of pairs corresponding to the different trial
@@ -107,9 +108,9 @@ class DDM:
           dataHistRight: same as dataHistLeft, except that the reaction time
               histograms are conditioned on right choice.
           Returns:
-              The likelihood for the data given the model.
+              The log-likelihood for the data given the model.
         """
-        likelihood = 0
+        logLikelihood = 0
         for trialCondition in trialConditions:
             RTsLeft = list()
             RTsRight = list()
@@ -122,8 +123,9 @@ class DDM:
                     print("An exception occurred while generating " +
                           "artificial trial " + str(sim) + " for condition " +
                           str(trialCondition[0]) + ", " +
-                          str(trialCondition[1]) + ", during the likelihood " +
-                          "computation for model " + str(self.params) + ".")
+                          str(trialCondition[1]) + ", during the " +
+                          "log-likelihood computation for model " +
+                          str(self.params) + ".")
                     raise
                 if ddmTrial.choice == -1:
                     RTsLeft.append(ddmTrial.RT)
@@ -137,7 +139,7 @@ class DDM:
             with np.errstate(divide="ignore"):
                 logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
             dataLeft = np.array(dataHistLeft[trialCondition])
-            likelihood += np.dot(logSimulLeft, dataLeft)
+            logLikelihood += np.dot(logSimulLeft, dataLeft)
 
             simulRight = np.histogram(RTsRight, bins=histBins)[0]
             if np.sum(simulRight) != 0:
@@ -145,9 +147,9 @@ class DDM:
             with np.errstate(divide="ignore"):
                 logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
             dataRight = np.array(dataHistRight[trialCondition])
-            likelihood += np.dot(logSimulRight, dataRight)
+            logLikelihood += np.dot(logSimulRight, dataRight)
 
-        return likelihood
+        return logLikelihood
 
 
 def main():
@@ -237,13 +239,13 @@ def main():
             models.append(model)
             listParams.append((model, trialConditions, args.num_simulations,
                               histBins, dataHistLeft, dataHistRight))
-    likelihoods = pool.map(wrap_ddm_get_model_likelihood, listParams)
+    logLikelihoods = pool.map(wrap_ddm_get_model_log_likelihood, listParams)
     pool.close()
 
     if args.verbose:
         for i, model in enumerate(models):
-            print("L" + str(model.params) + " = " + str(likelihoods[i]))
-        bestIndex = likelihoods.index(max(likelihoods))
+            print("L" + str(model.params) + " = " + str(logLikelihoods[i]))
+        bestIndex = logLikelihoods.index(max(logLikelihoods))
         print("Best fit: " + str(models[bestIndex].params))
 
 
