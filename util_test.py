@@ -115,18 +115,18 @@ class TestSaveSimulationsToCSV(unittest.TestCase):
         expdataFile = open(expdataFileName, 'r')
         self.assertEqual("parcode,trial,rt,choice,item_left,item_right\n",
                          expdataFile.readline())
-        self.assertEqual("dummy_subject,0,100,1,1,0\n", expdataFile.readline())
-        self.assertEqual("dummy_subject,1,200,-1,2,1\n",
+        self.assertEqual("0,0,100,1,1,0\n", expdataFile.readline())
+        self.assertEqual("0,1,200,-1,2,1\n",
                          expdataFile.readline())
 
         fixationsFile = open(fixationsFileName, 'r')
         self.assertEqual("parcode,trial,fix_item,fix_time\n",
                          fixationsFile.readline())
-        self.assertEqual("dummy_subject,0,1,50\n", fixationsFile.readline())
-        self.assertEqual("dummy_subject,0,2,50\n", fixationsFile.readline())
-        self.assertEqual("dummy_subject,1,1,100\n", fixationsFile.readline())
-        self.assertEqual("dummy_subject,1,2,50\n", fixationsFile.readline())
-        self.assertEqual("dummy_subject,1,1,50\n", fixationsFile.readline())
+        self.assertEqual("0,0,1,50\n", fixationsFile.readline())
+        self.assertEqual("0,0,2,50\n", fixationsFile.readline())
+        self.assertEqual("0,1,1,100\n", fixationsFile.readline())
+        self.assertEqual("0,1,2,50\n", fixationsFile.readline())
+        self.assertEqual("0,1,1,50\n", fixationsFile.readline())
 
         os.remove(expdataFileName)
         os.remove(fixationsFileName)

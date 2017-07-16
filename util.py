@@ -44,7 +44,7 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
         df = pd.DataFrame.from_csv(expdataFileName, header=0, sep=",",
                                    index_col=None)
     except:
-        print ("Error while reading experimental data file " + expdataFileName)
+        print("Error while reading experimental data file " + expdataFileName)
         raise
 
     if ("parcode" not in df.columns or "trial" not in df.columns or
@@ -83,7 +83,7 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
         df = pd.DataFrame.from_csv(
             fixationsFileName, header=0, sep=",", index_col=None)
     except:
-        print ("Error while reading fixations file " + fixationsFileName)
+        print("Error while reading fixations file " + fixationsFileName)
         raise
 
     if ("parcode" not in df.columns or "trial" not in df.columns or
@@ -105,7 +105,6 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
                 ["fix_item", "fix_time"]])
             data[subjectId][t].fixItem = dataTrial[:,0]
             data[subjectId][t].fixTime = dataTrial[:,1]
-
     return data
 
 
