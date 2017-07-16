@@ -360,6 +360,7 @@ class aDDM(DDM):
             for t in xrange(int(latency // timeStep)):
                 # Sample the change in RDV from the distribution.
                 RDV += np.random.normal(0, self.sigma)
+
                 # If the RDV hit one of the barriers, we abort the trial,
                 # since a trial must end on an item fixation.
                 if RDV >= self.barrier or RDV <= -self.barrier:
@@ -401,13 +402,17 @@ class aDDM(DDM):
             currFixTime = np.random.choice(timeBins, p=prob) - visualDelay
 
         # Iterate over all fixations in this trial.
-        fixNumber = 2
+        if numFixDists >= 2:
+            fixNumber = 2
+        else:
+            fixNumber = 1
         trialFinished = False
         while True:
             # Iterate over the visual delay for the current fixation.
             for t in xrange(int(visualDelay // timeStep)):
                 # Sample the change in RDV from the distribution.
-                RDV += np.random.normal(0, sigma)
+                RDV += np.random.normal(0, self.sigma)
+
 
                 # If the RDV hit one of the barriers, the trial is over.
                 if RDV >= self.barrier or RDV <= -self.barrier:

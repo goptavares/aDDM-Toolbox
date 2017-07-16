@@ -22,7 +22,6 @@ import argparse
 import numpy as np
 
 from datetime import datetime
-from multiprocessing import Pool
 
 from addm import aDDM
 from util import (load_data_from_csv, get_empirical_distributions,
@@ -34,8 +33,6 @@ def main():
     parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
                         help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
-    parser.add_argument("--num-threads", type=int, default=9,
-                        help="Size of the thread pool.")
     parser.add_argument("--bin-step", type=int, default=10,
                         help="Size of the bin step to be used in the fixation "
                         "distributions.")
