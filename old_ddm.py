@@ -6,7 +6,7 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Old implementation of the traditional drift-diffusion model (DDM). This
 algorithm uses reaction time histograms conditioned on choice from both data
-and simulations to estimate each model's log-likelihood. Here we perforrm a
+and simulations to estimate each model's log-likelihood. Here we perform a
 test to check the validity of this algorithm. Artificil data is generated using
 specific parameters for the model. These parameters are then recovered through
 a maximum likelihood estimation procedure, using a grid search over the 2 free
@@ -36,12 +36,12 @@ def wrap_ddm_get_model_log_likelihood(args):
     return model.get_model_log_likelihood(*args[1:])
 
 
-class DDM:
+class DDM(object):
     """
     Implementation of the traditional drift-diffusion model (DDM), as described
     by Ratcliff et al. (1998).
     """
-    def __init__(self, d, sigma, barrier=1):
+    def __init__(self, d, sigma, barrier=1, nonDecisionTime=0, bias=0):
         """
         Args:
           d: float, parameter of the model which controls the speed of
@@ -49,10 +49,22 @@ class DDM:
           sigma: float, parameter of the model, standard deviation for the
               normal distribution.
           barrier: positive number, magnitude of the signal thresholds.
+          nonDecisionTime: non-negative integer, the amount of time in
+              milliseconds during which only noise is added to the decision
+              variable.
+          bias: number, corresponds to the initial value of the decision
+              variable. Must be smaller than barrier.
         """
+        if barrier <= 0:
+            raise ValueError("Error: barrier parameter must larger than zero.")
+        if bias >= barrier:
+            raise ValueError("Error: bias parameter must be smaller than "
+                "barrier parameter.")
         self.d = d
         self.sigma = sigma
         self.barrier = barrier
+        self.nonDecisionTime = nonDecisionTime
+        self.bias = bias
         self.params = (d, sigma)
 
 
@@ -64,20 +76,24 @@ class DDM:
         Args:
           valueLeft: integer, value of the left item.
           valueRight: integer, value of the right item.
-          timeStep: integer, value in miliseconds which determines how often
+          timeStep: integer, value in milliseconds which determines how often
               the RDV signal is updated.
         Returns:
           A DDMTrial object resulting from the simulation.
         """
         RT = 0
         choice = 0
-        RDV = 0
-        valueDiff = valueLeft - valueRight
+        RDV = self.bias
+        elapsedNDT = 0
 
         while RDV < self.barrier and RDV > -self.barrier:
             RT = RT + timeStep
             epsilon = np.random.normal(0, self.sigma)
-            RDV = RDV + (self.d * valueDiff) + epsilon
+            if elapsedNDT < int(self.nonDecisionTime // timeStep):
+                RDV += epsilon
+                elapsedNDT += 1
+            else:
+                RDV += (self.d * (valueLeft - valueRight)) + epsilon
 
         if RDV >= self.barrier:
             choice = -1

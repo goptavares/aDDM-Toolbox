@@ -6,7 +6,7 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Old implementation of the attentional drift-diffusion model (aDDM). This
 algorithm uses reaction time histograms conditioned on choice from both data
-and simulations to estimate each model's log-likelihood. Here we perforrm a
+and simulations to estimate each model's log-likelihood. Here we perform a
 test to check the validity of this algorithm. Artificil data is generated using
 specific parameters for the model. These parameters are then recovered through
 a maximum likelihood estimation procedure, using a grid search over the 3 free
@@ -19,6 +19,8 @@ import numpy as np
 from multiprocessing import Pool
 
 from addm import aDDMTrial
+from old_ddm import DDM
+
 from util import (load_data_from_csv, get_empirical_distributions,
                   convert_item_values)
 
@@ -38,12 +40,12 @@ def wrap_addm_get_model_log_likelihood(args):
     return model.get_model_log_likelihood(*args[1:])
 
 
-class aDDM:
+class aDDM(DDM):
     """
     Implementation of the attentional drift-diffusion model (aDDM), as
     described by Krajbich et al. (2010).
     """
-    def __init__(self, d, sigma, theta, barrier=1):
+    def __init__(self, d, sigma, theta, barrier=1, nonDecisionTime=0, bias=0):
         """
         Args:
           d: float, parameter of the model which controls the speed of
@@ -53,16 +55,19 @@ class aDDM:
           theta: float between 0 and 1, parameter of the model which controls
               the attentional bias.
           barrier: positive number, magnitude of the signal thresholds.
+          nonDecisionTime: non-negative integer, the amount of time in
+              milliseconds during which only noise is added to the decision
+              variable.
+          bias: number, corresponds to the initial value of the decision
+              variable. Must be smaller than barrier.
         """
-        self.d = d
-        self.sigma = sigma
+        DDM.__init__(self, d, sigma, barrier, nonDecisionTime, bias)
         self.theta = theta
-        self.barrier = barrier
         self.params = (d, sigma, theta)
 
 
     def simulate_trial(self, valueLeft, valueRight, fixationData, timeStep=10,
-                       numFixDists=3, visualDelay=0, motorDelay=0):
+                       numFixDists=3):
         """
         Generates an aDDM trial given the item values and some empirical
         fixation data, which are used to generate the simulated fixations.
@@ -70,20 +75,16 @@ class aDDM:
           valueLeft: value of the left item.
           valueRight: value of the right item.
           fixationData: a FixationData object.
-          timeStep: integer, value in miliseconds to be used for binning the
+          timeStep: integer, value in milliseconds to be used for binning the
               time axis.
           numFixDists: integer, number of fixation types to use in the fixation
               distributions. For instance, if numFixDists equals 3, then 3
               separate fixation types will be used, corresponding to the 1st,
               2nd and other (3rd and up) fixations in each trial.
-          visualDelay: delay to be discounted from the beginning of all
-              fixations, in miliseconds.
-          motorDelay: delay to be discounted from the last fixation only, in
-              miliseconds.
         Returns:
           An aDDMTrial object resulting from the simulation.
         """
-        RDV = 0
+        RDV = self.bias
         RT = 0
         trialTime = 0
         choice = 0
@@ -92,106 +93,126 @@ class aDDM:
         fixRDV = list()
 
         # Sample and iterate over the latency for this trial.
-        trialAborted = False
-        while True:
-            latency = np.random.choice(fixationData.latencies)
-            for t in xrange(int(latency // timeStep)):
-                # Sample the change in RDV from the distribution.
-                RDV += np.random.normal(0, self.sigma)
-                # If the RDV hit one of the barriers, we abort the trial,
-                # since a trial must end on an item fixation.
-                if RDV >= self.barrier or RDV <= -self.barrier:
-                    trialAborted = True
-                    break
+        latency = np.random.choice(fixationData.latencies)
+        remainingNDT = self.nonDecisionTime - latency
+        for t in xrange(int(latency // timeStep)):
+            # Sample the change in RDV from the distribution.
+            RDV += np.random.normal(0, self.sigma)
 
-            if trialAborted:
-                RDV = 0
-                trialAborted = False
-                continue
-            else:
-                # Add latency to this trial's data.
+            # If the RDV hit one of the barriers, the trial is over.
+            if RDV >= self.barrier or RDV <= -self.barrier:
+                if RDV >= self.barrier:
+                    choice = -1
+                elif RDV <= -self.barrier:
+                    choice = 1
                 fixRDV.append(RDV)
                 fixItem.append(0)
-                fixTime.append(latency - (latency % timeStep))
-                trialTime += latency - (latency % timeStep)
-                break
+                fixTime.append((t + 1) * timeStep)
+                trialTime += ((t + 1) * timeStep)
+                RT = trialTime
+                return aDDMTrial(RT, choice, valueLeft, valueRight, fixItem,
+                                 fixTime, fixRDV)
+
+        # Add latency to this trial's data.
+        fixRDV.append(RDV)
+        fixItem.append(0)
+        fixTime.append(latency - (latency % timeStep))
+        trialTime += latency - (latency % timeStep)
 
         fixUnfixValueDiffs = {1: valueLeft - valueRight,
                               2: valueRight - valueLeft}
-        
-        probLeftRight = np.array([fixationData.probFixLeftFirst,
-                                  1 - fixationData.probFixLeftFirst])
-        currFixItem = np.random.choice([1, 2], p=probLeftRight)
-        valueDiff = fixUnfixValueDiffs[currFixItem]
-        currFixTime = np.random.choice(fixationData.fixations[1][valueDiff])
 
+        fixNumber = 1
+        prevFixatedItem = -1
+        currFixLocation = 0
         decisionReached = False
-        fixNumber = 2
+
         while True:
-            for t in xrange(int(currFixTime // timeStep)):
+            if currFixLocation == 0:
+                # This is an item fixation; sample its location.
+                if prevFixatedItem == -1:
+                    # Sample the first item fixation for this trial.
+                    probLeftRight = np.array(
+                        [fixationData.probFixLeftFirst,
+                         1 - fixationData.probFixLeftFirst])
+                    currFixLocation = np.random.choice([1, 2], p=probLeftRight)
+                elif prevFixatedItem == 1:
+                    currFixLocation = 2
+                elif prevFixatedItem == 2:
+                    currFixLocation = 1
+                prevFixatedItem = currFixLocation
+                # Sample the duration of this item fixation.
+                valueDiff = fixUnfixValueDiffs[currFixLocation]
+                currFixTime = np.random.choice(
+                    fixationData.fixations[fixNumber][valueDiff])
+                if fixNumber < numFixDists:
+                    fixNumber += 1
+            else:
+                # This is a transition.
+                currFixLocation = 0
+                # Sample the duration of this transition.
+                currFixTime = np.random.choice(fixationData.transitions)
+
+            # Iterate over the remaining non-decision time.
+            if remainingNDT > 0:
+                for t in xrange(int(remainingNDT // timeStep)):
+                    # Sample the change in RDV from the distribution.
+                    RDV += np.random.normal(0, self.sigma)
+
+                    # If the RDV hit one of the barriers, the trial is over.
+                    if RDV >= self.barrier or RDV <= -self.barrier:
+                        if RDV >= self.barrier:
+                            choice = -1
+                        elif RDV <= -self.barrier:
+                            choice = 1
+                        fixRDV.append(RDV)
+                        fixItem.append(currFixLocation)
+                        fixTime.append((t + 1) * timeStep)
+                        trialTime += ((t + 1) * timeStep)
+                        RT = trialTime
+                        uninterruptedLastFixTime = currFixTime
+                        decisionReached = True
+                        break
+
+            if decisionReached:
+                break
+
+            remainingFixTime = max(0, currFixTime - max(0, remainingNDT))
+            remainingNDT -= currFixTime
+
+            # Iterate over the duration of the current fixation.
+            for t in xrange(int(remainingFixTime // timeStep)):
+                epsilon = np.random.normal(0, self.sigma)
+                if currFixLocation == 0:
+                    RDV += epsilon
+                elif currFixLocation == 1:
+                    RDV += (self.d * (
+                        valueLeft - (self.theta * valueRight))) + epsilon
+                elif currFixLocation == 2:
+                    RDV += (self.d * (
+                        (self.theta * valueLeft) - valueRight)) + epsilon
+
                 if RDV >= self.barrier or RDV <= -self.barrier:
                     if RDV >= self.barrier:
                         choice = -1
                     elif RDV <= -self.barrier:
                         choice = 1
                     fixRDV.append(RDV)
-                    fixItem.append(currFixItem)
-                    fixTime.append(((t + 1) * timeStep) + motorDelay)
-                    trialTime += ((t + 1) * timeStep) + motorDelay
+                    fixItem.append(currFixLocation)
+                    fixTime.append((t + 1) * timeStep)
+                    trialTime += ((t + 1) * timeStep)
                     RT = trialTime
                     decisionReached = True
                     break
 
-                epsilon = np.random.normal(0, self.sigma)
-                if currFixItem == 1:
-                    RDV += (self.d *
-                            (valueLeft - (self.theta * valueRight))) + epsilon
-                elif currFixItem == 2:
-                    RDV += (self.d *
-                            (-valueRight + (self.theta * valueLeft))) + epsilon
-
             if decisionReached:
                 break
 
+            # Add fixation to this trial's data.
             fixRDV.append(RDV)
-            fixItem.append(currFixItem)
+            fixItem.append(currFixLocation)
             fixTime.append(currFixTime - (currFixTime % timeStep))
             trialTime += currFixTime - (currFixTime % timeStep)
-
-            # Sample and iterate over transition time.
-            transitionTime = np.random.choice(fixationData.transitions)
-            for t in xrange(int(transitionTime // timeStep)):
-                # Sample the change in RDV from the distribution.
-                RDV += np.random.normal(0, self.sigma)
-
-                # If the RDV hit one of the barriers, the trial is over.
-                if RDV >= self.barrier or RDV <= -self.barrier:
-                    if RDV >= self.barrier:
-                        choice = -1
-                    elif RDV <= -self.barrier:
-                        choice = 1
-                    fixRDV.append(RDV)
-                    fixItem.append(0)
-                    fixTime.append(((t + 1) * timeStep) + motorDelay)
-                    trialTime += (((t + 1) * timeStep) + motorDelay)
-                    RT = trialTime
-                    uninterruptedLastFixTime = currFixTime
-                    decisionReached = True
-                    break
-
-            if decisionReached:
-                break
-
-            # Sample the next fixation for this trial.
-            if currFixItem == 1:
-                currFixItem = 2
-            elif currFixItem == 2:
-                currFixItem = 1
-            valueDiff = fixUnfixValueDiffs[currFixItem]
-            currFixTime = np.random.choice(
-                fixationData.fixations[fixNumber][valueDiff])
-            if fixNumber < numFixDists:
-                fixNumber += 1
 
         return aDDMTrial(RT, choice, valueLeft, valueRight, fixItem, fixTime,
                          fixRDV)

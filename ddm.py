@@ -21,7 +21,7 @@ class DDMTrial(object):
     def __init__(self, RT, choice, valueLeft, valueRight):
         """
         Args:
-          RT: reaction time in miliseconds.
+          RT: reaction time in milliseconds.
           choice: either -1 (for left item) or +1 (for right item).
           valueLeft: value of the left item.
           valueRight: value of the right item.
@@ -50,7 +50,7 @@ class DDM(object):
     Implementation of the traditional drift-diffusion model (DDM), as described
     by Ratcliff et al. (1998).
     """
-    def __init__(self, d, sigma, barrier=1):
+    def __init__(self, d, sigma, barrier=1, nonDecisionTime=0, bias=0):
         """
         Args:
           d: float, parameter of the model which controls the speed of
@@ -58,10 +58,22 @@ class DDM(object):
           sigma: float, parameter of the model, standard deviation for the
               normal distribution.
           barrier: positive number, magnitude of the signal thresholds.
+          nonDecisionTime: non-negative integer, the amount of time in
+              milliseconds during which only noise is added to the decision
+              variable.
+          bias: number, corresponds to the initial value of the decision
+              variable. Must be smaller than barrier.
         """
+        if barrier <= 0:
+            raise ValueError("Error: barrier parameter must larger than zero.")
+        if bias >= barrier:
+            raise ValueError("Error: bias parameter must be smaller than "
+                "barrier parameter.")
         self.d = d
         self.sigma = sigma
         self.barrier = barrier
+        self.nonDecisionTime = nonDecisionTime
+        self.bias = bias
         self.params = (d, sigma)
 
 
@@ -72,7 +84,7 @@ class DDM(object):
         particular DDM parameters.
         Args:
           trial: DDMTrial object.
-          timeStep: integer, value in miliseconds to be used for binning the
+          timeStep: integer, value in milliseconds to be used for binning the
               time axis.
           approxStateStep: float, to be used for binning the RDV axis.
           plotTrial: boolean, flag that determines whether the algorithm
@@ -103,26 +115,37 @@ class DDM(object):
                            barrierUp[0] - (stateStep / 2.) + stateStep,
                            stateStep)
 
-        # Initial probability for all states is zero, except the zero state,
+        # Find the state corresponding to the bias parameter.
+        biasState = np.argmin(np.absolute(states - self.bias))
+
+        # Initial probability for all states is zero, except the bias state,
         # for which the initial probability is one.
         prStates = np.zeros((states.size, numTimeSteps))
-        prStates[np.where(states==0)[0],0] = 1
+        prStates[biasState,0] = 1
 
         # The probability of crossing each barrier over the time of the trial.
         probUpCrossing = np.zeros(numTimeSteps)
         probDownCrossing = np.zeros(numTimeSteps)
 
-        # We use a normal distribution to model changes in RDV stochastically.
-        # The mean of the distribution (the change most likely to occur) is
-        # calculated from the model parameter d and from the item values.
-        mean = self.d * (trial.valueLeft - trial.valueRight)
-
         changeMatrix = np.subtract(states.reshape(states.size, 1), states)
         changeUp = np.subtract(barrierUp, states.reshape(states.size, 1))
         changeDown = np.subtract(barrierDown, states.reshape(states.size, 1))
 
+        elapsedNDT = 0
+
         # Iterate over the time of this trial.
         for time in xrange(1, numTimeSteps):
+            # We use a normal distribution to model changes in RDV
+            # stochastically. The mean of the distribution (the change most
+            # likely to occur) is calculated from the model parameter d and
+            # from the item values, except during non-decision time, in which
+            # the mean is zero.
+            if elapsedNDT < int(self.nonDecisionTime // timeStep):
+                mean = 0
+                elapsedNDT += 1
+            else:
+                mean = self.d * (trial.valueLeft - trial.valueRight)
+
             # Update the probability of the states that remain inside the
             # barriers. The probability of being in state B is the sum, over
             # all states A, of the probability of being in A at the previous
@@ -187,7 +210,7 @@ class DDM(object):
         DDM trials given the DDM parameters.
         Args:
           ddmTrials: list of DDMTrial objects.
-          timeStep: integer, value in miliseconds to be used for binning the
+          timeStep: integer, value in milliseconds to be used for binning the
               time axis.
           stateStep: float, to be used for binning the RDV axis.
           numThreads: int, number of threads to be used in the threadpool.
@@ -210,14 +233,14 @@ class DDM(object):
         Args:
           valueLeft: value of the left item.
           valueRight: value of the right item.
-          timeStep: integer, value in miliseconds to be used for binning the
+          timeStep: integer, value in milliseconds to be used for binning the
               time axis.
         Returns:
           A DDMTrial object resulting from the simulation.
         """
-        mean = self.d * (valueLeft - valueRight)
-        RDV = 0
+        RDV = self.bias
         time = 0
+        elapsedNDT = 0
         while True:
             # If the RDV hit one of the barriers, the trial is over.
             if RDV >= self.barrier or RDV <= -self.barrier:
@@ -227,6 +250,12 @@ class DDM(object):
                 elif RDV <= -self.barrier:
                     choice = 1
                 break
+
+            if elapsedNDT < int(self.nonDecisionTime // timeStep):
+                mean = 0
+                elapsedNDT += 1
+            else:
+                mean = self.d * (valueLeft - valueRight)
 
             # Sample the change in RDV from the distribution.
             RDV += np.random.normal(mean, self.sigma)
@@ -245,7 +274,7 @@ class DDM(object):
         Args:
           valueLeft: value of the left item.
           valueRight: value of the right item.
-          timeStep: integer, value in miliseconds used in the computation for
+          timeStep: integer, value in milliseconds used in the computation for
               binning the time axis.
           numTimeSteps: integer, number of time steps in the trial.
           probStates: 2-dimensional numpy array with size S x T, where S is the
