@@ -1,12 +1,31 @@
 #!/usr/bin/python
 
 """
-old_addm.py
+Copyright (C) 2017, California Institute of Technology
+
+This file is part of addm_toolbox.
+
+addm_toolbox is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+addm_toolbox is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
+
+---
+
+Module: addm_mla.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
-Old implementation of the attentional drift-diffusion model (aDDM). This
-algorithm uses reaction time histograms conditioned on choice from both data
-and simulations to estimate each model's log-likelihood. Here we perform a
+Maximum likelihood algorithm for the attentional drift-diffusion model (aDDM).
+This algorithm uses reaction time histograms conditioned on choice from both
+data and simulations to estimate each model's log-likelihood. Here we perform a
 test to check the validity of this algorithm. Artificil data is generated using
 specific parameters for the model. These parameters are then recovered through
 a maximum likelihood estimation procedure, using a grid search over the 3 free
