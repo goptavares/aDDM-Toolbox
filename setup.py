@@ -1,13 +1,19 @@
 from setuptools import setup
 
-def readme():
-    with open("README.md") as f:
-        return f.read()
+try:
+    from pypandoc import convert
+    read_md = lambda f: convert(f, 'rst', 'md')
+except:
+    print("Warning: pypandoc module not found, could not convert Markdown to "
+          "RST.")
+    read_md = lambda f: open(f, 'r').read()
+
 
 setup(name="addm_toolbox",
-      version="0.1.2",
+      version="0.1.3",
       description="A toolbox for data analysis using the attentional "
       "drift-diffusion model.",
+      long_description=read_md("README.md"),
       classifiers=[
           "Programming Language :: Python :: 2.7",
           "Development Status :: 3 - Alpha",
@@ -15,7 +21,7 @@ setup(name="addm_toolbox",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
       ],
       url="http://github.com/goptavares/aDDM-Toolbox",
-      download_url = "https://github.com/goptavares/aDDM-Toolbox/archive/0.1.2.tar.gz",
+      download_url = "https://github.com/goptavares/aDDM-Toolbox/archive/0.1.3.tar.gz",
       author="Gabriela Tavares",
       author_email="gtavares@caltech.edu",
       license="GPLv3",
