@@ -36,6 +36,7 @@ import sys
 
 from deap import base, creator, tools
 from multiprocessing import Pool
+
 from addm import aDDM
 from util import load_data_from_csv, convert_item_values
 

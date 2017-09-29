@@ -136,6 +136,7 @@ def main():
     if args.display_figures:
         # Choose a suitable normalization constant.
         maxProb = max(prStates[:,3])
+        fig = plt.figure(figsize=(20, 9))
 
         plt.subplot(4, 1, 1)
         plt.imshow(prStates[::-1,:], extent=[1, args.max_time,

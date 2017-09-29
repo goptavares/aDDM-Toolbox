@@ -1,0 +1,4 @@
+include COPYING.GPL
+include README.md
+include addm_toolbox/expdata.csv
+include addm_toolbox/fixations.csv

@@ -38,7 +38,7 @@ import numpy as np
 from multiprocessing import Pool
 
 from addm import aDDMTrial
-from old_ddm import DDM
+from ddm_mla import DDM
 
 from util import (load_data_from_csv, get_empirical_distributions,
                   convert_item_values)
