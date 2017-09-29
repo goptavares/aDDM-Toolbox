@@ -5,17 +5,17 @@ def readme():
         return f.read()
 
 setup(name="addm_toolbox",
-      version="0.1",
+      version="0.1.2",
       description="A toolbox for data analysis using the attentional "
       "drift-diffusion model.",
       classifiers=[
           "Programming Language :: Python :: 2.7",
-          "Development Status :: 4 - Beta",
+          "Development Status :: 3 - Alpha",
           "Topic :: Scientific/Engineering",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
       ],
       url="http://github.com/goptavares/aDDM-Toolbox",
-      download_url = "https://github.com/goptavares/aDDM-Toolbox/archive/0.1.tar.gz",
+      download_url = "https://github.com/goptavares/aDDM-Toolbox/archive/0.1.2.tar.gz",
       author="Gabriela Tavares",
       author_email="gtavares@caltech.edu",
       license="GPLv3",

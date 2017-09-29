@@ -72,10 +72,11 @@ def main():
                         help="aDDM parameter for generating simulations.")
     parser.add_argument("--theta", type=float, default=0.25,
                         help="aDDM parameter for generating simulations.")
-    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+    parser.add_argument("--expdata-file-name", type=str, 
+                        default="addm_toolbox/expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv",
+                        default="addm_toolbox/fixations.csv",
                         help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")

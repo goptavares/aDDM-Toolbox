@@ -4,7 +4,7 @@ This toolbox can be used to perform model fitting and to generate simulations
 for the attentional drift-diffusion model (aDDM), as well as for the classic
 version of the drift-diffusion model (DDM) without an attentional component.
 
-### Prerequisites
+## Prerequisites
 
 This toolbox requires the following libraries:
 * deap
@@ -13,7 +13,7 @@ This toolbox requires the following libraries:
 * pandas
 * scipy 
 
-### Installing
+## Installing
 
 ```
 $ pip install addm_toolbox
@@ -27,14 +27,14 @@ To make sure everything is working correctly after installation, try:
 $ addm_run_tests
 ```
 
-Maybe go get a cup of tea, this should take a while to run :)
+This should take a while to finish, so maybe go get a cup of tea :)
 
-## Getting Started
+## Getting started
 
 To play with the algorithm, try:
 
 ```
-$ addm_demo --display_plots
+$ addm_demo --display-figures
 ```
 
 You can also have a look at the following modules: 

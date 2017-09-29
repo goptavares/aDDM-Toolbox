@@ -110,10 +110,11 @@ def main():
                         help="Lower search bound for parameter sigma.")
     parser.add_argument("--upper-bound-sigma", type=float, default=0.1,
                         help="Upper search bound for parameter sigma.")
-    parser.add_argument("--expdata-file-name", type=str, default="expdata.csv",
+    parser.add_argument("--expdata-file-name", type=str,
+                        default="addm_toolbox/expdata.csv",
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="fixations.csv",
+                        default="addm_toolbox/fixations.csv",
                         help="Name of fixations file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")
