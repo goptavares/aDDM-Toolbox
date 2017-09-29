@@ -11,7 +11,7 @@ This toolbox requires the following libraries:
 * matplotlib
 * numpy
 * pandas
-* scipy 
+* scipy
 
 ## Installing
 
@@ -19,7 +19,7 @@ This toolbox requires the following libraries:
 $ pip install addm_toolbox
 ```
 
-## Running the tests
+## Running tests
 
 To make sure everything is working correctly after installation, try:
 
@@ -31,15 +31,19 @@ This should take a while to finish, so maybe go get a cup of tea :)
 
 ## Getting started
 
-To play with the algorithm, try:
+To get a feel for how the algorithm works, try:
 
 ```
 $ addm_demo --display-figures
 ```
 
-You can also have a look at the following modules: 
-* demo.py is a script to get started and get a feel for how the algorithm
-works.
+You can see all the arguments available for the demo using:
+
+```
+$ addm_demo --help
+```
+
+You can also have a look at the code in the following modules: 
 * addm.py contains the aDDM implementation, with functions to generate model
 simulations and obtain the likelihood for a given data trial.
 * ddm.py is equivalent to addm.py but for the DDM.
@@ -64,3 +68,7 @@ This project is licensed under the GNU GENERAL PUBLIC LICENSE - see the COPYING
 file for details.
 
 ## Acknowledgments
+
+This toolbox was developed as part of a research project in the [Rangel
+Neuroeconomics Lab](http://www.rnl.caltech.edu/) at the California Institute of
+Technology.

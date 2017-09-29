@@ -31,6 +31,7 @@ estimated.
 
 import argparse
 import numpy as np
+import os
 import random
 import sys
 
@@ -111,10 +112,12 @@ def main():
     parser.add_argument("--upper-bound-sigma", type=float, default=0.1,
                         help="Upper search bound for parameter sigma.")
     parser.add_argument("--expdata-file-name", type=str,
-                        default="addm_toolbox/expdata.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/expdata.csv"),
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="addm_toolbox/fixations.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/fixations.csv"),
                         help="Name of fixations file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")

@@ -39,6 +39,7 @@ generate aDDM simulations.
 
 import argparse
 import numpy as np
+import os
 
 from datetime import datetime
 
@@ -73,10 +74,12 @@ def main():
     parser.add_argument("--theta", type=float, default=0.25,
                         help="aDDM parameter for generating simulations.")
     parser.add_argument("--expdata-file-name", type=str, 
-                        default="addm_toolbox/expdata.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/expdata.csv"),
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="addm_toolbox/fixations.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/fixations.csv"),
                         help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
@@ -172,27 +175,26 @@ def main():
                 1: trial.valueLeft - trial.valueRight,
                 2: trial.valueRight - trial.valueLeft}
             lastItemFixSkipped = False
-            lastFixItem = -1
             numFix = 1
             for item, time in zip(trial.fixItem[::-1], trial.fixTime[::-1]):
                 if not lastItemFixSkipped and (item == 1 or item == 2):
-                    lastFixItem = item
+                    # Count last fixation (only if it was to an item).
+                    bin = args.bin_step * min(
+                        (trial.uninterruptedLastFixTime // args.bin_step) + 1,
+                        len(bins))
+                    vDiff = fixUnfixValueDiffs[item]
+                    countLastFix[numFix][vDiff][bin] += 1
+                    countTotal[numFix][vDiff][bin] += 1
                     lastItemFixSkipped = True
                     continue
                 if item == 1 or item == 2:
-                    bin = args.bin_step * min((time // args.bin_step) + 1,
-                                              len(bins))
+                    # Count item fixations other than the last one.
+                    bin = args.bin_step * min(
+                        (time // args.bin_step) + 1, len(bins))
                     vDiff = fixUnfixValueDiffs[item]
                     countTotal[numFix][vDiff][bin] += 1
                     if numFix < args.num_fix_dists:
                         numFix += 1
-            # Count last fixation.
-            vDiff = fixUnfixValueDiffs[lastFixItem]
-            bin = args.bin_step * min(
-                (trial.uninterruptedLastFixTime // args.bin_step) + 1,
-                len(bins))
-            countLastFix[numFix][vDiff][bin] += 1
-            countTotal[numFix][vDiff][bin] += 1
 
         # Obtain true distributions of fixations.
         trueFixDist = dict()

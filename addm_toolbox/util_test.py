@@ -151,5 +151,9 @@ class TestSaveSimulationsToCSV(unittest.TestCase):
         os.remove(fixationsFileName)
 
 
-if __name__ == "__main__":
+def main():
     unittest.main()
+
+
+if __name__ == "__main__":
+    main()

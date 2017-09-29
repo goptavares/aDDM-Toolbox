@@ -1,5 +1,4 @@
 include COPYING.GPL
 include README.md
-include addm_toolbox/expdata.csv
-include addm_toolbox/fixations.csv
+include addm_toolbox/data/*
 include addm_toolbox/test_data/*

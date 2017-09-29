@@ -26,20 +26,20 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Maximum likelihood algorithm for the attentional drift-diffusion model (aDDM).
 This algorithm uses reaction time histograms conditioned on choice from both
 data and simulations to estimate each model's log-likelihood. Here we perform a
-test to check the validity of this algorithm. Artificil data is generated using
-specific parameters for the model. These parameters are then recovered through
-a maximum likelihood estimation procedure, using a grid search over the 3 free
-parameters of the model.
+test to check the validity of this algorithm. Artificial data is generated
+using specific parameters for the model. These parameters are then recovered
+through a maximum likelihood estimation procedure, using a grid search over the
+3 free parameters of the model.
 """
 
 import argparse
 import numpy as np
+import os
 
 from multiprocessing import Pool
 
 from addm import aDDMTrial
 from ddm_mla import DDM
-
 from util import (load_data_from_csv, get_empirical_distributions,
                   convert_item_values)
 
@@ -339,10 +339,12 @@ def main():
                         default=[0.4, 0.5, 0.6],
                         help="Search range for parameter theta.")
     parser.add_argument("--expdata-file-name", type=str,
-                        default="addm_toolbox/expdata.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/expdata.csv"),
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="addm_toolbox/fixations.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/fixations.csv"),
                         help="Name of fixations file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")

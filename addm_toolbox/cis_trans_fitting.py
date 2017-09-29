@@ -33,6 +33,7 @@ model estimated.
 
 import argparse
 import numpy as np
+import os
 import sys
 
 from datetime import datetime
@@ -68,10 +69,12 @@ def main():
                         default=[0.3, 0.5, 0.7],
                         help="Search range for parameter theta.")
     parser.add_argument("--expdata-file-name", type=str,
-                        default="addm_toolbox/expdata.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/expdata.csv"),
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="addm_toolbox/fixations.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/fixations.csv"),
                         help="Name of fixations file.")
     parser.add_argument("--use-cis-trials", default=False, action="store_true",
                         help="Use CIS trials in the analysis.")

@@ -35,6 +35,7 @@ the posterior distribution and simulate them, then aggregate all simulations).
 
 import argparse
 import numpy as np
+import os
 
 from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
@@ -73,10 +74,12 @@ def main():
                         default=[0.3, 0.5, 0.7],
                         help="Search range for parameter theta.")
     parser.add_argument("--expdata-file-name", type=str,
-                        default="addm_toolbox/expdata.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/expdata.csv"),
                         help="Name of experimental data file.")
     parser.add_argument("--fixations-file-name", type=str,
-                        default="addm_toolbox/fixations.csv",
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/fixations.csv"),
                         help="Name of fixations file.")
     parser.add_argument("--save-simulations", default=False,
                         action="store_true", help="Save simulations to CSV.")
