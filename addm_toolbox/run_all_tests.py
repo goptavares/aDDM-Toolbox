@@ -23,15 +23,13 @@ along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
 Module: run_all_tests.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
-Tests all modules in the aDDM Toolbox.
+Tests all modules in the addm_toolbox.
 """
 
 import os
 
 
 def main():
-    cwd = os.getcwd() + "/addm_toolbox/"
-
     print("\n----------Testing demo.py----------")
     os.system("addm_demo")
 
@@ -41,7 +39,7 @@ def main():
     print("\n----------Testing addm_pta_test.py----------")
     os.system("addm_pta_test --trials-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
-    os.system("addm_pta_test --subject-ids cai --trials-per-condition 1 "
+    os.system("addm_pta_test --subject-ids 15 --trials-per-condition 1 "
               "--range-d 0.006 0.007 --range-sigma 0.07 0.08 --range-theta "
               "0.4 0.5 --verbose")
 
@@ -49,7 +47,7 @@ def main():
     os.system("addm_pta_mle --trials-per-subject 1 "
               "--simulations-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
-    os.system("addm_pta_mle --subject-ids cai --trials-per-subject 1 "
+    os.system("addm_pta_mle --subject-ids 15 --trials-per-subject 1 "
               "--simulations-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
 
@@ -57,7 +55,7 @@ def main():
     os.system("addm_pta_map --trials-per-subject 1 --num-samples 10 "
               "--num-simulations 1 --range-d 0.006 0.007 --range-sigma "
               "0.07 0.08 --range-theta 0.4 0.5 --verbose")
-    os.system("addm_pta_map --subject-ids cai --trials-per-subject 1 "
+    os.system("addm_pta_map --subject-ids 15 --trials-per-subject 1 "
               "--num-samples 10 --num-simulations 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
 

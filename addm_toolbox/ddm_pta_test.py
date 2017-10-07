@@ -23,7 +23,7 @@ along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
 Module: ddm_pta_test.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
-Test to check the validity of the DDM parameter estimation. Artificil data is
+Test to check the validity of the DDM parameter estimation. Artificial data is
 generated using specific parameters for the model. These parameters are then
 recovered through a maximum a posteriori estimation procedure.
 """

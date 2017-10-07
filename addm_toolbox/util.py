@@ -60,8 +60,8 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
     """
     # Load experimental data from CSV file.
     try:
-        df = pd.DataFrame.from_csv(expdataFileName, header=0, sep=",",
-                                   index_col=None)
+        df = pd.read_csv(expdataFileName, header=0, sep=",", index_col=None,
+                         dtype={"parcode": str})
     except:
         print("Error while reading experimental data file " + expdataFileName)
         raise
@@ -99,8 +99,8 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
 
     # Load fixation data from CSV file.
     try:
-        df = pd.DataFrame.from_csv(
-            fixationsFileName, header=0, sep=",", index_col=None)
+        df = pd.read_csv(fixationsFileName, header=0, sep=",", index_col=None,
+                         dtype={"parcode": str})
     except:
         print("Error while reading fixations file " + fixationsFileName)
         raise

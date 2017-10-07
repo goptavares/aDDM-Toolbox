@@ -23,7 +23,7 @@ along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
 Module: addm_pta_test.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
-Test to check the validity of the aDDM parameter estimation. Artificil data is
+Test to check the validity of the aDDM parameter estimation. Artificial data is
 generated using specific parameters for the model. Fixations are sampled from
 the data pooled from all subjects (or from a subset of subjects, when
 provided). The parameters used for data generation are then recovered through a
