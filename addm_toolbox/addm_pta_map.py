@@ -41,9 +41,10 @@ from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 
 from addm import aDDM
-from util import (load_data_from_csv, get_empirical_distributions,
-                  save_simulations_to_csv, generate_choice_curves,
-                  generate_rt_curves, convert_item_values)
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  get_empirical_distributions, save_simulations_to_csv,
+                  generate_choice_curves, generate_rt_curves,
+                  convert_item_values)
 
 
 def main():
@@ -73,6 +74,11 @@ def main():
     parser.add_argument("--range-theta", nargs="+", type=float,
                         default=[0.3, 0.5, 0.7],
                         help="Search range for parameter theta.")
+    parser.add_argument("--trials-file-name", type=str,
+                        default=os.path.join(
+                            os.path.dirname(os.path.realpath(__file__)),
+                            "data/trial_conditions.csv"),
+                        help="Name of trial conditions file.")
     parser.add_argument("--expdata-file-name", type=str,
                         default=os.path.join(os.path.dirname(
                             os.path.realpath(__file__)), "data/expdata.csv"),
@@ -90,13 +96,8 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
-    # Trial conditions with format (valueLeft, valueRight). Change this
-    # according to the experiment.
-    trialConditions = [(0, 0), (0, 1), (0, 1), (0, 2), (0, 2), (0, 3),
-                       (1, 0), (1, 0), (1, 1), (1, 2), (1, 2), (1, 3),
-                       (2, 0), (2, 0), (2, 1), (2, 1), (2, 2), (2, 3),
-                       (3, 0), (3, 1), (3, 2)
-                      ]
+    # Load trial conditions.
+    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
 
     # Load experimental data from CSV file.
     if args.verbose:

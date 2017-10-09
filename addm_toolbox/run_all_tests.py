@@ -84,8 +84,7 @@ def main():
               "--num-generations 2 --verbose")
 
     print("\n----------Testing ddm_mla.py----------")
-    os.system("ddm_mla --num-values 3 --num-trials 100 --num-simulations 100 "
-              "--verbose")
+    os.system("ddm_mla --num-trials 100 --num-simulations 100 --verbose")
 
     print("\n----------Testing addm_mla.py----------")
     os.system("addm_mla --num-trials 100 --num-simulations 100 --verbose")

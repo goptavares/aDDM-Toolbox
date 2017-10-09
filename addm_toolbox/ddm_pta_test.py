@@ -29,8 +29,10 @@ recovered through a maximum a posteriori estimation procedure.
 """
 
 import argparse
+import os
 
 from ddm import DDMTrial, DDM
+from util import load_trial_conditions_from_csv
 
 
 def main():
@@ -50,14 +52,17 @@ def main():
     parser.add_argument("--range-sigma", nargs="+", type=float,
                         default=[0.065, 0.08, 0.095],
                         help="Search range for parameter sigma.")
+    parser.add_argument("--trials-file-name", type=str,
+                        default=os.path.join(
+                            os.path.dirname(os.path.realpath(__file__)),
+                            "test_data/test_trial_conditions.csv"),
+                        help="Name of trial conditions file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
-    # Trial conditions with format (valueLeft, valueRight). Change this
-    # according to the experiment.
-    trialConditions = [(0, 0), (0, 1), (0, 2), (0, 3), (1, 1),
-                       (1, 2), (1, 3), (2, 2), (2, 3)]
+    # Load trial conditions.
+    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
 
     # Generate artificial data.
     model = DDM(args.d, args.sigma)

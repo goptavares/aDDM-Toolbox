@@ -33,8 +33,28 @@ import unittest
 from datetime import datetime
 
 from addm import aDDMTrial
-from util import (load_data_from_csv, save_simulations_to_csv,
-                  convert_item_values)
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  save_simulations_to_csv, convert_item_values)
+
+
+class TestLoadTrialConditions(unittest.TestCase):
+    def test_load_trials_from_nonexistent_file(self):
+        self.assertRaisesRegexp(
+            Exception, "No such file or directory: 'addm_toolbox/test_data/"
+            "dummy_file.csv'", load_trial_conditions_from_csv,
+            "addm_toolbox/test_data/dummy_file.csv")
+
+    def test_load_trials_from_empty_file(self):
+        self.assertRaisesRegexp(
+            Exception, "argument of type 'NoneType' is not iterable",
+            load_trial_conditions_from_csv,
+            "addm_toolbox/test_data/empty_file.csv")
+
+    def test_load_trials_from_file_with_missing_field(self):
+        self.assertRaisesRegexp(
+            RuntimeError, "Missing field in trial conditions file.",
+            load_trial_conditions_from_csv,
+            "addm_toolbox/test_data/sample_trial_conditions_incomplete.csv")
 
 
 class TestLoadData(unittest.TestCase):

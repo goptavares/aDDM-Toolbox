@@ -44,8 +44,9 @@ import os
 from datetime import datetime
 
 from addm import aDDM
-from util import (load_data_from_csv, get_empirical_distributions,
-                  save_simulations_to_csv, convert_item_values)
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  get_empirical_distributions, save_simulations_to_csv,
+                  convert_item_values)
 
 
 def main():
@@ -73,6 +74,11 @@ def main():
                         help="aDDM parameter for generating simulations.")
     parser.add_argument("--theta", type=float, default=0.25,
                         help="aDDM parameter for generating simulations.")
+    parser.add_argument("--trials-file-name", type=str,
+                        default=os.path.join(
+                            os.path.dirname(os.path.realpath(__file__)),
+                            "data/trial_conditions.csv"),
+                        help="Name of trial conditions file.")
     parser.add_argument("--expdata-file-name", type=str, 
                         default=os.path.join(os.path.dirname(
                             os.path.realpath(__file__)), "data/expdata.csv"),
@@ -87,13 +93,8 @@ def main():
                         help="Increase output verbosity.")
     args = parser.parse_args()
 
-    # Trial conditions with format (valueLeft, valueRight). Change this
-    # according to the experiment.
-    trialConditions = [(0, 0), (0, 1), (0, 1), (0, 2), (0, 2), (0, 3),
-                       (1, 0), (1, 0), (1, 1), (1, 2), (1, 2), (1, 3),
-                       (2, 0), (2, 0), (2, 1), (2, 1), (2, 2), (2, 3),
-                       (3, 0), (3, 1), (3, 2)
-                      ]
+    # Load trial conditions.
+    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
 
     # Time bins to be used in the fixation distributions.
     bins = range(args.bin_step, args.max_fix_bin + args.bin_step,

@@ -34,10 +34,12 @@ parameters of the model.
 
 import argparse
 import numpy as np
+import os
 
 from multiprocessing import Pool
 
 from ddm import DDMTrial
+from util import load_trial_conditions_from_csv
 
 
 def wrap_ddm_get_model_log_likelihood(args):
@@ -191,9 +193,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-threads", type=int, default=9,
                         help="Size of the thread pool.")
-    parser.add_argument("--num-values", type=int, default=4,
-                        help="Number of item values to use in the artificial "
-                        "data.")
     parser.add_argument("--num-trials", type=int, default=10,
                         help="Number of artificial data trials to be "
                         "generated per trial condition.")
@@ -215,6 +214,11 @@ def main():
     parser.add_argument("--range-sigma", nargs="+", type=float,
                         default=[0.065, 0.08, 0.095],
                         help="Search range for parameter sigma.")
+    parser.add_argument("--trials-file-name", type=str,
+                        default=os.path.join(
+                            os.path.dirname(os.path.realpath(__file__)),
+                            "data/trial_conditions.csv"),
+                        help="Name of trial conditions file.")
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Increase output verbosity.")
     args = parser.parse_args()
@@ -223,11 +227,8 @@ def main():
 
     histBins = range(0, args.max_rt + args.bin_step, args.bin_step)
 
-    values = range(1, args.num_values + 1, 1)
-    trialConditions = list()
-    for vLeft in values:
-        for vRight in values:
-            trialConditions.append((vLeft, vRight))
+    # Load trial conditions.
+    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
 
     # Generate artificial data.
     dataRTLeft = dict()

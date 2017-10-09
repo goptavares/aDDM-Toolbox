@@ -40,8 +40,8 @@ from multiprocessing import Pool
 
 from addm import aDDMTrial
 from ddm_mla import DDM
-from util import (load_data_from_csv, get_empirical_distributions,
-                  convert_item_values)
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  get_empirical_distributions, convert_item_values)
 
 
 def wrap_addm_get_model_log_likelihood(args):
@@ -338,6 +338,11 @@ def main():
     parser.add_argument("--range-theta", nargs="+", type=float,
                         default=[0.4, 0.5, 0.6],
                         help="Search range for parameter theta.")
+    parser.add_argument("--trials-file-name", type=str,
+                        default=os.path.join(
+                            os.path.dirname(os.path.realpath(__file__)),
+                            "data/trial_conditions.csv"),
+                        help="Name of trial conditions file.")
     parser.add_argument("--expdata-file-name", type=str,
                         default=os.path.join(os.path.dirname(
                             os.path.realpath(__file__)), "data/expdata.csv"),
@@ -367,14 +372,8 @@ def main():
 
     histBins = range(0, args.max_rt + args.bin_step, args.bin_step)
 
-    orientations = range(-15,20,5)
-    trialConditions = list()
-    for oLeft in orientations:
-        for oRight in orientations:
-            if oLeft != oRight:
-                vLeft = np.absolute((np.absolute(oLeft) - 15) / 5)
-                vRight = np.absolute((np.absolute(oRight) - 15) / 5)
-                trialConditions.append((vLeft, vRight))
+    # Load trial conditions.
+    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
 
     # Generate histograms for artificial data.
     dataHistLeft = dict()

@@ -26,6 +26,7 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Utility functions for the aDDM Toolbox.
 """
 
+import csv
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,6 +40,34 @@ from addm import FixationData, aDDMTrial, aDDM
 
 def convert_item_values(value):
     return np.absolute((np.absolute(value) - 15) / 5)
+
+
+def load_trial_conditions_from_csv(trialsFileName):
+    """
+    Loads trial conditions from a CSV file. Format expected for trial
+    conditions file: value_left, value_right.
+    Args:
+      trialsFileName: string, name of trial conditions file. 
+
+    Returns:
+      A list containing the trial conditions, where each trial condition is a
+          tuple with format (value_left, value_right).
+    """
+    trialConditions = []
+    try:
+        with open(trialsFileName, "rb") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=",")
+            if ("value_left" not in reader.fieldnames or
+                "value_right" not in reader.fieldnames):
+                raise RuntimeError("Missing field in trial conditions file. "
+                                   "Fields required: value_left, value_right")
+            for row in reader:
+                trialConditions.append(
+                    (float(row["value_left"]), float(row["value_right"])))
+    except:
+        print("Error while reading trial conditions file " + trialsFileName)
+        raise
+    return trialConditions
 
 
 def load_data_from_csv(expdataFileName, fixationsFileName,
