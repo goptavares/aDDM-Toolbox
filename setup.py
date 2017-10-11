@@ -12,7 +12,7 @@ except:
 
 
 setup(name="addm_toolbox",
-      version="0.1.6",
+      version="0.1.7",
       description="A toolbox for data analysis using the attentional "
       "drift-diffusion model.",
       long_description=read_md("README.md"),
@@ -24,7 +24,7 @@ setup(name="addm_toolbox",
       ],
       url="http://github.com/goptavares/aDDM-Toolbox",
       download_url = "https://github.com/goptavares/aDDM-Toolbox/archive/" \
-                     "0.1.6.tar.gz",
+                     "0.1.7.tar.gz",
       author="Gabriela Tavares",
       author_email="gtavares@caltech.edu",
       license="GPLv3",
