@@ -24,7 +24,7 @@ Module: addm_mla.py
 Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood algorithm for the attentional drift-diffusion model (aDDM).
-This algorithm uses reaction time histograms conditioned on choice from both
+This algorithm uses response time histograms conditioned on choice from both
 data and simulations to estimate each model's log-likelihood. Here we perform a
 test to check the validity of this algorithm. Artificial data is generated
 using specific parameters for the model. These parameters are then recovered
@@ -242,7 +242,7 @@ class aDDM(DDM):
                              dataHistRight):
         """
         Computes the log-likelihood of a data set given the parameters of the
-        aDDM. Data set is provided in the form of reaction time histograms
+        aDDM. Data set is provided in the form of response time histograms
         conditioned on choice.
         Args:
           fixationData: a FixationData object.
@@ -250,16 +250,16 @@ class aDDM(DDM):
               conditions. Each pair contains the values of left and right
               items.
           numSimulations: integer, number of simulations per trial condition to
-              be generated when creating reaction time histograms.
+              be generated when creating response time histograms.
           histBins: list of numbers corresponding to the time bins used to
-              create the reaction time histograms.
+              create the response time histograms.
           dataHistLeft: dict indexed by trial condition (where each trial
               condition is a pair (valueLeft, valueRight)). Each entry is a
-              numpy array corresponding to the reaction time histogram
+              numpy array corresponding to the response time histogram
               conditioned on left choice for the data. It is assumed that this
               histogram was created using the same time bins as argument
               histBins.
-          dataHistRight: same as dataHistLeft, except that the reaction time
+          dataHistRight: same as dataHistLeft, except that the response time
               histograms are conditioned on right choice.
           Returns:
               The log-likelihood for the given data and model.

@@ -340,121 +340,127 @@ def save_simulations_to_csv(trials, expdataFileName, fixationsFileName):
         raise
 
 
-def generate_choice_curves(dataTrials, simulTrials, pdfPages):
+def generate_choice_curves(dataTrials, simulTrials, pdfPages,
+                           valueDiffRange=np.arange(-3,4,1)):
     """
     Plots the psychometric choice curves for data and simulations.
     Args:
-      dataTrials: a list of aDDMTrial objects corresponding to the experimental
+      dataTrials: a list of DDMTrial objects corresponding to the experimental
           data.
-      simulTrials: a list of aDDMTrial objects corresponding to the
+      simulTrials: a list of DDMTrial objects corresponding to the
           simulations.
       pdfPages: matplotlib.backends.backend_pdf.PdfPages object.
+      valueDiffRange: a numpy array corresponding to the value differences to
+          be used in the x axis of the choice plot; should be sorted in
+          ascending order.
     """
-    countTotal = np.zeros(7)
-    countLeftChosen = np.zeros(7)
+    numValueDiffs = valueDiffRange.size
+    countTotal = np.zeros(numValueDiffs)
+    countLeftChosen = np.zeros(numValueDiffs)
 
     for trial in dataTrials:
         valueDiff = trial.valueLeft - trial.valueRight
-        idx = valueDiff + 3
+        idx = (np.abs(valueDiffRange - valueDiff)).argmin()
+        countTotal[idx] += 1
         if trial.choice == -1:  # Choice was left.
-            countLeftChosen[idx] +=1
-            countTotal[idx] += 1
-        elif trial.choice == 1:  # Choice was right.
-            countTotal[idx] += 1
+            countLeftChosen[idx] += 1
 
-    stdProbLeftChosen = np.zeros(7)
-    probLeftChosen = np.zeros(7)
-    for i in xrange(0,7):
+    stdProbLeftChosen = np.zeros(numValueDiffs)
+    probLeftChosen = np.zeros(numValueDiffs)
+    for i in xrange(numValueDiffs):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
         stdProbLeftChosen[i] = np.sqrt(
             (probLeftChosen[i] * (1 - probLeftChosen[i])) / countTotal[i])
 
     colors = cm.rainbow(np.linspace(0, 1, 9))
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), probLeftChosen, yerr=stdProbLeftChosen,
+    plt.errorbar(valueDiffRange, probLeftChosen, yerr=stdProbLeftChosen,
                  color=colors[0], label="Data")
 
-    countTotal = np.zeros(7)
-    countLeftChosen = np.zeros(7)
+    countTotal = np.zeros(numValueDiffs)
+    countLeftChosen = np.zeros(numValueDiffs)
 
     for trial in simulTrials:
         valueDiff = trial.valueLeft - trial.valueRight
-        idx = valueDiff + 3
+        idx = (np.abs(valueDiffRange - valueDiff)).argmin()
+        countTotal[idx] += 1
         if trial.choice == -1:  # Choice was left.
-            countLeftChosen[idx] +=1
-            countTotal[idx] += 1
-        elif trial.choice == 1:  # Choice was right.
-            countTotal[idx] += 1
+            countLeftChosen[idx] += 1
 
-    stdProbLeftChosen = np.zeros(7)
-    probLeftChosen = np.zeros(7)
-    for i in xrange(0,7):
+    stdProbLeftChosen = np.zeros(numValueDiffs)
+    probLeftChosen = np.zeros(numValueDiffs)
+    for i in xrange(numValueDiffs):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
         stdProbLeftChosen[i] = np.sqrt(
             (probLeftChosen[i] * (1 - probLeftChosen[i])) / countTotal[i])
 
-    plt.errorbar(range(-3,4,1), probLeftChosen, yerr=stdProbLeftChosen,
+    plt.errorbar(valueDiffRange, probLeftChosen, yerr=stdProbLeftChosen,
                  color=colors[5], label="Simulations")
     plt.xlabel("Value difference")
     plt.ylabel("P(choose left)")
-    plt.legend()
+    plt.legend(loc="upper left")
 
     pdfPages.savefig(fig)
     plt.close(fig)
 
 
-def generate_rt_curves(dataTrials, simulTrials, pdfPages):
+def generate_rt_curves(dataTrials, simulTrials, pdfPages,
+                       valueDiffRange=np.arange(-3,4,1)):
     """
-    Plots the reaction times for data and simulations.
+    Plots the response times for data and simulations.
     Args:
-      dataTrials: a list of aDDMTrial objects corresponding to the experimental
+      dataTrials: a list of DDMTrial objects corresponding to the experimental
           data.
-      simulTrials: a list of aDDMTrial objects corresponding to the
+      simulTrials: a list of DDMTrial objects corresponding to the
           simulations.
       pdfPages: matplotlib.backends.backend_pdf.PdfPages object.
+      valueDiffRange: a numpy array corresponding to the value differences to
+          be used in the x axis of the choice plot; should be sorted in
+          ascending order.
     """
+    numValueDiffs = valueDiffRange.size
     RTsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in valueDiffRange:
         RTsPerValueDiff[valueDiff] = list()
 
     for trial in dataTrials:
         valueDiff = trial.valueLeft - trial.valueRight
         RTsPerValueDiff[valueDiff].append(trial.RT)
 
-    meanRTs = np.zeros(7)
-    stdRTs = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    meanRTs = np.zeros(numValueDiffs)
+    stdRTs = np.zeros(numValueDiffs)
+    for valueDiff in valueDiffRange:
+        idx = (np.abs(valueDiffRange - valueDiff)).argmin()
         meanRTs[idx] = np.mean(RTsPerValueDiff[valueDiff])
         stdRTs[idx] = (np.std(RTsPerValueDiff[valueDiff]) /
                        np.sqrt(len(RTsPerValueDiff[valueDiff])))
 
     colors = cm.rainbow(np.linspace(0, 1, 9))
     fig = plt.figure()
-    plt.errorbar(range(-3,4,1), meanRTs, yerr=stdRTs, label="Data",
+    plt.errorbar(valueDiffRange, meanRTs, yerr=stdRTs, label="Data",
                  color=colors[0])
 
     RTsPerValueDiff = dict()
-    for valueDiff in xrange(-3,4,1):
+    for valueDiff in valueDiffRange:
         RTsPerValueDiff[valueDiff] = list()
 
     for trial in simulTrials:
         valueDiff = trial.valueLeft - trial.valueRight
         RTsPerValueDiff[valueDiff].append(trial.RT)
 
-    meanRTs = np.zeros(7)
-    stdRTs = np.zeros(7)
-    for valueDiff in xrange(-3,4,1):
-        idx = valueDiff + 3
+    meanRTs = np.zeros(numValueDiffs)
+    stdRTs = np.zeros(numValueDiffs)
+    for valueDiff in valueDiffRange:
+        idx = (np.abs(valueDiffRange - valueDiff)).argmin()
         meanRTs[idx] = np.mean(RTsPerValueDiff[valueDiff])
         stdRTs[idx] = (np.std(RTsPerValueDiff[valueDiff]) /
                        np.sqrt(len(RTsPerValueDiff[valueDiff])))
 
-    plt.errorbar(range(-3,4,1), meanRTs, yerr=stdRTs, label="Simulations",
+    plt.errorbar(valueDiffRange, meanRTs, yerr=stdRTs, label="Simulations",
                  color=colors[5])
     plt.xlabel("Value difference")
-    plt.ylabel("Mean RT")
-    plt.legend()
+    plt.ylabel("Response time")
+    plt.legend(loc="upper left")
     
     pdfPages.savefig(fig)
     plt.close(fig)

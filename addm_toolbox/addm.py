@@ -78,7 +78,7 @@ class aDDMTrial(DDMTrial):
                  fixRDV=np.empty((0)), uninterruptedLastFixTime=None):
         """
         Args:
-          RT: reaction time in milliseconds.
+          RT: response time in milliseconds.
           choice: either -1 (for left item) or +1 (for right item).
           valueLeft: value of the left item.
           valueRight: value of the right item.
@@ -178,7 +178,7 @@ class aDDM(DDM):
         for fTime in correctedFixTime:
             numTimeSteps += int(fTime // timeStep)
         if numTimeSteps < 1:
-            raise RuntimeError("Trial reaction time is smaller than time "
+            raise RuntimeError("Trial response time is smaller than time "
                                "step.")
         numTimeSteps += 1
 

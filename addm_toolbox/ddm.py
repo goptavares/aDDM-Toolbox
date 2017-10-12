@@ -40,7 +40,7 @@ class DDMTrial(object):
     def __init__(self, RT, choice, valueLeft, valueRight):
         """
         Args:
-          RT: reaction time in milliseconds.
+          RT: response time in milliseconds.
           choice: either -1 (for left item) or +1 (for right item).
           valueLeft: value of the left item.
           valueRight: value of the right item.
@@ -114,7 +114,7 @@ class DDM(object):
         # Get the number of time steps for this trial.
         numTimeSteps = int(trial.RT // timeStep)
         if numTimeSteps < 1:
-            raise RuntimeError("Trial reaction time is smaller than time "
+            raise RuntimeError("Trial response time is smaller than time "
                                "step.")
 
         # The values of the barriers can change over time.
