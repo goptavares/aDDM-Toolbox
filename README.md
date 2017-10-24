@@ -6,8 +6,7 @@ version of the drift-diffusion model (DDM) without an attentional component.
 
 ## Prerequisites
 
-aDDM-Toolbox supports Python 2.7 (and Python 3.6 tentatively -- please report 
-any bugs). The following libraries are required:
+aDDM-Toolbox supports Python 2.7 only and requires the following libraries:
 * deap
 * matplotlib
 * numpy

@@ -26,38 +26,35 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Unit tests for the util.py module.
 """
 
-from __future__ import absolute_import
-
 import numpy as np
 import os
 import unittest
 
 from datetime import datetime
 
-from addm_toolbox.addm import aDDMTrial
-from addm_toolbox.util import (load_trial_conditions_from_csv,
-                               load_data_from_csv, save_simulations_to_csv,
-                               convert_item_values)
+from addm import aDDMTrial
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  save_simulations_to_csv, convert_item_values)
 
 
 class TestLoadTrialConditions(unittest.TestCase):
     def test_load_trials_from_nonexistent_file(self):
         self.assertRaisesRegexp(
-            Exception, u"No such file or directory: 'addm_toolbox/test_data/"
+            Exception, "No such file or directory: 'addm_toolbox/test_data/"
             "dummy_file.csv'", load_trial_conditions_from_csv,
-            u"addm_toolbox/test_data/dummy_file.csv")
+            "addm_toolbox/test_data/dummy_file.csv")
 
     def test_load_trials_from_empty_file(self):
         self.assertRaisesRegexp(
-            Exception, u"argument of type 'NoneType' is not iterable",
+            Exception, "argument of type 'NoneType' is not iterable",
             load_trial_conditions_from_csv,
-            u"addm_toolbox/test_data/empty_file.csv")
+            "addm_toolbox/test_data/empty_file.csv")
 
     def test_load_trials_from_file_with_missing_field(self):
         self.assertRaisesRegexp(
-            RuntimeError, u"Missing field in trial conditions file.",
+            RuntimeError, "Missing field in trial conditions file.",
             load_trial_conditions_from_csv,
-            u"addm_toolbox/test_data/sample_trial_conditions_incomplete.csv")
+            "addm_toolbox/test_data/sample_trial_conditions_incomplete.csv")
 
 
 class TestLoadData(unittest.TestCase):
@@ -74,72 +71,72 @@ class TestLoadData(unittest.TestCase):
 
     def test_load_data_from_nonexistent_data_file(self):
         self.assertRaisesRegexp(
-            Exception, u"File (b')?addm_toolbox/test_data/dummy_file.csv'? "
-            "does not exist", load_data_from_csv, u"addm_toolbox/test_data/"
-            "dummy_file.csv", u"addm_toolbox/test_data/sample_fixations.csv")
+            Exception, "File addm_toolbox/test_data/dummy_file.csv does not "
+            "exist", load_data_from_csv, "addm_toolbox/test_data/"
+            "dummy_file.csv", "addm_toolbox/test_data/sample_fixations.csv")
 
     def test_load_data_from_nonexistent_fixations_file(self):
         self.assertRaisesRegexp(
-            Exception, u"File (b')?addm_toolbox/test_data/dummy_file.csv'? "
-            "does not exist", load_data_from_csv, u"addm_toolbox/test_data/"
-            "sample_trial_data.csv", u"addm_toolbox/test_data/dummy_file.csv")
+            Exception, "File addm_toolbox/test_data/dummy_file.csv does not "
+            "exist", load_data_from_csv, "addm_toolbox/test_data/"
+            "sample_trial_data.csv", "addm_toolbox/test_data/dummy_file.csv")
 
     def test_load_data_from_empty_data_file(self):
         self.assertRaisesRegexp(
-            Exception, u"No columns to parse from file",
-            load_data_from_csv, u"addm_toolbox/test_data/empty_file.csv",
-            u"addm_toolbox/test_data/sample_fixations.csv")
+            Exception, "No columns to parse from file",
+            load_data_from_csv, "addm_toolbox/test_data/empty_file.csv",
+            "addm_toolbox/test_data/sample_fixations.csv")
 
     def test_load_data_from_empty_fixations_file(self):
         self.assertRaisesRegexp(
-            Exception, u"No columns to parse from file",
-            load_data_from_csv, u"addm_toolbox/test_data/"
-            "sample_trial_data.csv", u"addm_toolbox/test_data/empty_file.csv")
+            Exception, "No columns to parse from file",
+            load_data_from_csv, "addm_toolbox/test_data/sample_trial_data.csv",
+            "addm_toolbox/test_data/empty_file.csv")
 
     def test_load_data_from_data_file_with_missing_field(self):
         self.assertRaisesRegexp(
-            RuntimeError, u"Missing field in experimental data file.",
+            RuntimeError, "Missing field in experimental data file.",
             load_data_from_csv,
-            u"addm_toolbox/test_data/sample_trial_data_incomplete.csv",
-            u"addm_toolbox/test_data/sample_fixations.csv")
+            "addm_toolbox/test_data/sample_trial_data_incomplete.csv",
+            "addm_toolbox/test_data/sample_fixations.csv")
 
     def test_load_data_from_fixations_file_with_missing_field(self):
         self.assertRaisesRegexp(
-            RuntimeError, u"Missing field in fixations file.",
+            RuntimeError, "Missing field in fixations file.",
             load_data_from_csv,
-            u"addm_toolbox/test_data/sample_trial_data.csv",
-            u"addm_toolbox/test_data/sample_fixations_incomplete.csv")
+            "addm_toolbox/test_data/sample_trial_data.csv",
+            "addm_toolbox/test_data/sample_fixations_incomplete.csv")
 
     def test_load_data_from_csv_economic_choice(self):
         data = load_data_from_csv(
-            u"addm_toolbox/test_data/sample_trial_data.csv",
-            u"addm_toolbox/test_data/sample_fixations.csv")
+            "addm_toolbox/test_data/sample_trial_data.csv",
+            "addm_toolbox/test_data/sample_fixations.csv")
 
         expectedData = {}
-        expectedData[u"abc"] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
+        expectedData["abc"] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
                                          valueRight=0, fixItem=[1, 2],
                                          fixTime=[50, 50])]
-        expectedData[u"xyz"] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
+        expectedData["xyz"] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
                                          valueRight=1, fixItem=[1, 2, 1],
                                          fixTime=[100, 50, 50])]
-        self.compare_trials(expectedData[u"abc"][0], data[u"abc"][0])
-        self.compare_trials(expectedData[u"xyz"][0], data[u"xyz"][0])
+        self.compare_trials(expectedData["abc"][0], data["abc"][0])
+        self.compare_trials(expectedData["xyz"][0], data["xyz"][0])
 
     def test_load_data_from_csv_perceptual_choice(self):
         data = load_data_from_csv(
-            u"addm_toolbox/test_data/sample_trial_data_perceptual.csv",
-            u"addm_toolbox/test_data/sample_fixations.csv",
+            "addm_toolbox/test_data/sample_trial_data_perceptual.csv",
+            "addm_toolbox/test_data/sample_fixations.csv",
             convertItemValues=convert_item_values)
 
         expectedData = {}
-        expectedData[u"abc"] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
+        expectedData["abc"] = [aDDMTrial(RT=100, choice=1, valueLeft=1,
                                          valueRight=0, fixItem=[1, 2],
                                          fixTime=[50, 50])]
-        expectedData[u"xyz"] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
+        expectedData["xyz"] = [aDDMTrial(RT=200, choice=-1, valueLeft=2,
                                          valueRight=1, fixItem=[1, 2, 1],
                                          fixTime=[100, 50, 50])]
-        self.compare_trials(expectedData[u"abc"][0], data[u"abc"][0])
-        self.compare_trials(expectedData[u"xyz"][0], data[u"xyz"][0])
+        self.compare_trials(expectedData["abc"][0], data["abc"][0])
+        self.compare_trials(expectedData["xyz"][0], data["xyz"][0])
 
 
 class TestSaveSimulationsToCSV(unittest.TestCase):
@@ -149,26 +146,26 @@ class TestSaveSimulationsToCSV(unittest.TestCase):
                   aDDMTrial(RT=200, choice=-1, valueLeft=2, valueRight=1,
                             fixItem=[1, 2, 1], fixTime=[100, 50, 50])]
 
-        currTime = datetime.now().strftime(u"%Y-%m-%d_%H:%M:%S")
-        expdataFileName = u"simul_expdata_" + currTime + u".csv"
-        fixationsFileName = u"simul_fixations_" + currTime + u".csv"
+        currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        expdataFileName = "simul_expdata_" + currTime + ".csv"
+        fixationsFileName = "simul_fixations_" + currTime + ".csv"
         save_simulations_to_csv(trials, expdataFileName, fixationsFileName)
 
-        expdataFile = open(expdataFileName, u"r")
-        self.assertEqual(u"parcode,trial,rt,choice,item_left,item_right\n",
+        expdataFile = open(expdataFileName, 'r')
+        self.assertEqual("parcode,trial,rt,choice,item_left,item_right\n",
                          expdataFile.readline())
-        self.assertEqual(u"0,0,100,1,1,0\n", expdataFile.readline())
-        self.assertEqual(u"0,1,200,-1,2,1\n",
+        self.assertEqual("0,0,100,1,1,0\n", expdataFile.readline())
+        self.assertEqual("0,1,200,-1,2,1\n",
                          expdataFile.readline())
 
-        fixationsFile = open(fixationsFileName, u"r")
-        self.assertEqual(u"parcode,trial,fix_item,fix_time\n",
+        fixationsFile = open(fixationsFileName, 'r')
+        self.assertEqual("parcode,trial,fix_item,fix_time\n",
                          fixationsFile.readline())
-        self.assertEqual(u"0,0,1,50\n", fixationsFile.readline())
-        self.assertEqual(u"0,0,2,50\n", fixationsFile.readline())
-        self.assertEqual(u"0,1,1,100\n", fixationsFile.readline())
-        self.assertEqual(u"0,1,2,50\n", fixationsFile.readline())
-        self.assertEqual(u"0,1,1,50\n", fixationsFile.readline())
+        self.assertEqual("0,0,1,50\n", fixationsFile.readline())
+        self.assertEqual("0,0,2,50\n", fixationsFile.readline())
+        self.assertEqual("0,1,1,100\n", fixationsFile.readline())
+        self.assertEqual("0,1,2,50\n", fixationsFile.readline())
+        self.assertEqual("0,1,1,50\n", fixationsFile.readline())
 
         os.remove(expdataFileName)
         os.remove(fixationsFileName)
@@ -178,5 +175,5 @@ def main():
     unittest.main()
 
 
-if __name__ == u"__main__":
+if __name__ == "__main__":
     main()

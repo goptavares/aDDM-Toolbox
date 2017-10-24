@@ -25,17 +25,38 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood algorithm for the attentional drift-diffusion model (aDDM).
 This algorithm uses response time histograms conditioned on choice from both
-data and simulations to estimate each model's log-likelihood.
+data and simulations to estimate each model's log-likelihood. Here we perform a
+test to check the validity of this algorithm. Artificial data is generated
+using specific parameters for the model. These parameters are then recovered
+through a maximum likelihood estimation procedure, using a grid search over the
+3 free parameters of the model.
 """
 
-from __future__ import division, absolute_import
-
+import argparse
 import numpy as np
+import os
 
-from builtins import range, str
+from multiprocessing import Pool
 
-from .addm import aDDMTrial
-from .ddm_mla import DDM
+from addm import aDDMTrial
+from ddm_mla import DDM
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  get_empirical_distributions, convert_item_values)
+
+
+def wrap_addm_get_model_log_likelihood(args):
+    """
+    Wrapper for aDDM.get_model_log_likelihood(), intended for parallel
+    computation using a threadpool.
+    Args:
+      args: a tuple where the first item is an aDDM object, and the remaining
+          item are the same arguments required by
+          aDDM.get_model_log_likelihood().
+    Returns:
+      The output of aDDM.get_model_log_likelihood().
+    """
+    model = args[0]
+    return model.get_model_log_likelihood(*args[1:])
 
 
 class aDDM(DDM):
@@ -93,7 +114,7 @@ class aDDM(DDM):
         # Sample and iterate over the latency for this trial.
         latency = np.random.choice(fixationData.latencies)
         remainingNDT = self.nonDecisionTime - latency
-        for t in range(int(latency // timeStep)):
+        for t in xrange(int(latency // timeStep)):
             # Sample the change in RDV from the distribution.
             RDV += np.random.normal(0, self.sigma)
 
@@ -153,7 +174,7 @@ class aDDM(DDM):
 
             # Iterate over the remaining non-decision time.
             if remainingNDT > 0:
-                for t in range(int(remainingNDT // timeStep)):
+                for t in xrange(int(remainingNDT // timeStep)):
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(0, self.sigma)
 
@@ -179,7 +200,7 @@ class aDDM(DDM):
             remainingNDT -= currFixTime
 
             # Iterate over the duration of the current fixation.
-            for t in range(int(remainingFixTime // timeStep)):
+            for t in xrange(int(remainingFixTime // timeStep)):
                 epsilon = np.random.normal(0, self.sigma)
                 if currFixLocation == 0:
                     RDV += epsilon
@@ -253,11 +274,11 @@ class aDDM(DDM):
                     addmTrial = self.simulate_trial(
                         trialCondition[0], trialCondition[1], fixationData)
                 except:
-                    print(u"An exception occurred while generating "
-                          "artificial trial " + str(sim) + u" for condition " +
-                          str(trialCondition) + u", during the "
+                    print("An exception occurred while generating " +
+                          "artificial trial " + str(sim) + " for condition " +
+                          str(trialCondition) + ", during the "
                           "log-likelihood computation for model " +
-                          str(self.params) + u".")
+                          str(self.params) + ".")
                     raise
                 if addmTrial.choice == -1:
                     RTsLeft.append(addmTrial.RT)
@@ -267,18 +288,145 @@ class aDDM(DDM):
 
             simulLeft = np.histogram(RTsLeft, bins=histBins)[0]
             if np.sum(simulLeft) != 0:
-                simulLeft = simulLeft / np.sum(simulLeft)
-            with np.errstate(divide=u"ignore"):
+                simulLeft = simulLeft / float(np.sum(simulLeft))
+            with np.errstate(divide="ignore"):
                 logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
             dataLeft = np.array(dataHistLeft[trialCondition])
             logLikelihood += np.dot(logSimulLeft, dataLeft)
 
             simulRight = np.histogram(RTsRight, bins=histBins)[0]
             if np.sum(simulRight) != 0:
-                simulRight = simulRight / np.sum(simulRight)
-            with np.errstate(divide=u"ignore"):
+                simulRight = simulRight / float(np.sum(simulRight))
+            with np.errstate(divide="ignore"):
                 logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
             dataRight = np.array(dataHistRight[trialCondition])
             logLikelihood += np.dot(logSimulRight, dataRight)
 
         return logLikelihood
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="Size of the thread pool.")
+    parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
+                        help="List of subject ids. If not provided, all "
+                        "existing subjects will be used.")
+    parser.add_argument("--num-trials", type=int, default=10,
+                        help="Number of artificial data trials to be "
+                        "generated per trial condition.")
+    parser.add_argument("--num-simulations", type=int, default=10,
+                        help="Number of simulations to be generated per trial "
+                        "condition, to be used in the RT histograms.")
+    parser.add_argument("--bin-step", type=int, default=100,
+                        help="Size of the bin step to be used in the RT "
+                        "histograms.")
+    parser.add_argument("--max-rt", type=int, default=8000,
+                        help="Maximum RT to be used in the RT histograms.")
+    parser.add_argument("--d", type=float, default=0.006,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--sigma", type=float, default=0.08,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--theta", type=float, default=0.5,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--range-d", nargs="+", type=float,
+                        default=[0.005, 0.006, 0.007],
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
+                        default=[0.065, 0.08, 0.095],
+                        help="Search range for parameter sigma.")
+    parser.add_argument("--range-theta", nargs="+", type=float,
+                        default=[0.4, 0.5, 0.6],
+                        help="Search range for parameter theta.")
+    parser.add_argument("--trials-file-name", type=str,
+                        default=os.path.join(
+                            os.path.dirname(os.path.realpath(__file__)),
+                            "data/trial_conditions.csv"),
+                        help="Name of trial conditions file.")
+    parser.add_argument("--expdata-file-name", type=str,
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/expdata.csv"),
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
+                        default=os.path.join(os.path.dirname(
+                            os.path.realpath(__file__)), "data/fixations.csv"),
+                        help="Name of fixations file.")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="Increase output verbosity.")
+    args = parser.parse_args()
+
+    pool = Pool(args.num_threads)
+
+    # Load experimental data from CSV file.
+    if args.verbose:
+        print("Loading experimental data...")
+    data = load_data_from_csv(
+        args.expdata_file_name, args.fixations_file_name,
+        convertItemValues=convert_item_values)
+
+    # Get fixation distributions.
+    if args.verbose:
+        print("Getting fixation distributions...")
+    subjectIds = args.subject_ids if args.subject_ids else None
+    fixationData = get_empirical_distributions(data, subjectIds=subjectIds)
+
+    histBins = range(0, args.max_rt + args.bin_step, args.bin_step)
+
+    # Load trial conditions.
+    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
+
+    # Generate histograms for artificial data.
+    dataHistLeft = dict()
+    dataHistRight = dict()
+    model = aDDM(args.d, args.sigma, args.theta)
+    for trialCondition in trialConditions:
+        RTsLeft = list()
+        RTsRight = list()
+        trial = 0
+        while trial < args.num_trials:
+            try:
+                aDDMTrial = model.simulate_trial(
+                    trialCondition[0], trialCondition[1], fixationData)
+            except:
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(trial) + " for condition " +
+                      str(trialCondition[0]) + ", " + str(trialCondition[1]) +
+                      ".")
+                raise
+            if aDDMTrial.choice == -1:
+                RTsLeft.append(aDDMTrial.RT)
+            elif aDDMTrial.choice == 1:
+                RTsRight.append(aDDMTrial.RT)
+            trial += 1
+        dataHistLeft[trialCondition] = np.histogram(RTsLeft, bins=histBins)[0]
+        dataHistRight[trialCondition] = np.histogram(RTsRight,
+                                                     bins=histBins)[0]
+
+    if args.verbose:
+        print("Done generating histograms of artificial data!")
+    
+    # Grid search on the parameters of the model.
+    if args.verbose:
+        print("Performing grid search over the model parameters...")
+    listParams = list()
+    models = list()
+    for d in args.range_d:
+        for sigma in args.range_sigma:
+            for theta in args.range_theta:
+                model = aDDM(d, sigma, theta)
+                models.append(model)
+                listParams.append((model, fixationData, trialConditions,
+                                   args.num_simulations, histBins,
+                                   dataHistLeft, dataHistRight))
+    logLikelihoods = pool.map(wrap_addm_get_model_log_likelihood, listParams)
+    pool.close()
+
+    if args.verbose:
+        for i, model in enumerate(models):
+            print("L" + str(model.params) + " = " + str(logLikelihoods[i]))
+        bestIndex = logLikelihoods.index(max(logLikelihoods))
+        print("Best fit: " + str(models[bestIndex].params))
+
+
+if __name__ == "__main__":
+    main()

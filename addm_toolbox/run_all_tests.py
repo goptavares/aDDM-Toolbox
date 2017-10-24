@@ -26,71 +26,69 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Tests all modules in the addm_toolbox.
 """
 
-from __future__ import absolute_import
-
 import os
 
 
 def main():
-    print(u"\n----------Testing demo.py----------")
-    os.system(u"addm_demo")
+    print("\n----------Testing demo.py----------")
+    os.system("addm_demo")
 
-    print(u"\n----------Testing ddm_mla_test.py----------")
-    os.system("ddm_mla_test --num-trials 100 --num-simulations 100 --verbose")
+    print("\n----------Testing ddm_pta_test.py----------")
+    os.system("ddm_pta_test --trials-per-condition 1 --verbose")
 
-    print(u"\n----------Testing addm_mla_test.py----------")
-    os.system("addm_mla_test --num-trials 100 --num-simulations 100 --verbose")
-
-    print(u"\n----------Testing ddm_pta_test.py----------")
-    os.system(u"ddm_pta_test --trials-per-condition 1 --verbose")
-
-    print(u"\n----------Testing addm_pta_test.py----------")
-    os.system(u"addm_pta_test --trials-per-condition 1 --range-d 0.006 0.007 "
+    print("\n----------Testing addm_pta_test.py----------")
+    os.system("addm_pta_test --trials-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
-    os.system(u"addm_pta_test --subject-ids 15 --trials-per-condition 1 "
+    os.system("addm_pta_test --subject-ids 15 --trials-per-condition 1 "
               "--range-d 0.006 0.007 --range-sigma 0.07 0.08 --range-theta "
               "0.4 0.5 --verbose")
 
-    print(u"\n----------Testing addm_pta_mle.py----------")
-    os.system(u"addm_pta_mle --trials-per-subject 1 "
+    print("\n----------Testing addm_pta_mle.py----------")
+    os.system("addm_pta_mle --trials-per-subject 1 "
               "--simulations-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
-    os.system(u"addm_pta_mle --subject-ids 15 --trials-per-subject 1 "
+    os.system("addm_pta_mle --subject-ids 15 --trials-per-subject 1 "
               "--simulations-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
 
-    print(u"\n----------Testing addm_pta_map.py----------")
-    os.system(u"addm_pta_map --trials-per-subject 1 --num-samples 10 "
+    print("\n----------Testing addm_pta_map.py----------")
+    os.system("addm_pta_map --trials-per-subject 1 --num-samples 10 "
               "--num-simulations 1 --range-d 0.006 0.007 --range-sigma "
               "0.07 0.08 --range-theta 0.4 0.5 --verbose")
-    os.system(u"addm_pta_map --subject-ids 15 --trials-per-subject 1 "
+    os.system("addm_pta_map --subject-ids 15 --trials-per-subject 1 "
               "--num-samples 10 --num-simulations 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --verbose")
 
-    print(u"\n----------Testing cis_trans_fitting.py for cis trials----------")
-    os.system(u"addm_cis_trans_fit --trials-per-subject 1 "
+    print("\n----------Testing cis_trans_fitting.py for cis trials----------")
+    os.system("addm_cis_trans_fit --trials-per-subject 1 "
               "--simulations-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 --use-cis-trials "
               "--verbose")
 
-    print(u"\n---------Testing cis_trans_fitting.py for trans trials---------")
-    os.system(u"addm_cis_trans_fit --trials-per-subject 1 "
+    print("\n---------Testing cis_trans_fitting.py for trans trials---------")
+    os.system("addm_cis_trans_fit --trials-per-subject 1 "
               "--simulations-per-condition 1 --range-d 0.006 0.007 "
               "--range-sigma 0.07 0.08 --range-theta 0.4 0.5 "
               "--use-trans-trials --verbose")
 
-    print(u"\n----------Testing simulate_addm_true_distributions.py----------")
-    os.system(u"addm_simulate_true_distributions --num-iterations 2 "
+    print("\n----------Testing simulate_addm_true_distributions.py----------")
+    os.system("addm_simulate_true_distributions --num-iterations 2 "
               "--simulations-per-condition 1 --verbose")
 
-    print(u"\n----------Testing basinhopping_optimize.py----------")
-    os.system(u"addm_basinhopping --trials-per-subject 1 --num-iterations 1 "
+    print("\n----------Testing basinhopping_optimize.py----------")
+    os.system("addm_basinhopping --trials-per-subject 1 --num-iterations 1 "
               "--step-size 0.005 --verbose")
 
-    print(u"\n----------Testing genetic_algorithm_optimize.py----------")
-    os.system(u"addm_genetic_algorithm --trials-per-subject 1 --pop-size 5 "
+    print("\n----------Testing genetic_algorithm_optimize.py----------")
+    os.system("addm_genetic_algorithm --trials-per-subject 1 --pop-size 5 "
               "--num-generations 2 --verbose")
 
+    print("\n----------Testing ddm_mla.py----------")
+    os.system("ddm_mla --num-trials 100 --num-simulations 100 --verbose")
 
-if __name__ == u"__main__":
+    print("\n----------Testing addm_mla.py----------")
+    os.system("addm_mla --num-trials 100 --num-simulations 100 --verbose")
+
+
+if __name__ == "__main__":
     main()

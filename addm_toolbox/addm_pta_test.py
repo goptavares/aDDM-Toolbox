@@ -30,63 +30,55 @@ provided). The parameters used for data generation are then recovered through a
 maximum a posteriori estimation procedure.
 """
 
-from __future__ import division, absolute_import
-
 import argparse
 import numpy as np
 import os
 
-from builtins import range, str
-
-from addm_toolbox.addm import aDDM
-from addm_toolbox.util import (load_trial_conditions_from_csv,
-                               load_data_from_csv, get_empirical_distributions,
-                               convert_item_values)
+from addm import aDDM
+from util import (load_trial_conditions_from_csv, load_data_from_csv,
+                  get_empirical_distributions, convert_item_values)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(u"--subject-ids", nargs=u"+", type=str, default=[],
-                        help=u"List of subject ids. If not provided, all "
+    parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
+                        help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
-    parser.add_argument(u"--num-threads", type=int, default=9,
-                        help=u"Size of the thread pool.")
-    parser.add_argument(u"--trials-per-condition", type=int, default=800,
-                        help=u"Number of artificial data trials to be "
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="Size of the thread pool.")
+    parser.add_argument("--trials-per-condition", type=int, default=800,
+                        help="Number of artificial data trials to be "
                         "generated per trial condition.")
-    parser.add_argument(u"--d", type=float, default=0.006,
-                        help=u"aDDM parameter for generating artificial data.")
-    parser.add_argument(u"--sigma", type=float, default=0.08,
-                        help=u"aDDM parameter for generating artificial data.")
-    parser.add_argument(u"--theta", type=float, default=0.5,
-                        help=u"aDDM parameter for generating artificial data.")
-    parser.add_argument(u"--range-d", nargs=u"+", type=float,
+    parser.add_argument("--d", type=float, default=0.006,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--sigma", type=float, default=0.08,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--theta", type=float, default=0.5,
+                        help="aDDM parameter for generating artificial data.")
+    parser.add_argument("--range-d", nargs="+", type=float,
                         default=[0.005, 0.006, 0.007],
-                        help=u"Search range for parameter d.")
-    parser.add_argument(u"--range-sigma", nargs=u"+", type=float,
+                        help="Search range for parameter d.")
+    parser.add_argument("--range-sigma", nargs="+", type=float,
                         default=[0.065, 0.08, 0.095],
-                        help=u"Search range for parameter sigma.")
-    parser.add_argument(u"--range-theta", nargs=u"+", type=float,
+                        help="Search range for parameter sigma.")
+    parser.add_argument("--range-theta", nargs="+", type=float,
                         default=[0.4, 0.5, 0.6],
-                        help=u"Search range for parameter theta.")
-    parser.add_argument(u"--trials-file-name", type=str,
+                        help="Search range for parameter theta.")
+    parser.add_argument("--trials-file-name", type=str,
                         default=os.path.join(
                             os.path.dirname(os.path.realpath(__file__)),
-                            u"addm_toolbox/test_data/"
-                            "test_trial_conditions.csv"),
-                        help=u"Name of trial conditions file.")
-    parser.add_argument(u"--expdata-file-name", type=str,
+                            "test_data/test_trial_conditions.csv"),
+                        help="Name of trial conditions file.")
+    parser.add_argument("--expdata-file-name", type=str,
                         default=os.path.join(os.path.dirname(
-                            os.path.realpath(__file__)),
-                            u"addm_toolbox/data/expdata.csv"),
-                        help=u"Name of experimental data file.")
-    parser.add_argument(u"--fixations-file-name", type=str,
+                            os.path.realpath(__file__)), "data/expdata.csv"),
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
                         default=os.path.join(os.path.dirname(
-                            os.path.realpath(__file__)),
-                            u"addm_toolbox/data/fixations.csv"),
-                        help=u"Name of fixations file.")
-    parser.add_argument(u"--verbose", default=False, action=u"store_true",
-                        help=u"Increase output verbosity.")
+                            os.path.realpath(__file__)), "data/fixations.csv"),
+                        help="Name of fixations file.")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     # Load trial conditions.
@@ -94,31 +86,31 @@ def main():
 
     # Load experimental data from CSV file.
     if args.verbose:
-        print(u"Loading experimental data...")
+        print("Loading experimental data...")
     data = load_data_from_csv(
         args.expdata_file_name, args.fixations_file_name,
         convertItemValues=convert_item_values)
 
     # Get fixation distributions.
     if args.verbose:
-        print(u"Getting fixation distributions...")
+        print("Getting fixation distributions...")
     subjectIds = args.subject_ids if args.subject_ids else None
     fixationData = get_empirical_distributions(data, subjectIds=subjectIds)
 
     # Generate artificial data.
     if args.verbose:
-        print(u"Generating artificial data...")
+        print("Generating artificial data...")
     model = aDDM(args.d, args.sigma, args.theta)
     trials = list()
     for (valueLeft, valueRight) in trialConditions:
-        for t in range(args.trials_per_condition):
+        for t in xrange(args.trials_per_condition):
             try:
                 trials.append(
                     model.simulate_trial(valueLeft, valueRight, fixationData))
             except:
-                print(u"An exception occurred while generating artificial "
-                      "trial " + str(t) + u" for condition (" +
-                      str(valueLeft) + u", " + str(valueRight) + u").")
+                print("An exception occurred while generating artificial " +
+                      "trial " + str(t) + " for condition (" + str(valueLeft) +
+                      ", " + str(valueRight) + ").")
                 raise
 
     # Get likelihoods for all models and all artificial trials.
@@ -132,20 +124,20 @@ def main():
             for theta in args.range_theta:
                 model = aDDM(d, sigma, theta)
                 if args.verbose:
-                    print(u"Computing likelihoods for model " +
-                          str(model.params) + u"...")
+                    print("Computing likelihoods for model " +
+                          str(model.params) + "...")
                 try:
                     likelihoods[model.params] = model.parallel_get_likelihoods(
                         trials, numThreads=args.num_threads)
                 except:
-                    print(u"An exception occurred during the likelihood "
-                          "computations for model " + str(model.params) + u".")
+                    print("An exception occurred during the likelihood " +
+                          "computations for model " + str(model.params) + ".")
                     raise
                 models.append(model)
-                posteriors[model.params] = 1 / numModels
+                posteriors[model.params] = 1. / numModels
 
     # Compute the posteriors.
-    for t in range(len(trials)):
+    for t in xrange(len(trials)):
         # Get the denominator for normalizing the posteriors.
         denominator = 0
         for model in models:
@@ -162,10 +154,10 @@ def main():
 
     if args.verbose:
         for model in models:
-            print(u"P" + str(model.params) +  u" = " +
+            print("P" + str(model.params) +  " = " +
                   str(posteriors[model.params]))
-        print(u"Sum: " + str(sum(list(posteriors.values()))))
+        print("Sum: " + str(sum(posteriors.values())))
 
 
-if __name__ == u"__main__":
+if __name__ == "__main__":
     main()

@@ -29,20 +29,17 @@ from all subjects is pooled such that a single set of optimal parameters is
 estimated.
 """
 
-from __future__ import division, absolute_import
-
 import argparse
 import numpy as np
 import os
 import random
 import sys
 
-from builtins import range, str, zip
 from deap import base, creator, tools
 from multiprocessing import Pool
 
-from addm_toolbox.addm import aDDM
-from addm_toolbox.util import load_data_from_csv, convert_item_values
+from addm import aDDM
+from util import load_data_from_csv, convert_item_values
 
 
 # Global variables.
@@ -70,13 +67,13 @@ def evaluate(individual):
         try:
             likelihood = model.get_trial_likelihood(trial)
         except:
-            print(u"An exception occurred during the likelihood " +
-                  "computations for model " + str(model.params) + u".")
+            print("An exception occurred during the likelihood " +
+                  "computations for model " + str(model.params) + ".")
             raise
         if likelihood != 0:
             logLikelihood += np.log(likelihood)
 
-    print(u"NLL for " + str(individual) + u": " + str(-logLikelihood))
+    print("NLL for " + str(individual) + ": " + str(-logLikelihood))
     if logLikelihood != 0:
         return -logLikelihood,
     else:
@@ -85,60 +82,58 @@ def evaluate(individual):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(u"--subject-ids", nargs=u"+", type=str, default=[],
-                        help=u"List of subject ids. If not provided, all "
+    parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
+                        help="List of subject ids. If not provided, all "
                         "existing subjects will be used.")
-    parser.add_argument(u"--num-threads", type=int, default=9,
-                        help=u"Size of the thread pool.")
-    parser.add_argument(u"--trials-per-subject", type=int, default=100,
-                        help=u"Number of trials from each subject to be used "
+    parser.add_argument("--num-threads", type=int, default=9,
+                        help="Size of the thread pool.")
+    parser.add_argument("--trials-per-subject", type=int, default=100,
+                        help="Number of trials from each subject to be used "
                         "in the analysis; if smaller than 1, all trials are "
                         "used.")
-    parser.add_argument(u"--pop-size", type=int, default=18,
-                        help=u"Number of individuals in each population.")
-    parser.add_argument(u"--num-generations", type=int, default=20,
-                        help=u"Number of generations.")
-    parser.add_argument(u"--crossover-rate", type=float, default=0.5,
-                        help=u"Crossover rate.")
-    parser.add_argument(u"--mutation-rate", type=float, default=0.3,
-                        help=u"Mutation rate.")
-    parser.add_argument(u"--lower-bound-d", type=float, default=0.0001,
-                        help=u"Lower search bound for parameter d.")
-    parser.add_argument(u"--upper-bound-d", type=float, default=0.01,
-                        help=u"Upper search bound for parameter d.")
-    parser.add_argument(u"--lower-bound-theta", type=float, default=0,
-                        help=u"Lower search bound for parameter theta.")
-    parser.add_argument(u"--upper-bound-theta", type=float, default=1,
-                        help=u"Upper search bound for parameter theta.")
-    parser.add_argument(u"--lower-bound-sigma", type=float, default=0.001,
-                        help=u"Lower search bound for parameter sigma.")
-    parser.add_argument(u"--upper-bound-sigma", type=float, default=0.1,
-                        help=u"Upper search bound for parameter sigma.")
-    parser.add_argument(u"--expdata-file-name", type=str,
+    parser.add_argument("--pop-size", type=int, default=18,
+                        help="Number of individuals in each population.")
+    parser.add_argument("--num-generations", type=int, default=20,
+                        help="Number of generations.")
+    parser.add_argument("--crossover-rate", type=float, default=0.5,
+                        help="Crossover rate.")
+    parser.add_argument("--mutation-rate", type=float, default=0.3,
+                        help="Mutation rate.")
+    parser.add_argument("--lower-bound-d", type=float, default=0.0001,
+                        help="Lower search bound for parameter d.")
+    parser.add_argument("--upper-bound-d", type=float, default=0.01,
+                        help="Upper search bound for parameter d.")
+    parser.add_argument("--lower-bound-theta", type=float, default=0,
+                        help="Lower search bound for parameter theta.")
+    parser.add_argument("--upper-bound-theta", type=float, default=1,
+                        help="Upper search bound for parameter theta.")
+    parser.add_argument("--lower-bound-sigma", type=float, default=0.001,
+                        help="Lower search bound for parameter sigma.")
+    parser.add_argument("--upper-bound-sigma", type=float, default=0.1,
+                        help="Upper search bound for parameter sigma.")
+    parser.add_argument("--expdata-file-name", type=str,
                         default=os.path.join(os.path.dirname(
-                            os.path.realpath(__file__)),
-                            u"addm_toolbox/data/expdata.csv"),
-                        help=u"Name of experimental data file.")
-    parser.add_argument(u"--fixations-file-name", type=str,
+                            os.path.realpath(__file__)), "data/expdata.csv"),
+                        help="Name of experimental data file.")
+    parser.add_argument("--fixations-file-name", type=str,
                         default=os.path.join(os.path.dirname(
-                            os.path.realpath(__file__)),
-                            u"addm_toolbox/data/fixations.csv"),
-                        help=u"Name of fixations file.")
-    parser.add_argument(u"--verbose", default=False, action=u"store_true",
-                        help=u"Increase output verbosity.")
+                            os.path.realpath(__file__)), "data/fixations.csv"),
+                        help="Name of fixations file.")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="Increase output verbosity.")
     args = parser.parse_args()
 
     global dataTrials
 
     # Load experimental data from CSV file.
     if args.verbose:
-        print(u"Loading experimental data...")
+        print("Loading experimental data...")
     data = load_data_from_csv(
         args.expdata_file_name, args.fixations_file_name,
         convertItemValues=convert_item_values)
 
     # Get correct subset of trials.
-    subjectIds = args.subject_ids if args.subject_ids else list(data)
+    subjectIds = args.subject_ids if args.subject_ids else data.keys()
     for subjectId in subjectIds:
         numTrials = (args.trials_per_subject if args.trials_per_subject >= 1
                      else len(data[subjectId]))
@@ -147,61 +142,60 @@ def main():
             numTrials, replace=False)
         dataTrials.extend([data[subjectId][t] for t in trialSet])
 
-    creator.create(u"FitnessMin", base.Fitness, weights=(-1.0,))
-    creator.create(u"Individual", list, fitness=creator.FitnessMin)
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+    creator.create("Individual", list, fitness=creator.FitnessMin)
 
     toolbox = base.Toolbox()
 
     # Create thread pool.
     pool = Pool(args.num_threads)
-    toolbox.register(u"map", pool.map)
+    toolbox.register("map", pool.map)
 
     # Create individual.
-    toolbox.register(u"attr_d", random.uniform, args.lower_bound_d,
+    toolbox.register("attr_d", random.uniform, args.lower_bound_d,
                      args.upper_bound_d)
-    toolbox.register(u"attr_theta", random.uniform, args.lower_bound_theta,
+    toolbox.register("attr_theta", random.uniform, args.lower_bound_theta,
                      args.upper_bound_theta)
-    toolbox.register(u"attr_sigma", random.uniform, args.lower_bound_sigma,
+    toolbox.register("attr_sigma", random.uniform, args.lower_bound_sigma,
                      args.upper_bound_sigma)
-    toolbox.register(u"individual", tools.initCycle, creator.Individual,
+    toolbox.register("individual", tools.initCycle, creator.Individual,
                      (toolbox.attr_d, toolbox.attr_theta, toolbox.attr_sigma),
                      n=1)
 
     # Create population.
-    toolbox.register(u"population", tools.initRepeat, list, toolbox.individual)
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     pop = toolbox.population(n=args.pop_size)
 
     # Create operators.
-    toolbox.register(u"mate", tools.cxUniform, indpb=0.4)
-    toolbox.register(u"mutate", tools.mutGaussian, mu=0,
+    toolbox.register("mate", tools.cxUniform, indpb=0.4)
+    toolbox.register("mutate", tools.mutGaussian, mu=0,
                      sigma=[0.0005, 0.05, 0.005], indpb=0.4)
-    toolbox.register(u"select", tools.selTournament, tournsize=3)
-    toolbox.register(u"evaluate", evaluate)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("evaluate", evaluate)
 
     # Evaluate the entire population.
     try:
-        fitnesses = list(map(toolbox.evaluate, pop))
+        fitnesses = toolbox.map(toolbox.evaluate, pop)
     except:
-        print(u"An exception occurred during the first population evaluation.")
+        print("An exception occurred during the first population " +
+              "evaluation.")
         raise
     bestFit = sys.float_info.max
     bestInd = None
     for ind, fit in zip(pop, fitnesses):
         ind.fitness.values = fit
-
         # Get best individual.
-        currFit = fit[0] if isinstance(fit, tuple) else fit
-        if currFit < bestFit:
+        if fit < bestFit:
             bestInd = ind
 
-    for g in range(args.num_generations):
+    for g in xrange(args.num_generations):
         if args.verbose:
-            print(u"Generation " + str(g) + u"...")
+            print("Generation " + str(g) + "...")
 
         # Select the next generation individuals.
         offspring = toolbox.select(pop, len(pop))
         # Clone the selected individuals.
-        offspring = list(map(toolbox.clone, offspring))
+        offspring = map(toolbox.clone, offspring)
 
         # Apply crossover and mutation on the offspring.
         for child1, child2 in zip(offspring[::2], offspring[1::2]):
@@ -228,10 +222,10 @@ def main():
             elif not ind.fitness.valid:
                 invalidInd.append(ind)
         try:
-            fitnesses = list(map(toolbox.evaluate, invalidInd))
+            fitnesses = map(toolbox.evaluate, invalidInd)
         except:
-            print(u"An exception occurred during the population evaluation "
-                  "for generation " + str(g) + u".")
+            print("An exception occurred during the population evaluation " +
+                  "for generation " + str(g) + ".")
             raise
         for ind, fit in zip(invalidInd, fitnesses):
             ind.fitness.values = fit
@@ -245,9 +239,9 @@ def main():
                 bestFit = ind.fitness.values[0]
                 bestInd = ind
 
-    print(u"Best individual: " + str(bestInd))
-    print(u"Fitness of best individual: " + str(bestFit))
+    print("Best individual: " + str(bestInd))
+    print("Fitness of best individual: " + str(bestFit))
 
 
-if __name__ == u"__main__":
+if __name__ == "__main__":
     main()
