@@ -10,6 +10,7 @@ aDDM-Toolbox supports Python 2.7 (and Python 3.6 tentatively -- please report
 any bugs). The following libraries are required:
 
 * deap
+* future
 * matplotlib
 * numpy
 * pandas
