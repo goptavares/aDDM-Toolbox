@@ -6,7 +6,9 @@ version of the drift-diffusion model (DDM) without an attentional component.
 
 ## Prerequisites
 
-aDDM-Toolbox supports Python 2.7 only and requires the following libraries:
+aDDM-Toolbox supports Python 2.7 (and Python 3.6 tentatively -- please report 
+any bugs). The following libraries are required:
+
 * deap
 * matplotlib
 * numpy
@@ -25,7 +27,7 @@ To make sure everything is working correctly after installation, try (from a
 UNIX shell, not the Python interpreter):
 
 ```
-$ addm_run_tests
+$ addm_toolbox_tests
 ```
 
 This should take a while to finish, so maybe go get a cup of tea :)
@@ -45,6 +47,7 @@ $ addm_demo --help
 ```
 
 Here is a list of useful scripts which can be similarly run from a UNIX shell:
+
 * addm_demo
 * ddm_pta_test
 * addm_pta_test
@@ -56,7 +59,8 @@ Here is a list of useful scripts which can be similarly run from a UNIX shell:
 * ddm_mla
 * addm_mla
 
-You can also have a look directly at the code in the following modules: 
+You can also have a look directly at the code in the following modules:
+
 * addm.py contains the aDDM implementation, with functions to generate model
 simulations and obtain the likelihood for a given data trial.
 * ddm.py is equivalent to addm.py but for the DDM.
@@ -73,7 +77,8 @@ empirical data for the fixations.
 
 ## Common issues
 
-Make sure you are using the toolbox under Python 2.7, not Python 3.
+If you get errors while using the toolbox under Python 3, try it with
+Python 2.7.
 
 If you get a Python RuntimeError with the message "Python is not installed as a 
 framework.", try creating the file ~/.matplotlib/matplotlibrc and adding the
