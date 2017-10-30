@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -27,9 +27,12 @@ Implementation of the classic drift-diffusion model (DDM), as described by
 Ratcliff et al. (1998).
 """
 
+from __future__ import absolute_import, division
+
 import matplotlib.pyplot as plt
 import numpy as np
 
+from builtins import range, str, zip
 from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
@@ -87,7 +90,7 @@ class DDM(object):
             raise ValueError("Error: barrier parameter must larger than zero.")
         if bias >= barrier:
             raise ValueError("Error: bias parameter must be smaller than "
-                "barrier parameter.")
+                             "barrier parameter.")
         self.d = d
         self.sigma = sigma
         self.barrier = barrier
@@ -112,26 +115,26 @@ class DDM(object):
           The likelihood obtained for the given trial and model.
         """
         # Get the number of time steps for this trial.
-        numTimeSteps = int(trial.RT // timeStep)
+        numTimeSteps = trial.RT // timeStep
         if numTimeSteps < 1:
-            raise RuntimeError("Trial response time is smaller than time "
+            raise RuntimeError(u"Trial response time is smaller than time "
                                "step.")
 
         # The values of the barriers can change over time.
         decay = 0  # decay = 0 means barriers are constant.
         barrierUp = self.barrier * np.ones(numTimeSteps)
         barrierDown = -self.barrier * np.ones(numTimeSteps)
-        for t in xrange(1, numTimeSteps):
-            barrierUp[t] = float(self.barrier) / float(1 + (decay * t))
-            barrierDown[t] = float(-self.barrier) / float(1 + (decay * t))
+        for t in range(1, numTimeSteps):
+            barrierUp[t] = self.barrier / (1 + (decay * t))
+            barrierDown[t] = -self.barrier / (1 + (decay * t))
 
         # Obtain correct state step.
-        halfNumStateBins = np.ceil(self.barrier / float(approxStateStep))
-        stateStep = self.barrier / float(halfNumStateBins + 0.5)
+        halfNumStateBins = np.ceil(self.barrier / approxStateStep)
+        stateStep = self.barrier / (halfNumStateBins + 0.5)
 
         # The vertical axis is divided into states.
-        states = np.arange(barrierDown[0] + (stateStep / 2.),
-                           barrierUp[0] - (stateStep / 2.) + stateStep,
+        states = np.arange(barrierDown[0] + (stateStep / 2),
+                           barrierUp[0] - (stateStep / 2) + stateStep,
                            stateStep)
 
         # Find the state corresponding to the bias parameter.
@@ -153,13 +156,13 @@ class DDM(object):
         elapsedNDT = 0
 
         # Iterate over the time of this trial.
-        for time in xrange(1, numTimeSteps):
+        for time in range(1, numTimeSteps):
             # We use a normal distribution to model changes in RDV
             # stochastically. The mean of the distribution (the change most
             # likely to occur) is calculated from the model parameter d and
             # from the item values, except during non-decision time, in which
             # the mean is zero.
-            if elapsedNDT < int(self.nonDecisionTime // timeStep):
+            if elapsedNDT < self.nonDecisionTime // timeStep:
                 mean = 0
                 elapsedNDT += 1
             else:
@@ -192,9 +195,9 @@ class DDM(object):
             # Renormalize to cope with numerical approximations.
             sumIn = np.sum(prStates[:,time-1])
             sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
-            prStatesNew = (prStatesNew * float(sumIn)) / float(sumCurrent)
-            tempUpCross = (tempUpCross * float(sumIn)) / float(sumCurrent)
-            tempDownCross = (tempDownCross * float(sumIn)) / float(sumCurrent)
+            prStatesNew = prStatesNew * sumIn / sumCurrent
+            tempUpCross = tempUpCross * sumIn / sumCurrent
+            tempDownCross = tempDownCross * sumIn / sumCurrent
 
             # Update the probabilities of each state and the probabilities of
             # crossing each barrier at this timestep.
@@ -213,8 +216,8 @@ class DDM(object):
                 likelihood = probDownCrossing[-1]
 
         if plotTrial:
-            currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            fileName = "ddm_trial_" + currTime + ".pdf"
+            currTime = datetime.now().strftime(u"%Y-%m-%d_%H:%M:%S")
+            fileName = u"ddm_trial_" + currTime + u".pdf"
             self.plot_trial(trial.valueLeft, trial.valueRight, timeStep,
                             numTimeSteps, prStates, probUpCrossing,
                             probDownCrossing, fileName=fileName)
@@ -270,7 +273,7 @@ class DDM(object):
                     choice = 1
                 break
 
-            if elapsedNDT < int(self.nonDecisionTime // timeStep):
+            if elapsedNDT < self.nonDecisionTime // timeStep:
                 mean = 0
                 elapsedNDT += 1
             else:
@@ -309,11 +312,11 @@ class DDM(object):
           fileName: string, name of the PDF file to save.
         """
         if not fileName:
-            currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            fileName = "trial_" + currTime + ".pdf"
+            currTime = datetime.now().strftime(u"%Y-%m-%d_%H:%M:%S")
+            fileName = u"trial_" + currTime + u".pdf"
         pp = PdfPages(fileName)
 
-        title = "value left = %d, value right = %d" % (valueLeft, valueRight)
+        title = u"value left = %d, value right = %d" % (valueLeft, valueRight)
 
         # Choose a suitable normalization constant.
         maxProb = max(probStates[:,3])
@@ -321,20 +324,20 @@ class DDM(object):
         fig, ax = plt.subplots()
         plt.imshow(probStates[::-1,:],
                    extent=[1, numTimeSteps, -self.barrier, self.barrier],
-                   aspect="auto", vmin=0, vmax=maxProb)
+                   aspect=u"auto", vmin=0, vmax=maxProb)
         ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
         plt.title(title)
         pp.savefig(fig)
         plt.close(fig)
 
         fig, ax = plt.subplots()
-        plt.plot(range(1, numTimeSteps + 1), probUpCrossing,
-                 label="up", color="red")
-        plt.plot(range(1, numTimeSteps + 1), probDownCrossing,
-                 label="down", color="green")
+        plt.plot(list(range(1, numTimeSteps + 1)), probUpCrossing,
+                 label=u"up", color=u"red")
+        plt.plot(list(range(1, numTimeSteps + 1)), probDownCrossing,
+                 label=u"down", color=u"green")
         ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
-        plt.xlabel("Time")
-        plt.ylabel("P(crossing)")
+        plt.xlabel(u"Time")
+        plt.ylabel(u"P(crossing)")
         plt.legend()
         plt.title(title)
         pp.savefig(fig)
@@ -345,28 +348,28 @@ class DDM(object):
         probDown = np.cumsum(probDownCrossing)
         probTotal = probInner + probUp + probDown
         fig, ax = plt.subplots()
-        plt.plot(range(1, numTimeSteps + 1), probUp, color="red",
-                 label="up")
-        plt.plot(range(1, numTimeSteps + 1), probDown,
-                 color="green", label="down")
-        plt.plot(range(1, numTimeSteps + 1), probInner,
-                 color="yellow", label="in")
-        plt.plot(range(1, numTimeSteps + 1), probTotal,
-                 color="blue", label="total")
+        plt.plot(list(range(1, numTimeSteps + 1)), probUp, color=u"red",
+                 label=u"up")
+        plt.plot(list(range(1, numTimeSteps + 1)), probDown,
+                 color=u"green", label=u"down")
+        plt.plot(list(range(1, numTimeSteps + 1)), probInner,
+                 color=u"yellow", label=u"in")
+        plt.plot(list(range(1, numTimeSteps + 1)), probTotal,
+                 color=u"blue", label=u"total")
         plt.axis([1, numTimeSteps, 0, 1.1])
         ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
-        plt.xlabel("Time")
-        plt.ylabel("Cumulative probability")
+        plt.xlabel(u"Time")
+        plt.ylabel(u"Cumulative probability")
         plt.legend()
         plt.title(title)
         pp.savefig(fig)
         plt.close(fig)
 
         fig, ax = plt.subplots()
-        plt.plot(range(1, numTimeSteps + 1), probTotal - 1)
+        plt.plot(list(range(1, numTimeSteps + 1)), probTotal - 1)
         ax.set_xticklabels([str(x * timeStep) for x in ax.get_xticks()])
-        plt.xlabel("Time")
-        plt.ylabel("Numerical error")
+        plt.xlabel(u"Time")
+        plt.ylabel(u"Numerical error")
         plt.title(title)
         pp.savefig(fig)
         plt.close(fig)

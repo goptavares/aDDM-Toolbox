@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -25,36 +25,16 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 
 Maximum likelihood algorithm for the classic drift-diffusion model (DDM). This
 algorithm uses response time histograms conditioned on choice from both data
-and simulations to estimate each model's log-likelihood. Here we perform a
-test to check the validity of this algorithm. Artificil data is generated using
-specific parameters for the model. These parameters are then recovered through
-a maximum likelihood estimation procedure, using a grid search over the 2 free
-parameters of the model.
+and simulations to estimate each model's log-likelihood.
 """
 
-import argparse
+from __future__ import absolute_import, division
+
 import numpy as np
-import os
 
-from multiprocessing import Pool
+from builtins import str
 
-from ddm import DDMTrial
-from util import load_trial_conditions_from_csv
-
-
-def wrap_ddm_get_model_log_likelihood(args):
-    """
-    Wrapper for DDM.get_model_log_likelihood(), intended for parallel
-    computation using a threadpool.
-    Args:
-      args: a tuple where the first item is a DDM object, and the remaining
-          item are the same arguments required by
-          DDM.get_model_log_likelihood().
-    Returns:
-      The output of DDM.get_model_log_likelihood().
-    """
-    model = args[0]
-    return model.get_model_log_likelihood(*args[1:])
+from .ddm import DDMTrial
 
 
 class DDM(object):
@@ -77,10 +57,11 @@ class DDM(object):
               variable. Must be smaller than barrier.
         """
         if barrier <= 0:
-            raise ValueError("Error: barrier parameter must larger than zero.")
+            raise ValueError(u"Error: barrier parameter must larger than "
+                             "zero.")
         if bias >= barrier:
-            raise ValueError("Error: bias parameter must be smaller than "
-                "barrier parameter.")
+            raise ValueError(u"Error: bias parameter must be smaller than "
+                             "barrier parameter.")
         self.d = d
         self.sigma = sigma
         self.barrier = barrier
@@ -110,7 +91,7 @@ class DDM(object):
         while RDV < self.barrier and RDV > -self.barrier:
             RT = RT + timeStep
             epsilon = np.random.normal(0, self.sigma)
-            if elapsedNDT < int(self.nonDecisionTime // timeStep):
+            if elapsedNDT < self.nonDecisionTime // timeStep:
                 RDV += epsilon
                 elapsedNDT += 1
             else:
@@ -157,12 +138,12 @@ class DDM(object):
                     ddmTrial = self.simulate_trial(trialCondition[0],
                                                    trialCondition[1])
                 except:
-                    print("An exception occurred while generating " +
-                          "artificial trial " + str(sim) + " for condition " +
-                          str(trialCondition[0]) + ", " +
-                          str(trialCondition[1]) + ", during the " +
-                          "log-likelihood computation for model " +
-                          str(self.params) + ".")
+                    print(u"An exception occurred while generating "
+                          "artificial trial " + str(sim) + u" for condition " +
+                          str(trialCondition[0]) + u", " +
+                          str(trialCondition[1]) + u", during the " +
+                          u"log-likelihood computation for model " +
+                          str(self.params) + u".")
                     raise
                 if ddmTrial.choice == -1:
                     RTsLeft.append(ddmTrial.RT)
@@ -172,118 +153,18 @@ class DDM(object):
 
             simulLeft = np.histogram(RTsLeft, bins=histBins)[0]
             if np.sum(simulLeft) != 0:
-                simulLeft = simulLeft / float(np.sum(simulLeft))
-            with np.errstate(divide="ignore"):
+                simulLeft = simulLeft / np.sum(simulLeft)
+            with np.errstate(divide=u"ignore"):
                 logSimulLeft = np.where(simulLeft > 0, np.log(simulLeft), 0)
             dataLeft = np.array(dataHistLeft[trialCondition])
             logLikelihood += np.dot(logSimulLeft, dataLeft)
 
             simulRight = np.histogram(RTsRight, bins=histBins)[0]
             if np.sum(simulRight) != 0:
-                simulRight = simulRight / float(np.sum(simulRight))
-            with np.errstate(divide="ignore"):
+                simulRight = simulRight / np.sum(simulRight)
+            with np.errstate(divide=u"ignore"):
                 logSimulRight = np.where(simulRight > 0, np.log(simulRight), 0)
             dataRight = np.array(dataHistRight[trialCondition])
             logLikelihood += np.dot(logSimulRight, dataRight)
 
         return logLikelihood
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--num-threads", type=int, default=9,
-                        help="Size of the thread pool.")
-    parser.add_argument("--num-trials", type=int, default=10,
-                        help="Number of artificial data trials to be "
-                        "generated per trial condition.")
-    parser.add_argument("--num-simulations", type=int, default=10,
-                        help="Number of simulations to be generated per trial "
-                        "condition, to be used in the RT histograms.")
-    parser.add_argument("--bin-step", type=int, default=100,
-                        help="Size of the bin step to be used in the RT "
-                        "histograms.")
-    parser.add_argument("--max-rt", type=int, default=8000,
-                        help="Maximum RT to be used in the RT histograms.")
-    parser.add_argument("--d", type=float, default=0.006,
-                        help="DDM parameter for generating artificial data.")
-    parser.add_argument("--sigma", type=float, default=0.08,
-                        help="DDM parameter for generating artificial data.")
-    parser.add_argument("--range-d", nargs="+", type=float,
-                        default=[0.005, 0.006, 0.007],
-                        help="Search range for parameter d.")
-    parser.add_argument("--range-sigma", nargs="+", type=float,
-                        default=[0.065, 0.08, 0.095],
-                        help="Search range for parameter sigma.")
-    parser.add_argument("--trials-file-name", type=str,
-                        default=os.path.join(
-                            os.path.dirname(os.path.realpath(__file__)),
-                            "data/trial_conditions.csv"),
-                        help="Name of trial conditions file.")
-    parser.add_argument("--verbose", default=False, action="store_true",
-                        help="Increase output verbosity.")
-    args = parser.parse_args()
-
-    pool = Pool(args.num_threads)
-
-    histBins = range(0, args.max_rt + args.bin_step, args.bin_step)
-
-    # Load trial conditions.
-    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
-
-    # Generate artificial data.
-    dataRTLeft = dict()
-    dataRTRight = dict()
-    for trialCondition in trialConditions:
-        dataRTLeft[trialCondition] = list()
-        dataRTRight[trialCondition] = list()
-    model = DDM(args.d, args.sigma)
-    for trialCondition in trialConditions:
-        trial = 0
-        while trial < args.num_trials:
-            try:
-                ddmTrial = model.simulate_trial(trialCondition[0],
-                                                trialCondition[1])
-            except:
-                print("An exception occurred while generating artificial " +
-                      "trial " + str(trial) + " for condition " +
-                      str(trialCondition[0]) + ", " + str(trialCondition[1]) +
-                      ".")
-                raise
-            if ddmTrial.choice == -1:
-                dataRTLeft[trialCondition].append(ddmTrial.RT)
-            elif ddmTrial.choice == 1:
-                dataRTRight[trialCondition].append(ddmTrial.RT)
-            trial += 1
-
-    # Generate histograms for artificial data.
-    dataHistLeft = dict()
-    dataHistRight = dict()
-    for trialCondition in trialConditions:
-        dataHistLeft[trialCondition] = np.histogram(
-            dataRTLeft[trialCondition], bins=histBins)[0]
-        dataHistRight[trialCondition] = np.histogram(
-            dataRTRight[trialCondition], bins=histBins)[0]
-
-    # Grid search on the parameters of the model.
-    if args.verbose:
-        print("Performing grid search over the model parameters...")
-    listParams = list()
-    models = list()
-    for d in args.range_d:
-        for sigma in args.range_sigma:
-            model = DDM(d, sigma)
-            models.append(model)
-            listParams.append((model, trialConditions, args.num_simulations,
-                              histBins, dataHistLeft, dataHistRight))
-    logLikelihoods = pool.map(wrap_ddm_get_model_log_likelihood, listParams)
-    pool.close()
-
-    if args.verbose:
-        for i, model in enumerate(models):
-            print("L" + str(model.params) + " = " + str(logLikelihoods[i]))
-        bestIndex = logLikelihoods.index(max(logLikelihoods))
-        print("Best fit: " + str(models[bestIndex].params))
-
-
-if __name__ == "__main__":
-    main()

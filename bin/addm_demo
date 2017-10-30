@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+
+"""
+Copyright (C) 2017, California Institute of Technology
+
+This file is part of addm_toolbox.
+
+addm_toolbox is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+addm_toolbox is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
+
+---
+
+Script: addm_demo
+Author: Gabriela Tavares, gtavares@caltech.edu
+
+Demo of the attentional drift-diffusion model (aDDM), as described by Krajbich
+et al. (2010).
+"""
+
+from __future__ import absolute_import
+
+import argparse
+
+from addm_toolbox import demo
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument(u"--mean", type=float, default=0.05,
+                    help=u"Mean of the normal distribution.")
+parser.add_argument(u"--sigma", type=float, default=0.25,
+                    help=u"Standard deviation of the normal distribution.")
+parser.add_argument(u"--barrier-size", type=int, default=1,
+                    help=u"Initial size of the decision barriers.")
+parser.add_argument(u"--barrier-decay", type=float, default=0,
+                    help=u"Parameter that controls the decay of the "
+                    "barriers over time. A decay of zero means the "
+                    "barriers are constant.")
+parser.add_argument(u"--state-step", type=float, default=0.1,
+                    help=u"Step size for the RDV states.")
+parser.add_argument(u"--max-time", type=int, default=200,
+                    help=u"Amount of time to run the algorithm, in "
+                    "milliseconds.")
+parser.add_argument(u"--display-figures", default=False,
+                    action=u"store_true", help=u"Display plots showing "
+                    "the computation at the end of execution.")
+
+args = parser.parse_args()
+demo.main(args.mean, args.sigma, args.barrier_size, args.barrier_decay,
+          args.state_step, args.max_time, args.display_figures)

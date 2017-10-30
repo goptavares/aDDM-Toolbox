@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -27,69 +27,62 @@ Demo of the attentional drift-diffusion model (aDDM), as described by Krajbich
 et al. (2010).
 """
 
-import argparse
+from __future__ import absolute_import, division
+
 import matplotlib.pyplot as plt
 import numpy as np
 
+from builtins import range
 from scipy.stats import norm
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mean", type=float, default=0.05,
-                        help="Mean of the normal distribution.")
-    parser.add_argument("--sigma", type=float, default=0.25,
-                        help="Standard deviation of the normal distribution.")
-    parser.add_argument("--barrier-size", type=int, default=1,
-                        help="Initial size of the decision barriers.")
-    parser.add_argument("--barrier-decay", type=float, default=0,
-                        help="Parameter that controls the decay of the "
-                        "barriers over time. A decay of zero means the "
-                        "barriers are constant.")
-    parser.add_argument("--state-step", type=float, default=0.1,
-                        help="Step size for the RDV states.")
-    parser.add_argument("--max-time", type=int, default=200,
-                        help="Amount of time to run the algorithm, in "
-                        "miliseconds.")
-    parser.add_argument("--display-figures", default=False,
-                        action="store_true", help="Display plots showing the "
-                        "computation at the end of execution.")
-    args = parser.parse_args()
-
-    initialBarrierUp = args.barrier_size
-    initialBarrierDown = -args.barrier_size
+def main(mean=0.05, sigma=0.25, barrierSize=1, barrierDecay=0,
+         stateStep=0.1, maxTime=200, displayFigures=False):
+    """
+    Args:
+      mean: float, mean of the normal distribution.
+      sigma: float, standard deviation of the normal distribution.
+      barrierSize: float, initial size of the decision barriers.
+      barrierDecay: float, parameter that controls the decay of the barriers
+          over time. A decay of zero means the barriers are constant.
+      stateStep: float, step size for the RDV states.
+      maxTime: int, amount of time to run the algorithm, in milliseconds.
+      displayFigures: boolean, whether or not to display plots showing the
+          computation at the end of execution.
+    """
+    initialBarrierUp = barrierSize
+    initialBarrierDown = -barrierSize
 
     # The values of the barriers can change over time.
-    barrierUp = initialBarrierUp * np.ones(args.max_time)
-    barrierDown = initialBarrierDown * np.ones(args.max_time)
-    for t in xrange(1, args.max_time):
-        barrierUp[t] = initialBarrierUp / (1 + args.barrier_decay * (t + 1))
-        barrierDown[t] = (initialBarrierDown /
-                          (1 + args.barrier_decay * (t + 1)))
+    barrierUp = initialBarrierUp * np.ones(maxTime)
+    barrierDown = initialBarrierDown * np.ones(maxTime)
+    for t in range(1, maxTime):
+        barrierUp[t] = initialBarrierUp / (1 + barrierDecay * (t + 1))
+        barrierDown[t] = (initialBarrierDown / (1 + barrierDecay * (t + 1)))
 
     # Obtain correct state step.
-    approxStateStep = args.state_step
-    halfNumStateBins = np.ceil(args.barrier_size / float(approxStateStep))
-    stateStep = args.barrier_size / float(halfNumStateBins + 0.5)
+    approxStateStep = stateStep
+    halfNumStateBins = np.ceil(barrierSize / float(approxStateStep))
+    stateStep = barrierSize / (halfNumStateBins + 0.5)
 
     # The vertical axis is divided into states.
-    states = np.arange(initialBarrierDown + (stateStep / 2.),
-                       initialBarrierUp - (stateStep / 2.) + stateStep,
+    states = np.arange(initialBarrierDown + (stateStep / 2),
+                       initialBarrierUp - (stateStep / 2) + stateStep,
                        stateStep)
 
     # Initial probability for all states is zero, except the zero state, for
     # which the initial probability is one.
-    prStates = np.zeros((states.size, args.max_time))
+    prStates = np.zeros((states.size, maxTime))
     prStates[np.where(states==0)[0], 0] = 1
 
-    probUpCrossing = np.zeros(args.max_time)
-    probDownCrossing = np.zeros(args.max_time)
+    probUpCrossing = np.zeros(maxTime)
+    probDownCrossing = np.zeros(maxTime)
 
-    for t in xrange(1, args.max_time):
+    for t in range(1, maxTime):
         prStatesNew = np.zeros(states.size)
         
         # Update the probability of the states that remain inside the barriers.
-        for s in xrange(0,states.size):
+        for s in range(0,states.size):
             currState = states[s]
             if currState > barrierDown[t] and currState < barrierUp[t]:
                 change = (currState * np.ones(states.size)) - states
@@ -99,9 +92,9 @@ def main():
                 # multiply the probability by the state step to ensure that the
                 # area under the curve for the probability distributions
                 # probUpCrossing and probDownCrossing each add up to 1.
-                prStatesNew[s] = (args.state_step * np.sum(
+                prStatesNew[s] = (stateStep * np.sum(
                     np.multiply(prStates[:,t-1],
-                    norm.pdf(change, args.mean, args.sigma))))
+                    norm.pdf(change, mean, sigma))))
 
         # Calculate the probabilities of crossing the up barrier and the down
         # barrier. This is given by the sum, over all states A, of the
@@ -109,12 +102,10 @@ def main():
         # probability of crossing the barrier if A is the previous state.
         changeUp = (barrierUp[t] * np.ones(states.size)) - states
         tempUpCross = np.sum(
-            np.multiply(prStates[:,t-1],
-            1 - norm.cdf(changeUp, args.mean, args.sigma)))
+            np.multiply(prStates[:,t-1], 1 - norm.cdf(changeUp, mean, sigma)))
         changeDown = (barrierDown[t] * np.ones(states.size)) - states
         tempDownCross = np.sum(
-            np.multiply(prStates[:,t-1],
-                        norm.cdf(changeDown, args.mean, args.sigma)))
+            np.multiply(prStates[:,t-1], norm.cdf(changeDown, mean, sigma)))
 
         # Renormalize to cope with numerical approximation.
         sumIn = np.sum(prStates[:,t-1])
@@ -133,25 +124,24 @@ def main():
         probUpCrossing[t] = tempUpCross
         probDownCrossing[t] = tempDownCross
 
-    if args.display_figures:
+    if displayFigures:
         # Choose a suitable normalization constant.
         maxProb = max(prStates[:,3])
         fig = plt.figure(figsize=(20, 9))
 
         plt.subplot(4, 1, 1)
-        plt.imshow(prStates[::-1,:], extent=[1, args.max_time,
-                                            -args.barrier_size,
-                                             args.barrier_size],
-                   aspect="auto", vmin=0, vmax=maxProb)
-        plt.title("Mu = %.3f, sigma = %.3f" % (args.mean, args.sigma))
+        plt.imshow(prStates[::-1,:],
+                   extent=[1, maxTime, -barrierSize, barrierSize],
+                   aspect=u"auto", vmin=0, vmax=maxProb)
+        plt.title(u"Mu = %.3f, sigma = %.3f" % (mean, sigma))
 
         plt.subplot(4, 1, 2)
-        plt.plot(range(1, args.max_time + 1), probUpCrossing, label="up",
-                 color="red")
-        plt.plot(range(1, args.max_time + 1), probDownCrossing, label="down",
-                 color="green")
-        plt.xlabel("Time")
-        plt.ylabel("P(crossing)")
+        plt.plot(list(range(1, maxTime + 1)), probUpCrossing, label=u"up",
+                 color=u"red")
+        plt.plot(list(range(1, maxTime + 1)), probDownCrossing, label=u"down",
+                 color=u"green")
+        plt.xlabel(u"Time")
+        plt.ylabel(u"P(crossing)")
         plt.legend()
 
         plt.subplot(4, 1, 3)
@@ -159,26 +149,22 @@ def main():
         probUp = np.cumsum(probUpCrossing)
         probDown = np.cumsum(probDownCrossing)
         probTotal = probInner + probUp + probDown
-        plt.plot(range(1, args.max_time + 1), probUp, color="red",
-                 label="up")
-        plt.plot(range(1, args.max_time + 1), probDown, color="green",
-                 label="down")
-        plt.plot(range(1, args.max_time + 1), probInner, color="yellow",
-                 label="in")
-        plt.plot(range(1, args.max_time + 1), probTotal, color="blue",
-                 label="total")
-        plt.axis([1, args.max_time, 0, 1.1])
-        plt.xlabel("Time")
-        plt.ylabel("Cumulative probability")
+        plt.plot(list(range(1, maxTime + 1)), probUp, color=u"red",
+                 label=u"up")
+        plt.plot(list(range(1, maxTime + 1)), probDown, color=u"green",
+                 label=u"down")
+        plt.plot(list(range(1, maxTime + 1)), probInner, color=u"yellow",
+                 label=u"in")
+        plt.plot(list(range(1, maxTime + 1)), probTotal, color=u"blue",
+                 label=u"total")
+        plt.axis([1, maxTime, 0, 1.1])
+        plt.xlabel(u"Time")
+        plt.ylabel(u"Cumulative probability")
         plt.legend()
 
         plt.subplot(4, 1, 4)
-        plt.plot(range(1, args.max_time + 1), probTotal - 1)
-        plt.xlabel("Time")
-        plt.ylabel("Numerical error")
+        plt.plot(list(range(1, maxTime + 1)), probTotal - 1)
+        plt.xlabel(u"Time")
+        plt.ylabel(u"Numerical error")
         
         plt.show(block=True)
-
-
-if __name__ == "__main__":
-    main()

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -26,16 +26,20 @@ Author: Gabriela Tavares, gtavares@caltech.edu
 Utility functions for the aDDM Toolbox.
 """
 
+from __future__ import absolute_import, division
+
 import csv
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from builtins import range, str, zip
 from datetime import datetime
+from io import open
 from matplotlib.backends.backend_pdf import PdfPages
 
-from addm import FixationData, aDDMTrial, aDDM
+from .addm import FixationData, aDDMTrial, aDDM
 
 
 def convert_item_values(value):
@@ -55,17 +59,17 @@ def load_trial_conditions_from_csv(trialsFileName):
     """
     trialConditions = []
     try:
-        with open(trialsFileName, "rb") as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=",")
-            if ("value_left" not in reader.fieldnames or
-                "value_right" not in reader.fieldnames):
-                raise RuntimeError("Missing field in trial conditions file. "
+        with open(trialsFileName, u"rt") as csvfile:
+            reader = csv.DictReader(csvfile)
+            if (u"value_left" not in reader.fieldnames or
+                u"value_right" not in reader.fieldnames):
+                raise RuntimeError(u"Missing field in trial conditions file. "
                                    "Fields required: value_left, value_right")
             for row in reader:
                 trialConditions.append(
-                    (float(row["value_left"]), float(row["value_right"])))
+                    (float(row[u"value_left"]), float(row[u"value_right"])))
     except:
-        print("Error while reading trial conditions file " + trialsFileName)
+        print(u"Error while reading trial conditions file " + trialsFileName)
         raise
     return trialConditions
 
@@ -89,16 +93,16 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
     """
     # Load experimental data from CSV file.
     try:
-        df = pd.read_csv(expdataFileName, header=0, sep=",", index_col=None,
-                         dtype={"parcode": str})
+        df = pd.read_csv(expdataFileName, header=0, sep=u",", index_col=None,
+                         dtype={u"parcode": object})
     except:
-        print("Error while reading experimental data file " + expdataFileName)
+        print(u"Error while reading experimental data file " + expdataFileName)
         raise
 
-    if ("parcode" not in df.columns or "trial" not in df.columns or
-        "rt" not in df.columns or "choice" not in df.columns or
-        "item_left" not in df.columns or "item_right" not in df.columns):
-        raise RuntimeError("Missing field in experimental data file. Fields "
+    if (u"parcode" not in df.columns or u"trial" not in df.columns or
+        u"rt" not in df.columns or u"choice" not in df.columns or
+        u"item_left" not in df.columns or u"item_right" not in df.columns):
+        raise RuntimeError(u"Missing field in experimental data file. Fields "
                            "required: parcode, trial, rt, choice, item_left "
                            "item_right")
 
@@ -107,13 +111,13 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
     for subjectId in subjectIds:
         data[subjectId] = list()
         dataSubject = np.array(
-            df.loc[df["parcode"]==subjectId,
-            ["trial", "rt", "choice", "item_left", "item_right"]])
+            df.loc[df[u"parcode"]==subjectId,
+            [u"trial", u"rt", u"choice", u"item_left", u"item_right"]])
         trialIds = np.unique(dataSubject[:,0]).tolist()
         for trialId in trialIds:
             dataTrial = np.array(
-                df.loc[(df["trial"]==trialId) & (df["parcode"]==subjectId),
-                ["rt", "choice", "item_left", "item_right"]])
+                df.loc[(df[u"trial"]==trialId) & (df[u"parcode"]==subjectId),
+                [u"rt", u"choice", u"item_left", u"item_right"]])
             itemLeft = dataTrial[0,2]
             itemRight = dataTrial[0,3]
             if convertItemValues:
@@ -128,39 +132,40 @@ def load_data_from_csv(expdataFileName, fixationsFileName,
 
     # Load fixation data from CSV file.
     try:
-        df = pd.read_csv(fixationsFileName, header=0, sep=",", index_col=None,
-                         dtype={"parcode": str})
+        df = pd.read_csv(fixationsFileName, header=0, sep=u",", index_col=None,
+                         dtype={u"parcode": object})
     except:
-        print("Error while reading fixations file " + fixationsFileName)
+        print(u"Error while reading fixations file " + fixationsFileName)
         raise
 
-    if ("parcode" not in df.columns or "trial" not in df.columns or
-        "fix_item" not in df.columns or "fix_time" not in df.columns):
-        raise RuntimeError("Missing field in fixations file. Fields required: "
-                           "parcode, trial, fix_item, fix_time")
+    if (u"parcode" not in df.columns or u"trial" not in df.columns or
+        u"fix_item" not in df.columns or u"fix_time" not in df.columns):
+        raise RuntimeError(u"Missing field in fixations file. Fields "
+                           "required: parcode, trial, fix_item, fix_time")
 
     subjectIds = df.parcode.unique()
     for subjectId in subjectIds:
         if not subjectId in data:
             continue
         dataSubject = np.array(
-            df.loc[df["parcode"]==subjectId,
-            ["trial", "fix_item", "fix_time"]])
+            df.loc[df[u"parcode"]==subjectId,
+            [u"trial", u"fix_item", u"fix_time"]])
         trialIds = np.unique(dataSubject[:,0]).tolist()
         for t, trialId in enumerate(trialIds):
             dataTrial = np.array(
-                df.loc[(df["trial"]==trialId) & (df["parcode"]==subjectId),
-                ["fix_item", "fix_time"]])
+                df.loc[(df[u"trial"]==trialId) & (df[u"parcode"]==subjectId),
+                [u"fix_item", u"fix_time"]])
             data[subjectId][t].fixItem = dataTrial[:,0]
             data[subjectId][t].fixTime = dataTrial[:,1]
     return data
 
 
 def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
-                                numFixDists=3, fixDistType="fixation",
-                                valueDiffs=range(-3,4,1), subjectIds=None,
-                                useOddTrials=True, useEvenTrials=True,
-                                useCisTrials=True, useTransTrials=True):
+                                numFixDists=3, fixDistType=u"fixation",
+                                valueDiffs=list(range(-3,4,1)),
+                                subjectIds=None, useOddTrials=True,
+                                useEvenTrials=True, useCisTrials=True,
+                                useTransTrials=True):
     """
     Creates empirical distributions from the data to be used when generating
     model simulations.
@@ -198,9 +203,10 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
     Returns:
       A FixationData object.
     """
-    if (fixDistType is not "simple" and fixDistType is not "difficulty" and
-        fixDistType is not "fixation"):
-        raise RuntimeError("fixDistType must be one of {simple, difficulty, "
+    fixDistType = str(fixDistType)
+    if (fixDistType != u"simple" and fixDistType != u"difficulty" and
+        fixDistType != u"fixation"):
+        raise RuntimeError(u"fixDistType must be one of {simple, difficulty, "
                            "fixation}")
 
     countLeftFirst = 0
@@ -208,16 +214,16 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
     latenciesList = list()
     transitionsList = list()
     fixationsList = dict()
-    for fixNumber in xrange(1, numFixDists + 1):
-        if fixDistType == "simple":
+    for fixNumber in range(1, numFixDists + 1):
+        if fixDistType == u"simple":
             fixationsList[fixNumber] = list()
         else:
             fixationsList[fixNumber] = dict()
             for valueDiff in valueDiffs:
                 fixationsList[fixNumber][valueDiff] = list()
 
-    if not subjectIds:
-        subjectIds = data.keys()
+    subjectIds = ([str(subj) for subj in subjectIds] if subjectIds
+                  else list(data))
 
     for subjectId in subjectIds:
         for trialId, trial in enumerate(data[subjectId]):
@@ -243,7 +249,7 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
                                   2: trial.valueRight - trial.valueLeft}
             # Find the last item fixation in this trial.
             excludeCount = 0
-            for i in xrange(trial.fixItem.shape[0] - 1, -1, -1):
+            for i in range(trial.fixItem.shape[0] - 1, -1, -1):
                 excludeCount += 1
                 if (trial.fixItem[i] == 1 or trial.fixItem[i] == 2):
                     break
@@ -252,7 +258,7 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
             latency = 0
             firstItemFixReached = False
             fixNumber = 1
-            for i in xrange(trial.fixItem.shape[0] - excludeCount):
+            for i in range(trial.fixItem.shape[0] - excludeCount):
                 if trial.fixItem[i] != 1 and trial.fixItem[i] != 2:
                     if not firstItemFixReached:
                         latency += trial.fixTime[i]
@@ -269,26 +275,26 @@ def get_empirical_distributions(data, timeStep=10, maxFixTime=3000,
                             countLeftFirst += 1
                     if (trial.fixTime[i] >= timeStep and
                         trial.fixTime[i] <= maxFixTime):
-                        if fixDistType == "simple":
+                        if fixDistType == u"simple":
                             fixationsList[fixNumber].append(trial.fixTime[i])
-                        elif fixDistType == "difficulty":
+                        elif fixDistType == u"difficulty":
                             valueDiff = np.absolute(
                                 trial.valueLeft - trial.valueRight)
                             fixationsList[fixNumber][valueDiff].append(
                                 trial.fixTime[i])
-                        elif fixDistType == "fixation":
+                        elif fixDistType == u"fixation":
                             valueDiff = fixUnfixValueDiffs[trial.fixItem[i]]
                             fixationsList[fixNumber][valueDiff].append(
                                 trial.fixTime[i])
                     if fixNumber < numFixDists:
                         fixNumber += 1
                 
-    probFixLeftFirst = float(countLeftFirst) / float(countTotalTrials)
+    probFixLeftFirst = countLeftFirst / countTotalTrials
     latencies = np.array(latenciesList)
     transitions = np.array(transitionsList)
     fixations = dict()
-    for fixNumber in xrange(1, numFixDists + 1):
-        if fixDistType == "simple":
+    for fixNumber in range(1, numFixDists + 1):
+        if fixDistType == u"simple":
             fixations[fixNumber] = np.array(fixationsList[fixNumber])
         else:
             fixations[fixNumber] = dict()
@@ -314,29 +320,31 @@ def save_simulations_to_csv(trials, expdataFileName, fixationsFileName):
     fixations = pd.DataFrame()
     for t, trial in enumerate(trials):
         expdata = expdata.append(
-            {"parcode": 0, "trial": t, "rt": trial.RT, "choice": trial.choice,
-             "item_left": trial.valueLeft, "item_right": trial.valueRight},
+            {u"parcode": 0, u"trial": t, u"rt": trial.RT, 
+             u"choice": trial.choice, u"item_left": trial.valueLeft,
+             u"item_right": trial.valueRight},
             ignore_index=True)
 
         for item, time in zip(trial.fixItem, trial.fixTime):
             fixations = fixations.append(
-                {"parcode": 0, "trial": t, "fix_item": item, "fix_time": time},
+                {u"parcode": 0, u"trial": t, u"fix_item": item,
+                 u"fix_time": time},
                 ignore_index=True)
 
     try:
         expdata.to_csv(
-            expdataFileName, sep=",", index=False, float_format="%d",
-            columns=["parcode", "trial", "rt", "choice", "item_left",
-                     "item_right"])
+            expdataFileName, sep=",", index=False, float_format=u"%d",
+            columns=[u"parcode", u"trial", u"rt", u"choice", u"item_left",
+                     u"item_right"])
     except:
-        print("Failed to save experimental data to CSV file.")
+        print(u"Failed to save experimental data to CSV file.")
         raise
     try:
         fixations.to_csv(
-            fixationsFileName, sep=",", index=False, float_format="%d",
-            columns=["parcode", "trial", "fix_item", "fix_time"])
+            fixationsFileName, sep=",", index=False, float_format=u"%d",
+            columns=[u"parcode", u"trial", u"fix_item", u"fix_time"])
     except:
-        print("Failed to save fixations to CSV file.")
+        print(u"Failed to save fixations to CSV file.")
         raise
 
 
@@ -367,7 +375,7 @@ def generate_choice_curves(dataTrials, simulTrials, pdfPages,
 
     stdProbLeftChosen = np.zeros(numValueDiffs)
     probLeftChosen = np.zeros(numValueDiffs)
-    for i in xrange(numValueDiffs):
+    for i in range(numValueDiffs):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
         stdProbLeftChosen[i] = np.sqrt(
             (probLeftChosen[i] * (1 - probLeftChosen[i])) / countTotal[i])
@@ -375,7 +383,7 @@ def generate_choice_curves(dataTrials, simulTrials, pdfPages,
     colors = cm.rainbow(np.linspace(0, 1, 9))
     fig = plt.figure()
     plt.errorbar(valueDiffRange, probLeftChosen, yerr=stdProbLeftChosen,
-                 color=colors[0], label="Data")
+                 color=colors[0], label=u"Data")
 
     countTotal = np.zeros(numValueDiffs)
     countLeftChosen = np.zeros(numValueDiffs)
@@ -389,16 +397,16 @@ def generate_choice_curves(dataTrials, simulTrials, pdfPages,
 
     stdProbLeftChosen = np.zeros(numValueDiffs)
     probLeftChosen = np.zeros(numValueDiffs)
-    for i in xrange(numValueDiffs):
+    for i in range(numValueDiffs):
         probLeftChosen[i] = countLeftChosen[i] / countTotal[i]
         stdProbLeftChosen[i] = np.sqrt(
             (probLeftChosen[i] * (1 - probLeftChosen[i])) / countTotal[i])
 
     plt.errorbar(valueDiffRange, probLeftChosen, yerr=stdProbLeftChosen,
-                 color=colors[5], label="Simulations")
-    plt.xlabel("Value difference")
-    plt.ylabel("P(choose left)")
-    plt.legend(loc="upper left")
+                 color=colors[5], label=u"Simulations")
+    plt.xlabel(u"Value difference")
+    plt.ylabel(u"P(choose left)")
+    plt.legend(loc=u"upper left")
 
     pdfPages.savefig(fig)
     plt.close(fig)
@@ -437,7 +445,7 @@ def generate_rt_curves(dataTrials, simulTrials, pdfPages,
 
     colors = cm.rainbow(np.linspace(0, 1, 9))
     fig = plt.figure()
-    plt.errorbar(valueDiffRange, meanRTs, yerr=stdRTs, label="Data",
+    plt.errorbar(valueDiffRange, meanRTs, yerr=stdRTs, label=u"Data",
                  color=colors[0])
 
     RTsPerValueDiff = dict()
@@ -456,11 +464,11 @@ def generate_rt_curves(dataTrials, simulTrials, pdfPages,
         stdRTs[idx] = (np.std(RTsPerValueDiff[valueDiff]) /
                        np.sqrt(len(RTsPerValueDiff[valueDiff])))
 
-    plt.errorbar(valueDiffRange, meanRTs, yerr=stdRTs, label="Simulations",
+    plt.errorbar(valueDiffRange, meanRTs, yerr=stdRTs, label=u"Simulations",
                  color=colors[5])
-    plt.xlabel("Value difference")
-    plt.ylabel("Response time")
-    plt.legend(loc="upper left")
+    plt.xlabel(u"Value difference")
+    plt.ylabel(u"Response time")
+    plt.legend(loc=u"upper left")
     
     pdfPages.savefig(fig)
     plt.close(fig)

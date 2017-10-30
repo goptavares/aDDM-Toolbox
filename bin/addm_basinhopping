@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+"""
+Copyright (C) 2017, California Institute of Technology
+
+This file is part of addm_toolbox.
+
+addm_toolbox is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+addm_toolbox is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
+
+---
+
+Script: addm_basinhopping
+Author: Gabriela Tavares, gtavares@caltech.edu
+
+Maximum likelihood estimation procedure for the attentional drift-diffusion
+model (aDDM), using a Basinhopping algorithm to search the parameter space.
+Data from all subjects is pooled such that a single set of optimal parameters
+is estimated.
+"""
+
+from __future__ import absolute_import
+
+import argparse
+
+from addm_toolbox import basinhopping_optimize
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument(u"--initial-d", type=float, default=0.005,
+                    help=u"Initial value for parameter d.")
+parser.add_argument(u"--initial-sigma", type=float, default=0.05,
+                    help=u"Initial value for parameter sigma.")
+parser.add_argument(u"--initial-theta", type=float, default=0.5,
+                    help=u"Initial value for parameter theta.")
+parser.add_argument(u"--lower-bound-d", type=float, default=0.0001,
+                    help=u"Lower search bound for parameter d.")
+parser.add_argument(u"--upper-bound-d", type=float, default=0.09,
+                    help=u"Upper search bound for parameter d.")
+parser.add_argument(u"--lower-bound-sigma", type=float, default=0.001,
+                    help=u"Lower search bound for parameter sigma.")
+parser.add_argument(u"--upper-bound-sigma", type=float, default=0.9,
+                    help=u"Upper search bound for parameter sigma.")
+parser.add_argument(u"--lower-bound-theta", type=float, default=0,
+                    help=u"Lower search bound for parameter theta.")
+parser.add_argument(u"--upper-bound-theta", type=float, default=1,
+                    help=u"Upper search bound for parameter theta.")
+parser.add_argument(u"--expdata-file-name", type=str, default=None,
+                    help=u"Path of experimental data file.")
+parser.add_argument(u"--fixations-file-name", type=str, default=None,
+                    help=u"Path of fixations file.")
+parser.add_argument(u"--trials-per-subject", type=int, default=100,
+                    help=u"Number of trials from each subject to be used "
+                    "in the analysis; if smaller than 1, all trials are "
+                    "used.")
+parser.add_argument(u"--num-iterations", type=int, default=100,
+                    help=u"Number of basin hopping iterations.")
+parser.add_argument(u"--step-size", type=float, default=0.001,
+                    help=u"Step size for use in the random displacement "
+                    "of the basin hopping algorithm.")
+parser.add_argument(u"--subject-ids", nargs=u"+", type=str, default=[],
+                    help=u"List of subject ids. If not provided, all "
+                    "existing subjects will be used.")
+parser.add_argument(u"--verbose", default=False, action=u"store_true",
+                    help=u"Increase output verbosity.")
+
+args = parser.parse_args()
+basinhopping_optimize.main(args.initial_d, args.initial_sigma,
+                           args.initial_theta, args.lower_bound_d,
+                           args.upper_bound_d, args.lower_bound_sigma,
+                           args.upper_bound_sigma, args.lower_bound_theta,
+                           args.upper_bound_theta, args.expdata_file_name,
+                           args.fixations_file_name, args.trials_per_subject,
+                           args.num_iterations, args.step_size,
+                           args.subject_ids, args.verbose)

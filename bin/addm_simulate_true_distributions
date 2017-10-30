@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+
+"""
+Copyright (C) 2017, California Institute of Technology
+
+This file is part of addm_toolbox.
+
+addm_toolbox is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+addm_toolbox is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with addm_toolbox. If not, see <http://www.gnu.org/licenses/>.
+
+---
+
+Script: addm_simulate_true_distributions
+Author: Gabriela Tavares, gtavares@caltech.edu
+
+Generates aDDM simulations with an approximation of the "true" fixation
+distributions. When creating fixation distributions, we leave out the last
+fixation from each trial, since these are interrupted when a decision is made
+and therefore their duration should not be sampled. Since long fixations are
+more likely to be interrupted, they end up not being included in the
+distributions. This means that the distributions we use to sample fixations are
+biased towards shorter fixations than the "true" distributions. Here we use the
+uninterrupted duration of last fixations to approximate the "true"
+distributions of fixations. We do this by dividing each bin in the empirical
+fixation distributions by the probability of a fixation in that bin being the
+last fixation in the trial. The "true" distributions estimated are then used to
+generate aDDM simulations.
+"""
+
+from __future__ import absolute_import
+
+import argparse
+
+from addm_toolbox import simulate_addm_true_distributions
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument(u"--d", type=float, default=0.004,
+                    help=u"aDDM parameter for generating simulations.")
+parser.add_argument(u"--sigma", type=float, default=0.07,
+                    help=u"aDDM parameter for generating simulations.")
+parser.add_argument(u"--theta", type=float, default=0.25,
+                    help=u"aDDM parameter for generating simulations.")
+parser.add_argument(u"--trials-file-name", type=str, default=None,
+                    help=u"Path of trial conditions file.")
+parser.add_argument(u"--expdata-file-name", type=str, default=None,
+                    help=u"Path of experimental data file.")
+parser.add_argument(u"--fixations-file-name", type=str, default=None,
+                    help=u"Path of fixations file.")
+parser.add_argument(u"--bin-step", type=int, default=10,
+                    help=u"Size of the bin step to be used in the "
+                    "fixation distributions.")
+parser.add_argument(u"--max-fix-bin", type=int, default=3000,
+                    help=u"Maximum fixation length to be used in the "
+                    "fixation distributions.")
+parser.add_argument(u"--num-fix-dists", type=int, default=3,
+                    help=u"Number of fixation distributions.")
+parser.add_argument(u"--num-iterations", type=int, default=3,
+                    help=u"Number of iterations used to approximate the "
+                    "true distributions.")
+parser.add_argument(u"--simulations-per-condition", type=int,
+                    default=800, help=u"Number of simulations to be generated "
+                    "per trial condition.")
+parser.add_argument(u"--subject-ids", nargs=u"+", type=str, default=[],
+                    help=u"List of subject ids. If not provided, all "
+                    "existing subjects will be used.")
+parser.add_argument(u"--save-simulations", default=False,
+                    action=u"store_true", help=u"Save simulations to CSV.")
+parser.add_argument(u"--verbose", default=False, action=u"store_true",
+                    help=u"Increase output verbosity.")
+
+args = parser.parse_args()
+simulate_addm_true_distributions.main(args.d, args.sigma, args.theta,
+                                      args.trials_file_name,
+                                      args.expdata_file_name,
+                                      args.fixations_file_name,
+                                      args.bin_step, args.max_fix_bin,
+                                      args.num_fix_dists, args.num_iterations,
+                                      args.simulations_per_condition,
+                                      args.subject_ids, args.save_simulations,
+                                      args.verbose)

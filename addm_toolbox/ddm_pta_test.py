@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -28,78 +28,72 @@ generated using specific parameters for the model. These parameters are then
 recovered through a maximum a posteriori estimation procedure.
 """
 
-import argparse
-import os
+from __future__ import absolute_import, division
 
-from ddm import DDMTrial, DDM
-from util import load_trial_conditions_from_csv
+import pkg_resources
+
+from builtins import range, str
+
+from .ddm import DDMTrial, DDM
+from .util import load_trial_conditions_from_csv
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--num-threads", type=int, default=9,
-                        help="Size of the thread pool.")
-    parser.add_argument("--trials-per-condition", type=int, default=800,
-                        help="Number of artificial data trials to be "
-                        "generated per trial condition.")
-    parser.add_argument("--d", type=float, default=0.006,
-                        help="DDM parameter for generating artificial data.")
-    parser.add_argument("--sigma", type=float, default=0.08,
-                        help="DDM parameter for generating artificial data.")
-    parser.add_argument("--range-d", nargs="+", type=float,
-                        default=[0.005, 0.006, 0.007],
-                        help="Search range for parameter d.")
-    parser.add_argument("--range-sigma", nargs="+", type=float,
-                        default=[0.065, 0.08, 0.095],
-                        help="Search range for parameter sigma.")
-    parser.add_argument("--trials-file-name", type=str,
-                        default=os.path.join(
-                            os.path.dirname(os.path.realpath(__file__)),
-                            "test_data/test_trial_conditions.csv"),
-                        help="Name of trial conditions file.")
-    parser.add_argument("--verbose", default=False, action="store_true",
-                        help="Increase output verbosity.")
-    args = parser.parse_args()
-
+def main(d, sigma, rangeD, rangeSigma, trialsFileName=None,
+         trialsPerCondition=800, numThreads=9, verbose=False):
+    """
+    Args:
+      d: float, DDM parameter for generating artificial data.
+      sigma: float, DDM parameter for generating artificial data.
+      rangeD: list of floats, search range for parameter d.
+      rangeSigma: list of floats, search range for parameter sigma.
+      trialsFileName: string, path of trial conditions file.
+      trialsPerCondition: int, number of artificial data trials to be
+          generated per trial condition.
+      numThreads: int, size of the thread pool.
+      verbose: boolean, whether or not to increase output verbosity.
+    """
     # Load trial conditions.
-    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
+    if not trialsFileName:
+        trialsFileName = pkg_resources.resource_filename(
+            u"addm_toolbox", u"test_data/test_trial_conditions.csv")
+    trialConditions = load_trial_conditions_from_csv(trialsFileName)
 
     # Generate artificial data.
-    model = DDM(args.d, args.sigma)
+    model = DDM(d, sigma)
     trials = list()
     for (valueLeft, valueRight) in trialConditions:
-        for t in xrange(args.trials_per_condition):
+        for t in range(trialsPerCondition):
             try:
                 trials.append(model.simulate_trial(valueLeft, valueRight))
             except:
-                print("An exception occurred while generating artificial " +
-                      "trial " + str(t) + " for condition (" + str(valueLeft) +
-                      ", " + str(valueRight) + ").")
+                print(u"An exception occurred while generating artificial "
+                      "trial " + str(t) + u" for condition (" +
+                      str(valueLeft) + u", " + str(valueRight) + u").")
                 raise
 
     # Get likelihoods for all models and all artificial trials.
-    numModels = len(args.range_d) * len(args.range_sigma)
+    numModels = len(rangeD) * len(rangeSigma)
     likelihoods = dict()
     models = list()
     posteriors = dict()
-    for d in args.range_d:
-        for sigma in args.range_sigma:
+    for d in rangeD:
+        for sigma in rangeSigma:
             model = DDM(d, sigma)
-            if args.verbose:
-                print("Computing likelihoods for model " +
-                      str(model.params) + "...")
+            if verbose:
+                print(u"Computing likelihoods for model " + str(model.params) +
+                      u"...")
             try:
                 likelihoods[model.params] = model.parallel_get_likelihoods(
-                    trials, numThreads=args.num_threads)
+                    trials, numThreads=numThreads)
             except:
-                print("An exception occurred during the likelihood " +
-                      "computations for model " + str(model.params) + ".")
+                print(u"An exception occurred during the likelihood "
+                      "computations for model " + str(model.params) + u".")
                 raise
             models.append(model)
-            posteriors[model.params] = 1. / numModels
+            posteriors[model.params] = 1 / numModels
 
     # Compute the posteriors.
-    for t in xrange(len(trials)):
+    for t in range(len(trials)):
         # Get the denominator for normalizing the posteriors.
         denominator = 0
         for model in models:
@@ -114,12 +108,8 @@ def main():
             posteriors[model.params] = (likelihoods[model.params][t] *
                 prior / denominator)
 
-    if args.verbose:
+    if verbose:
         for model in models:
-            print("P" + str(model.params) +  " = " +
+            print(u"P" + str(model.params) +  u" = " +
                   str(posteriors[model.params]))
-        print("Sum: " + str(sum(posteriors.values())))
-
-
-if __name__ == "__main__":
-    main()
+        print(u"Sum: " + str(sum(list(posteriors.values()))))

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -37,133 +37,125 @@ last fixation in the trial. The "true" distributions estimated are then used to
 generate aDDM simulations.
 """
 
-import argparse
-import numpy as np
-import os
+from __future__ import absolute_import, division
 
+import numpy as np
+import pkg_resources
+
+from builtins import range, str, zip
 from datetime import datetime
 
-from addm import aDDM
-from util import (load_trial_conditions_from_csv, load_data_from_csv,
-                  get_empirical_distributions, save_simulations_to_csv,
-                  convert_item_values)
+from .addm import aDDM
+from .util import (load_trial_conditions_from_csv, load_data_from_csv,
+                   get_empirical_distributions, save_simulations_to_csv,
+                   convert_item_values)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--subject-ids", nargs="+", type=str, default=[],
-                        help="List of subject ids. If not provided, all "
-                        "existing subjects will be used.")
-    parser.add_argument("--bin-step", type=int, default=10,
-                        help="Size of the bin step to be used in the fixation "
-                        "distributions.")
-    parser.add_argument("--max-fix-bin", type=int, default=3000,
-                        help="Maximum fixation length to be used in the "
-                        "fixation distributions.")
-    parser.add_argument("--num-fix-dists", type=int, default=3,
-                        help="Number of fixation distributions.")
-    parser.add_argument("--num-iterations", type=int, default=3,
-                        help="Number of iterations used to approximate the "
-                        "true distributions.")
-    parser.add_argument("--simulations-per-condition", type=int,
-                        default=800, help="Number of artificial data trials "
-                        "to be generated per trial condition.")
-    parser.add_argument("--d", type=float, default=0.004,
-                        help="aDDM parameter for generating simulations.")
-    parser.add_argument("--sigma", type=float, default=0.07,
-                        help="aDDM parameter for generating simulations.")
-    parser.add_argument("--theta", type=float, default=0.25,
-                        help="aDDM parameter for generating simulations.")
-    parser.add_argument("--trials-file-name", type=str,
-                        default=os.path.join(
-                            os.path.dirname(os.path.realpath(__file__)),
-                            "data/trial_conditions.csv"),
-                        help="Name of trial conditions file.")
-    parser.add_argument("--expdata-file-name", type=str, 
-                        default=os.path.join(os.path.dirname(
-                            os.path.realpath(__file__)), "data/expdata.csv"),
-                        help="Name of experimental data file.")
-    parser.add_argument("--fixations-file-name", type=str,
-                        default=os.path.join(os.path.dirname(
-                            os.path.realpath(__file__)), "data/fixations.csv"),
-                        help="Name of fixations file.")
-    parser.add_argument("--save-simulations", default=False,
-                        action="store_true", help="Save simulations to CSV.")
-    parser.add_argument("--verbose", default=False, action="store_true",
-                        help="Increase output verbosity.")
-    args = parser.parse_args()
 
+def main(d, sigma, theta, trialsFileName=None, expdataFileName=None,
+         fixationsFileName=None, binStep=10, maxFixBin=3000, numFixDists=3,
+         numIterations=3, simulationsPerCondition=800, subjectIds=[],
+         saveSimulations=False, verbose=False):
+    """
+    Args:
+      d: float, aDDM parameter for generating artificial data.
+      sigma: float, aDDM parameter for generating artificial data.
+      theta: float, aDDM parameter for generating artificial data.
+      trialsFileName: string, path of trial conditions file.
+      expdataFileName: string, path of experimental data file.
+      fixationsFileName: string, path of fixations file.
+      binStep: int, size of the bin step to be used in the fixation
+          distributions.
+      maxFixBin: int, maximum fixation length to be used in the fixation
+          distributions.
+      numFixDists: int, number of fixation distributions.
+      numIterations: int, number of iterations used to approximate the true
+          distributions.
+      simulationsPerCondition: int, number of simulations to be generated per
+          trial condition.
+      subjectIds: list of strings corresponding to the subject ids. If not
+          provided, all existing subjects will be used.
+      saveFigures: boolean, whether or not save figures comparing choice and RT
+          curves for data and simulations.
+      verbose: boolean, whether or not to increase output verbosity.
+    """
     # Load trial conditions.
-    trialConditions = load_trial_conditions_from_csv(args.trials_file_name)
-
-    # Time bins to be used in the fixation distributions.
-    bins = range(args.bin_step, args.max_fix_bin + args.bin_step,
-                 args.bin_step)
+    if not trialsFileName:
+        trialsFileName = pkg_resources.resource_filename(
+            u"addm_toolbox", u"data/trial_conditions.csv")
+    trialConditions = load_trial_conditions_from_csv(trialsFileName)
 
     # Load experimental data from CSV file.
-    if args.verbose:
-        print("Loading experimental data...")
-    data = load_data_from_csv(
-        args.expdata_file_name, args.fixations_file_name,
-        convertItemValues=convert_item_values)
+    if verbose:
+        print(u"Loading experimental data...")
+    if not expdataFileName:
+        expdataFileName = pkg_resources.resource_filename(
+            u"addm_toolbox", u"data/expdata.csv")
+    if not fixationsFileName:
+        fixationsFileName = pkg_resources.resource_filename(
+            u"addm_toolbox", u"data/fixations.csv")
+    data = load_data_from_csv(expdataFileName, fixationsFileName,
+                              convertItemValues=convert_item_values)
+
+    # Time bins to be used in the fixation distributions.
+    bins = list(range(binStep, maxFixBin + binStep, binStep))
 
     # Get fixation distributions from even trials.
-    if args.verbose:
-        print("Getting fixation distributions from even trials...")
-    subjectIds = args.subject_ids if args.subject_ids else data.keys()
+    if verbose:
+        print(u"Getting fixation distributions from even trials...")
+    subjectIds = ([str(subj) for subj in subjectIds] if subjectIds
+                  else list(data))
     fixationData = get_empirical_distributions(
         data, subjectIds=subjectIds, useOddTrials=False, useEvenTrials=True)
 
     # Create original empirical distributions of fixations.
     empiricalFixDist = dict()
-    for numFix in xrange(1, args.num_fix_dists + 1):
+    for numFix in range(1, numFixDists + 1):
         empiricalFixDist[numFix] = dict()
-        for valueDiff in xrange(-3,4):
+        for valueDiff in range(-3,4):
             empiricalFixDist[numFix][valueDiff] = dict()
             for bin in bins:
                 empiricalFixDist[numFix][valueDiff][bin] = 0
             for fixTime in fixationData.fixations[numFix][valueDiff]:
-                bin = args.bin_step * min((fixTime // args.bin_step) + 1,
-                                          len(bins))
+                bin = binStep * min((fixTime // binStep) + 1, len(bins))
                 empiricalFixDist[numFix][valueDiff][bin] += 1
 
     # Normalize the distributions.
-    for numFix in xrange(1, args.num_fix_dists + 1):
-        for valueDiff in xrange(-3,4):
-            sumBins = sum(empiricalFixDist[numFix][valueDiff].values())
+    for numFix in range(1, numFixDists + 1):
+        for valueDiff in range(-3,4):
+            sumBins = sum(list(empiricalFixDist[numFix][valueDiff].values()))
             for bin in bins:
                 empiricalFixDist[numFix][valueDiff][bin] = (
-                    float(empiricalFixDist[numFix][valueDiff][bin]) /
-                    float(sumBins))
+                    empiricalFixDist[numFix][valueDiff][bin] / sumBins)
 
-    model = aDDM(args.d, args.sigma, args.theta)
-    for it in xrange(args.num_iterations):
-        if args.verbose:
-            print("Iteration " + str(it + 1) + "/" + str(args.num_iterations))
+    model = aDDM(d, sigma, theta)
+    for it in range(numIterations):
+        if verbose:
+            print(u"Iteration " + str(it + 1) + u"/" + str(numIterations))
         # Generate simulations using the current empirical distributions and
         # the model parameters.
         simulTrials = list()
         for (valueLeft, valueRight) in trialConditions:
-            for s in range(args.simulations_per_condition):
+            for s in range(simulationsPerCondition):
                 try:
                     simulTrials.append(
                         model.simulate_trial(
                             valueLeft, valueRight, fixationData,
-                            numFixDists=args.num_fix_dists,
+                            numFixDists=numFixDists,
                             fixationDist=empiricalFixDist, timeBins=bins))
                 except:
-                    print("An exception occurred while generating " +
-                          "artificial trial " + str(s) + " for condition (" +
-                          str(valueLeft) + ", " + str(valueRight) +
-                          ") (iteration " + str(it) + ").")
+                    print(u"An exception occurred while generating "
+                          "artificial trial " + str(s) + u" for condition (" +
+                          str(valueLeft) + u", " + str(valueRight) +
+                          u") (iteration " + str(it) + u").")
                     raise
 
         countLastFix = dict()
         countTotal = dict()
-        for numFix in xrange(1, args.num_fix_dists + 1):
+        for numFix in range(1, numFixDists + 1):
             countLastFix[numFix] = dict()
             countTotal[numFix] = dict()
-            for valueDiff in xrange(-3,4):
+            for valueDiff in range(-3,4):
                 countLastFix[numFix][valueDiff] = dict()
                 countTotal[numFix][valueDiff] = dict()
                 for bin in bins:
@@ -177,11 +169,12 @@ def main():
                 2: trial.valueRight - trial.valueLeft}
             lastItemFixSkipped = False
             numFix = 1
-            for item, time in zip(trial.fixItem[::-1], trial.fixTime[::-1]):
+            for item, time in zip(reversed(trial.fixItem),
+                                  reversed(trial.fixTime)):
                 if not lastItemFixSkipped and (item == 1 or item == 2):
                     # Count last fixation (only if it was to an item).
-                    bin = args.bin_step * min(
-                        (trial.uninterruptedLastFixTime // args.bin_step) + 1,
+                    bin = binStep * min(
+                        (trial.uninterruptedLastFixTime // binStep) + 1,
                         len(bins))
                     vDiff = fixUnfixValueDiffs[item]
                     countLastFix[numFix][vDiff][bin] += 1
@@ -190,41 +183,40 @@ def main():
                     continue
                 if item == 1 or item == 2:
                     # Count item fixations other than the last one.
-                    bin = args.bin_step * min(
-                        (time // args.bin_step) + 1, len(bins))
+                    bin = binStep * min((time // binStep) + 1, len(bins))
                     vDiff = fixUnfixValueDiffs[item]
                     countTotal[numFix][vDiff][bin] += 1
-                    if numFix < args.num_fix_dists:
+                    if numFix < numFixDists:
                         numFix += 1
 
         # Obtain true distributions of fixations.
         trueFixDist = dict()
-        for numFix in xrange(1, args.num_fix_dists + 1):
+        for numFix in range(1, numFixDists + 1):
             trueFixDist[numFix] = dict()
-            for valueDiff in xrange(-3,4):
+            for valueDiff in range(-3,4):
                 trueFixDist[numFix][valueDiff] = dict()
                 for bin in bins:
                     probNotLastFix = 1
                     if countTotal[numFix][valueDiff][bin] > 0:
                         probNotLastFix = 1 - (
-                            float(countLastFix[numFix][valueDiff][bin]) /
-                            float(countTotal[numFix][valueDiff][bin]))
+                            countLastFix[numFix][valueDiff][bin] /
+                            countTotal[numFix][valueDiff][bin])
                     if probNotLastFix == 0:
                         trueFixDist[numFix][valueDiff][bin] = (
                             empiricalFixDist[numFix][valueDiff][bin])
                     else:
                         trueFixDist[numFix][valueDiff][bin] = (
-                            float(empiricalFixDist[numFix][valueDiff][bin]) /
-                            float(probNotLastFix))
+                            empiricalFixDist[numFix][valueDiff][bin] /
+                            probNotLastFix)
         # Normalize the distributions.
-        for numFix in xrange(1, args.num_fix_dists + 1):
-            for valueDiff in xrange(-3,4):
-                sumBins = sum(trueFixDist[numFix][valueDiff].values())
+        for numFix in range(1, numFixDists + 1):
+            for valueDiff in range(-3,4):
+                sumBins = sum(list(trueFixDist[numFix][valueDiff].values()))
                 if sumBins > 0:
                     for bin in bins:
                         trueFixDist[numFix][valueDiff][bin] = (
-                            float(trueFixDist[numFix][valueDiff][bin]) /
-                            float(sumBins))
+                            trueFixDist[numFix][valueDiff][bin] /
+                            sumBins)
 
         # Update empirical distributions using the current true distributions.
         empiricalFixDist = trueFixDist
@@ -232,26 +224,22 @@ def main():
     # Generate final simulations.
     simulTrials = list()
     for (valueLeft, valueRight) in trialConditions:
-        for s in range(args.simulations_per_condition):
+        for s in range(simulationsPerCondition):
             try:
                 simulTrials.append(
                     model.simulate_trial(
                         valueLeft, valueRight, fixationData,
-                        numFixDists=args.num_fix_dists,
+                        numFixDists=numFixDists,
                         fixationDist=empiricalFixDist, timeBins=bins))
             except:
-                print("An exception occurred while generating " +
-                      "artificial trial " + str(s) + " for condition (" +
-                      str(valueLeft) + ", " + str(valueRight) +
-                      ") in the final simulations generation.")
+                print(u"An exception occurred while generating "
+                      "artificial trial " + str(s) + u" for condition (" +
+                      str(valueLeft) + u", " + str(valueRight) +
+                      u") in the final simulations generation.")
                 raise
 
-    if args.save_simulations:
-        currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    if saveSimulations:
+        currTime = datetime.now().strftime(u"%Y-%m-%d_%H:%M:%S")
         save_simulations_to_csv(simulTrials,
-                                "simul_expdata_" + currTime + ".csv",
-                                "simul_fixations_" + currTime + ".csv")
-
-
-if __name__ == "__main__":
-    main()
+                                u"simul_expdata_" + currTime + u".csv",
+                                u"simul_fixations_" + currTime + u".csv")

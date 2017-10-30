@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Copyright (C) 2017, California Institute of Technology
@@ -27,15 +27,18 @@ Implementation of the attentional drift-diffusion model (aDDM), as described by
 Krajbich et al. (2010).
 """
 
+from __future__ import absolute_import, division
+
 import matplotlib.pyplot as plt
 import numpy as np
 
+from builtins import range, str, zip
 from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing import Pool
 from scipy.stats import norm
 
-from ddm import DDMTrial, DDM
+from .ddm import DDMTrial, DDM
 
 
 class FixationData:
@@ -61,9 +64,10 @@ class FixationData:
               difference. If 'fixation', they are indexed by type and by the
               value difference between the fixated and unfixated items.
         """
-        if (fixDistType is not "simple" and fixDistType is not "difficulty" and
-            fixDistType is not "fixation"):
-            raise RuntimeError("Argument fixDistType must be one of {simple, "
+        fixDistType = str(fixDistType)
+        if (fixDistType != u"simple" and fixDistType != u"difficulty"
+            and fixDistType != u"fixation"):
+            raise RuntimeError(u"Argument fixDistType must be one of {simple, "
                                "difficulty, fixation}")
         self.probFixLeftFirst = probFixLeftFirst
         self.latencies = latencies
@@ -178,7 +182,7 @@ class aDDM(DDM):
         for fTime in correctedFixTime:
             numTimeSteps += int(fTime // timeStep)
         if numTimeSteps < 1:
-            raise RuntimeError("Trial response time is smaller than time "
+            raise RuntimeError(u"Trial response time is smaller than time "
                                "step.")
         numTimeSteps += 1
 
@@ -186,13 +190,13 @@ class aDDM(DDM):
         decay = 0  # decay = 0 means barriers are constant.
         barrierUp = self.barrier * np.ones(numTimeSteps)
         barrierDown = -self.barrier * np.ones(numTimeSteps)
-        for t in xrange(1, numTimeSteps):
-            barrierUp[t] = float(self.barrier) / float(1 + (decay * t))
-            barrierDown[t] = float(-self.barrier) / float(1 + (decay * t))
+        for t in range(1, numTimeSteps):
+            barrierUp[t] = self.barrier / (1 + (decay * t))
+            barrierDown[t] = -self.barrier / (1 + (decay * t))
 
         # Obtain correct state step.
-        halfNumStateBins = np.ceil(self.barrier / float(approxStateStep))
-        stateStep = self.barrier / float(halfNumStateBins + 0.5)
+        halfNumStateBins = np.ceil(self.barrier / approxStateStep)
+        stateStep = self.barrier / (halfNumStateBins + 0.5)
 
         # The vertical axis is divided into states.
         states = np.arange(barrierDown[0] + (stateStep / 2.),
@@ -227,13 +231,13 @@ class aDDM(DDM):
                 mean = self.d * (trial.valueLeft -
                                  (self.theta * trial.valueRight))
             elif fItem == 2:  # Subject is looking right.
-                mean = self.d * (-trial.valueRight +
-                                 (self.theta * trial.valueLeft))
+                mean = self.d * ((self.theta * trial.valueLeft) -
+                                 trial.valueRight)
             else:
                 mean = 0
 
             # Iterate over the time interval of this fixation.
-            for t in xrange(int(fTime // timeStep)):
+            for t in range(int(fTime // timeStep)):
                 # Update the probability of the states that remain inside the
                 # barriers. The probability of being in state B is the sum,
                 # over all states A, of the probability of being in A at the
@@ -264,10 +268,9 @@ class aDDM(DDM):
                 # Renormalize to cope with numerical approximations.
                 sumIn = np.sum(prStates[:, time-1])
                 sumCurrent = np.sum(prStatesNew) + tempUpCross + tempDownCross
-                prStatesNew = (prStatesNew * float(sumIn)) / float(sumCurrent)
-                tempUpCross = (tempUpCross * float(sumIn)) / float(sumCurrent)
-                tempDownCross = ((tempDownCross * float(sumIn)) /
-                                 float(sumCurrent))
+                prStatesNew = prStatesNew * sumIn / sumCurrent
+                tempUpCross = tempUpCross * sumIn / sumCurrent
+                tempDownCross = tempDownCross * sumIn / sumCurrent
 
                 # Update the probabilities of each state and the probabilities
                 # of crossing each barrier at this timestep.
@@ -288,8 +291,8 @@ class aDDM(DDM):
                 likelihood = probDownCrossing[-1]
 
         if plotTrial:
-            currTime = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            fileName = "addm_trial_" + currTime + ".pdf"
+            currTime = datetime.now().strftime(u"%Y-%m-%d_%H:%M:%S")
+            fileName = u"addm_trial_" + currTime + u".pdf"
             self.plot_trial(trial.valueLeft, trial.valueRight, timeStep,
                             numTimeSteps, prStates, probUpCrossing,
                             probDownCrossing, fileName=fileName)
@@ -360,7 +363,7 @@ class aDDM(DDM):
         # Sample and iterate over the latency for this trial.
         latency = np.random.choice(fixationData.latencies)
         remainingNDT = self.nonDecisionTime - latency
-        for t in xrange(int(latency // timeStep)):
+        for t in range(int(latency // timeStep)):
             # Sample the change in RDV from the distribution.
             RDV += np.random.normal(0, self.sigma)
 
@@ -406,14 +409,14 @@ class aDDM(DDM):
                 prevFixatedItem = currFixLocation
                 # Sample the duration of this item fixation.
                 if not fixationDist:
-                    if fixationData.fixDistType == "simple":
+                    if fixationData.fixDistType == u"simple":
                         currFixTime = np.random.choice(
                             fixationData.fixations[fixNumber])
-                    elif fixationData.fixDistType == "difficulty":
+                    elif fixationData.fixDistType == u"difficulty":
                         valueDiff = np.absolute(valueLeft - valueRight)
                         currFixTime = np.random.choice(
                             fixationData.fixations[fixNumber][valueDiff])
-                    elif fixationData.fixDistType == "fixation":
+                    elif fixationData.fixDistType == u"fixation":
                         valueDiff = fixUnfixValueDiffs[currFixLocation]
                         currFixTime = np.random.choice(
                             fixationData.fixations[fixNumber][valueDiff])
@@ -421,8 +424,8 @@ class aDDM(DDM):
                     valueDiff = fixUnfixValueDiffs[currFixLocation]
                     currFixTime = np.random.choice(
                         timeBins, p=[value for (key, value) in 
-                        sorted(
-                            fixationDist[fixNumber][valueDiff].items())])
+                        sorted(list(
+                            fixationDist[fixNumber][valueDiff].items()))])
                 if fixNumber < numFixDists:
                     fixNumber += 1
             else:
@@ -433,7 +436,7 @@ class aDDM(DDM):
 
             # Iterate over the remaining non-decision time.
             if remainingNDT > 0:
-                for t in xrange(int(remainingNDT // timeStep)):
+                for t in range(int(remainingNDT // timeStep)):
                     # Sample the change in RDV from the distribution.
                     RDV += np.random.normal(0, self.sigma)
 
@@ -459,7 +462,7 @@ class aDDM(DDM):
             remainingNDT -= currFixTime
 
             # Iterate over the duration of the current fixation.
-            for t in xrange(int(remainingFixTime // timeStep)):
+            for t in range(int(remainingFixTime // timeStep)):
                 # We use a distribution to model changes in RDV
                 # stochastically. The mean of the distribution (the change
                 # most likely to occur) is calculated from the model
